@@ -2,6 +2,14 @@
 
 System Builder list
 	Catalyst
+
+		Sinit
+			Include localbuild
+			Include catalyst
+				Include stage selection
+				Include stageX check existence
+			Include precompiled stage3
+
 		Include script to manage catalyst stage1,2,3 builds
 		Include script to create a portage custom stateless profile
 		Include script to generate the stage1,2,3 spec files
