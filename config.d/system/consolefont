@@ -5,6 +5,9 @@
 # console.  You can find a good selection of fonts in /usr/share/consolefonts;
 # you shouldn't specify the trailing ".psf.gz", just the font name below.
 # To use the default console font, comment out the CONSOLEFONT setting below.
+# Eurlatgr is recommended, since it includes Latin+Greek fonts. 
+# Remember:Eurlatgr is not the official consolefont which Gentoo includes on the
+# stage3 tarballs
 consolefont="eurlatgr"
 
 # consoletranslation is the charset map file to use.  Leave commented to use
