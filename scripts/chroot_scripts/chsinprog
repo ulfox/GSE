@@ -1,4 +1,4 @@
-# Don't edit this file manually. It controlls the flow of builder's process
+# Don't edit this file manually. It controls the flow of the chroot stage
 WEBRSYNC=0
 BOOTSTRAP=0
 REBUILD=0
