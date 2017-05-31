@@ -23,4 +23,6 @@ case $1 in
 		exit 1;;
 	5)
 		echo -e "[\e[31m*\e[0m] Failed getting version"
+	6)
+		echo -e "[\e[31m*\e[0m] FATAL"
 esac
