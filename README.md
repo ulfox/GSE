@@ -54,7 +54,6 @@ A future thought would be creating a service inside the machine which will be di
      - /boot/
      - /boot/logs
      - /user-data/ 3*
-<<<<<<< HEAD
   - /user-data/persistent
     - {local,rmount}
         - /local/{root,home,mnt,media}
@@ -62,7 +61,6 @@ A future thought would be creating a service inside the machine which will be di
 - tmpfs
      - /user-data/tmpfs
       - {tmp,var,etc}
-=======
 	- /user-data/persistent
 		- {local,rmount}
 	  		- /local/{root,home,mnt,media}
@@ -70,7 +68,6 @@ A future thought would be creating a service inside the machine which will be di
 - tmpfs
      - /user-data/tmpfs
      	- {tmp,var,etc}
->>>>>>> 47c93c45f8850c954111560b0da6f77dc251043b
      - /tmp
      - /var/tmp
 
