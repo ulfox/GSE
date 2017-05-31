@@ -3,6 +3,7 @@
 LC_COLLATE=C
 
 # GET LATEST PORTAGE SNAPSHOT, CREATE GSE PROFILE AND LAST INITIATE THE STAGE 1,2,3 BUILD SEQUENCE
+
 # storedir
 CATDIR=$(grep storedir "${CONFDIR}/system/catalyst/catalyst.conf" \
 | sed '/^#/ d' | awk -F '=' '{ print $2 }' | sed  -e "s_\"__g")
@@ -39,7 +40,7 @@ TARGETNAME="$(grep 'source_subpath' "${CONFDIR}/system/catalyst/stage1.spec" \
 | sed '/^#/ d' | awk -F ' ' '{ print $2 }' | sed  -e "s_\"__g" | awk -F '/' '{ print $2 }')"
 
 if [[ ! -e "${CATDIR}/builds/${TARGETPATH}/${TARGETNAME}.tar.bz2" ]]; then
-cp "${DISTDIR}/dists/${STAGE3TB}" "${CATDIR}/builds/${TARGETPATH}/${TARGETNAME}.tar.bz2"
+cp "${DISTDIR}/dists/${STAGE3TB}" "${CATDIR}/builds/${TARGETPATH}/stage3-${TARGETNAME}.tar.bz2"
 fi
 unset TARGETNAME
 unset TARGETPATH
@@ -98,6 +99,49 @@ chk_snap_f() {
 
 search_snap_f() {
 mapfile -t ARRAYSNAP < <(find /media/elab/workdir -name "*.tar.bz2")
+
+port_extr_f() {
+echo "Extracting snapshot"
+if [[ "${CATPORTDIR}" == '/usr/portage' && -n  "${CATPORTDIR}" ]]; then
+	:
+else
+rm -rf "${CATPORTDIR}/portage" && echo -e "[\e[32m*\e[0m] Purging local snapshot"
+fi
+
+tar xvjpf "${CATPORTDIR}/portage-latest.tar.bz2" -C "${CATPORTDIR}" >/dev/null 2>&1 \
+&& echo -e "[\e[32m*\e[0m] ALL GOOD" || echo -e "[\e[31m*\e[0m] AN ERROR OCCURRED"
+
+# GSE PROFILE DIRECTORIES AND FILES
+mkdir -p "${CATPORTDIR}/portage/profiles/gse"
+mkdir -p "${CATPORTDIR}/portage/profiles/defaults/linux/${ARCH}/13.0/gse"
+
+{ cp "${CONFDIR}/system/portage/profiles/parent-gse/eapi" \
+"${CATPORTDIR}/portage/profiles/gse/eapi"
+
+# MAKE.DEFAULTS
+cp "${CONFDIR}/system/portage/profiles/parent-gse/make.defaults" \
+"${CATPORTDIR}/portage/profiles/gse/make.defaults"
+
+# PACKAGE.USE
+cp "${CONFDIR}/system/portage/profiles/parent-gse/package.use" \
+"${CATPORTDIR}/portage/profiles/gse/package.use"
+
+# PACKAGE.USE.FORCE
+cp "${CONFDIR}/system/portage/profiles/parent-gse/package.use.force" \
+"${CATPORTDIR}/portage/profiles/gse/package.use.force"
+
+cp "${CONFDIR}/system/portage/profiles/child-gse/eapi" \
+"${CATPORTDIR}/portage/profiles/defaults/linux/${ARCH}/13.0/gse/eapi"
+
+# PARENT
+cp "${CONFDIR}/system/portage/profiles/child-gse/parent" \
+"${CATPORTDIR}/portage/profiles/defaults/linux/${ARCH}/13.0/gse/parent"; } \
+&& echo -e "[\e[32m*\e[0m] Creating profile" \
+&& echo "configured" > "${CATPORTDIR}/.confportage" \
+|| { echo -e "[\e[31m*\e[0m] Creating profile"; \
+sed -i '/created/d' "${CATPORTDIR}/.confportage"; exit 1; }
+# END OF GSE PROFILE
+}
 
 for i in "${ARRAYSNAP[@]}"; do
 	if [[ $(du -sh "$i" | awk -F ' ' '{print $1}' | sed 's/[^M]*//g') == M && -n $(echo "$i" | grep portage) && -z $(echo "$i" | grep "gcc") ]]; then
@@ -277,6 +321,20 @@ fi
 unset BRKVAR
 unset TARGETNAME
 
+tar_path_name_f() {
+TARGETPATH="$(grep 'source_subpath' "${CONFDIR}/system/catalyst/stage$1.spec" \
+| sed '/^#/ d' | awk -F ' ' '{ print $2 }')"
+
+
+TARGETNAME="$(grep 'source_subpath' "${CONFDIR}/system/catalyst/stage$1.spec" \
+| sed '/^#/ d' | awk -F ' ' '{ print $2 }' | sed  -e "s_\"__g" | awk -F '/' '{ print $2 }')"
+}
+
+tar_path_name_f 1
+unset TARGETPATH
+TARGETPATH="$(grep 'source_subpath' "${CONFDIR}/system/catalyst/stage$1.spec" \
+| sed '/^#/ d' | awk -F ' ' '{ print $2 }' | sed  -e "s_\"__g" | awk -F '/' '{ print $1}')"
+if [[ -e "${CATDIR}/builds/${TARGETPATH}/stage3-${TARGETNAME}.tar.bz2" || "$1" == s1 ]]; then
 # STAGE 1
 
 echo "Building stage1"
@@ -286,9 +344,15 @@ cat "${CONFDIR}/system/catalyst/stage1.spec" | sed '/^#/ d' | sed '/^\s*$/d' \
 
 catalyst -c "${CONFDIR}/system/catalyst/catalyst.conf" -f "${CATDIR}/.stage1.spec" \
 && print_inf 1 || { print_inf 2 && sinit_mon 8 && exit 1; }
+fi
 
+unset TARGETNAME
+unset TARGETPATH
+
+tar_path_name_f 2
+
+if [[ -e "${CATDIR}/builds/${TARGETPATH}/stage1-${TARGETNAME}.tar.bz2" || "$2" == "s2" ]]; then
 # STAGE 2
-
 echo "Building stage2"
 
 cat "${CONFDIR}/system/catalyst/stage2.spec" | sed '/^#/ d' | sed '/^\s*$/d' \
@@ -296,7 +360,14 @@ cat "${CONFDIR}/system/catalyst/stage2.spec" | sed '/^#/ d' | sed '/^\s*$/d' \
 
 catalyst -c "${CONFDIR}/system/catalyst/catalyst.conf" -f "${CATDIR}/.stage2.spec" \
 && print_inf 1 || { print_inf 2 && sinit_mon 8 && exit 1; }
+fi
 
+unset TARGETNAME
+unset TARGETPATH
+
+tar_path_name_f 3
+
+if [[ -e "${CATDIR}/builds/${TARGETPATH}/stage2-${TARGETNAME}.tar.bz2" || "$1" == "s3" ]]; then
 # STAGE 3
 
 echo "Building stage3"
@@ -307,7 +378,30 @@ cat "${CONFDIR}/system/catalyst/stage3.spec" | sed '/^#/ d' | sed '/^\s*$/d' \
 catalyst -c "${CONFDIR}/system/catalyst/catalyst.conf" -f "${CATDIR}/.stage3.spec" \
 && { BTWRK="${PWD}" && cd "${CATPORTDIR}" >/dev/null 2>&1}
 || { print_inf 2 && sinit_mon 8 && exit 1; }
+fi
 
+echo "The build was successful!"
+echo "Do you wish to gpg sign the stage3 tarball?"
+while true; do
+	echo "$i"
+	read -rp "Is this the snapshot? Y/N " YN
+	case "$YN" in
+		[yY][eE][sS]|[yY])
+			echo "Signing..."
+			gpg --sign "${CATDIR}/builds/${TARGETPATH}/stage2-${TARGETNAME}.tar.bz2" \
+			&& print_inf 1 || print_inf 2
+			echo "Returning back to parent..."
+			sleep 1
+			break;;
+		[nN][oO]|[nN])
+			echo "Returning back to parent..."
+			sleep 1
+			;;
+	esac
+done
+
+unset TARGETNAME
+unset TARGETPATH
 unset CATDIR
 unset CATPORTDIR
 unset CATPORTCACHEDIR
