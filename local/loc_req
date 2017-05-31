@@ -35,3 +35,5 @@ sys-devel/patch
 sys-block/parted
 dev-util/catalyst
 app-portage/eix
+sys-fs/dosfstools
+sys-fs/fuse
