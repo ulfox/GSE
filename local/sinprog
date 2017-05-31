@@ -1,4 +1,6 @@
-# Don't edit this file manually. It controlls the flow of builder's process
+# Don't edit this file manually. It controls the flow of builder's process
+# If you want to start again, please select START NEW when prompted during
+# the PartA: Fundamentals
 PARTA=0
 NEW=1
 KEY=1
