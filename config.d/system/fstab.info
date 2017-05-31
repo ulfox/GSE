@@ -1,3 +1,7 @@
+# This file realtes the filesystem's type of each device holding the related label
+# Example BOOT vfat will format the partition holding the label LABEL=BOOT with a vfat filesystem
+# This file, together with the fstab and devname.info are probably one of the most essential files
+# that the controller will be built on and use for booting.
 BOOT btrfs
 SYS btrfs
 USERDATA btrfs
