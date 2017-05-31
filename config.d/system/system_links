@@ -16,9 +16,8 @@
 # Example 3: overlay /etc/conf.d /user-data/persistent/conf.d /user-data/persistent/conf.d.work
 # Same as: overlay /merged overlay noauto,lowerdir=/etc/conf.d,uperdir=/user-data/persistent/conf.d,workdir=/user-data/persistent/conf.d.work 0 0
 #
-# Tmpfs options: tmpfs {source} S
-# Example 4: tmpfs /var/logs S=64M
+# Tmpfs options: tmpfs {source} opt
+# Example 4: tmpfs /var/logs nodev,nosuid,noexec,nodiratime,size=64M
 # Same as tmpfs /var/logs tmpfs nodev,nosuid,noexec,nodiratime,size=64M 0 0
 #
-# 
-# Don't modify the comment lines, or if you do, keep your entries below the next line.
+#
