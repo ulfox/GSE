@@ -1,5 +1,9 @@
 #!/bin/bash
 
+#
+# THIS SCRIPT PROVIDES A SIMPLE GUIDES CONFIGURATION FOR THE FSTAB
+#
+
 fs_opt() {
 	case $1 in
 		1)
