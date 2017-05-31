@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Configuration of make.conf
+# HERE MAKE.CONF IS CONFIGURED, BY EITHER AN AUTOMATIC METHOD OR BY A GUIDED METHOD
 [[ -z "${CONFDIR}" ]] && exit 1
 
 clear; while true; do
