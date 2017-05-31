@@ -45,6 +45,37 @@ fi
 unset TARGETNAME
 unset TARGETPATH
 
+port_prof_f() {
+# GSE PROFILE DIRECTORIES AND FILES
+mkdir -p "${CATDIR}/$1/portage/profiles/gse"
+mkdir -p "${CATDIR}/$1/portage/profiles/defaults/linux/${ARCH}/13.0/gse"
+
+{ cp "${CONFDIR}/system/portage/profiles/parent-gse/eapi" \
+"${CATDIR}/$1/portage/profiles/gse/eapi"
+
+# MAKE.DEFAULTS
+cp "${CONFDIR}/system/portage/profiles/parent-gse/make.defaults" \
+"${CATDIR}/$1/portage/profiles/gse/make.defaults"
+
+# PACKAGE.USE
+cp "${CONFDIR}/system/portage/profiles/parent-gse/package.use" \
+"${CATDIR}/$1/portage/profiles/gse/package.use"
+
+# PACKAGE.USE.FORCE
+cp "${CONFDIR}/system/portage/profiles/parent-gse/package.use.force" \
+"${CATDIR}/$1/portage/profiles/gse/package.use.force"
+
+cp "${CONFDIR}/system/portage/profiles/child-gse/eapi" \
+"${CATDIR}/$1/portage/profiles/defaults/linux/${ARCH}/13.0/gse/eapi"
+
+# PARENT
+cp "${CONFDIR}/system/portage/profiles/child-gse/parent" \
+"${CATDIR}/portage.temp/portage/profiles/defaults/linux/${ARCH}/13.0/gse/parent"; } \
+&& echo -e "[\e[32m*\e[0m] Creating profile" \
+|| { echo -e "[\e[31m*\e[0m] Creating profile"; return 1; }
+# END OF GSE PROFILE
+}
+
 get_latest_portage_f() {
 # PORTAGE MD5SUM
 wget -O "${CATDIR}/portage-latest.tar.bz2.md5sum" >/dev/null 2>&1 \
@@ -66,17 +97,43 @@ http://distfiles.gentoo.org/snapshots/portage-latest.tar.bz2 \
 || echo -e "[\e[31m*\e[0m] \e[31mFAILD\e[0m: Snapshot \e[31mverified\e[0m" \
 && unset BTWRK && return 1; )
 
-# RENAME TO SPEC'S DEFINITION
+# EXPORT PORTAGE'S NAME
 TARGETNAME="$(grep 'snapshot:' "${CONFDIR}/system/catalyst/stage1.spec" \
 | sed '/^#/ d' | sed '/^\s*$/d' | awk -F ' ' '{ print $2 }' | sed  -e "s_\"__g")"
 
-mv "${CATDIR}/snapshots/portage-latest.tar.bz2" "${CATDIR}/snapshots/portage-${TARGETNAME}.tar.bz2"
-( BTWRK="${PWD}" && cd "$${CATDIR}/snapshots" >/dev/null 2>&1
-md5sum portage-"${TARGETNAME}".tar.bz2 > portage-"${TARGETNAME}".tar.bz2.md5sum \
-&& rm -f portage-latest.tar.bz2.md5sum && cd "${BTWRK}" >/dev/null 2>&1 && unset BTWRK; )
+# EXTRACT & CREATE PORTAGE PROFILE
+echo -e "\e[34mExtracting snapshot\e[0m"
+mkdir -p "${CATDIR}/portage.temp"
 
+if tar xvjpf "${CATDIR}/snapshots/portage-latest.tar.bz2" -C "${CATDIR}/portage.tmp" >/dev/null 2>&1; then
+echo -e "[\e[32m*\e[0m] Extracted"
+
+port_prof_f "portage.temp" && echo -e "[\e[32m*\e[0m] Portage profile created" \
+|| { echo -e "[\e[31m*\e[0m] Profile creation failed"; return 1; }
+
+echo "Building new snapshot"
+catalyst -s "${TARGETNAME}" && echo -e "[\e[32m*\e[0m] Done" \
+&& if [[ -n "${CATDIR}" ]]; then
+	rm -rf "${CATDIR}/portage.temp" && echo -e "[\e[32m*\e[0m] Purging ${CATDIR}/portage.temp"
+	return 0
+else
+	echo -e "[\e[31m*\e[0m] Could not purge ${CATDIR}/portage.temp"
+	return 0
+fi \
+|| { echo -e "[\e[31m*\e[0m] Failed" && return 1; } 
+else
+	 echo -e "[\e[31m*\e[0m] Failed" && return 1
+fi
 unset TARGETNAME
-unset VERPORT
+}
+
+tar_path_name_f() {
+TARGETPATH="$(grep 'source_subpath' "${CONFDIR}/system/catalyst/stage$1.spec" \
+| sed '/^#/ d' | awk -F ' ' '{ print $2 }')"
+
+
+TARGETNAME="$(grep 'source_subpath' "${CONFDIR}/system/catalyst/stage$1.spec" \
+| sed '/^#/ d' | awk -F ' ' '{ print $2 }' | sed  -e "s_\"__g" | awk -F '/' '{ print $2 }')"
 }
 
 opt_f() {
@@ -100,48 +157,6 @@ chk_snap_f() {
 search_snap_f() {
 mapfile -t ARRAYSNAP < <(find /media/elab/workdir -name "*.tar.bz2")
 
-port_extr_f() {
-echo "Extracting snapshot"
-if [[ "${CATPORTDIR}" == '/usr/portage' && -n  "${CATPORTDIR}" ]]; then
-	:
-else
-rm -rf "${CATPORTDIR}/portage" && echo -e "[\e[32m*\e[0m] Purging local snapshot"
-fi
-
-tar xvjpf "${CATPORTDIR}/portage-latest.tar.bz2" -C "${CATPORTDIR}" >/dev/null 2>&1 \
-&& echo -e "[\e[32m*\e[0m] ALL GOOD" || echo -e "[\e[31m*\e[0m] AN ERROR OCCURRED"
-
-# GSE PROFILE DIRECTORIES AND FILES
-mkdir -p "${CATPORTDIR}/portage/profiles/gse"
-mkdir -p "${CATPORTDIR}/portage/profiles/defaults/linux/${ARCH}/13.0/gse"
-
-{ cp "${CONFDIR}/system/portage/profiles/parent-gse/eapi" \
-"${CATPORTDIR}/portage/profiles/gse/eapi"
-
-# MAKE.DEFAULTS
-cp "${CONFDIR}/system/portage/profiles/parent-gse/make.defaults" \
-"${CATPORTDIR}/portage/profiles/gse/make.defaults"
-
-# PACKAGE.USE
-cp "${CONFDIR}/system/portage/profiles/parent-gse/package.use" \
-"${CATPORTDIR}/portage/profiles/gse/package.use"
-
-# PACKAGE.USE.FORCE
-cp "${CONFDIR}/system/portage/profiles/parent-gse/package.use.force" \
-"${CATPORTDIR}/portage/profiles/gse/package.use.force"
-
-cp "${CONFDIR}/system/portage/profiles/child-gse/eapi" \
-"${CATPORTDIR}/portage/profiles/defaults/linux/${ARCH}/13.0/gse/eapi"
-
-# PARENT
-cp "${CONFDIR}/system/portage/profiles/child-gse/parent" \
-"${CATPORTDIR}/portage/profiles/defaults/linux/${ARCH}/13.0/gse/parent"; } \
-&& echo -e "[\e[32m*\e[0m] Creating profile" \
-&& echo "configured" > "${CATPORTDIR}/.confportage" \
-|| { echo -e "[\e[31m*\e[0m] Creating profile"; \
-sed -i '/created/d' "${CATPORTDIR}/.confportage"; exit 1; }
-# END OF GSE PROFILE
-}
 
 for i in "${ARRAYSNAP[@]}"; do
 	if [[ $(du -sh "$i" | awk -F ' ' '{print $1}' | sed 's/[^M]*//g') == M && -n $(echo "$i" | grep portage) && -z $(echo "$i" | grep "gcc") ]]; then
@@ -151,9 +166,11 @@ for i in "${ARRAYSNAP[@]}"; do
 				read -rp "Is this the snapshot? Y/N " YN
 				case "$YN" in
 					[yY][eE][sS]|[yY])
-						echo "Copying snapshot to ${CATDIR}/snapshots"
+						echo -e "\e[34mCopying snapshot to ${CATDIR}/snapshots\e[0m"
 						cp "$i" "${CATDIR}/snapshots/portage-${TARGETNAME}.tar.bz2"
-						break;;
+						return 0
+						break
+						;;
 					[nN][oO]|[nN])
 						;;
 				esac
@@ -162,28 +179,29 @@ for i in "${ARRAYSNAP[@]}"; do
 		fi
 	fi
 done
+return 1
 unset YN
 unset ARRAYSNAP
 }
 
 build_port() {
-	echo "It is strongly recommended to update your portdir first"
+	echo -e "\e[35mIt is strongly recommended to update your portdir first\e[0m"
 	while true; do
 		read -rp "Do you wish to update? Y/N "
 		case "$YN" in
 			[yY][eE][sS]|[yY])
 				if emerge --sync; then
-					catalyst -s "${TARGETNAME}" && BRKVAR=0 || BRKVAR=1
+					catalyst -s "${TARGETNAME}" && { BRKVAR=0 && return 0; }|| { BRKVAR=1 && return 1; }
 				elif eix-sync; then
-					catalyst -s "${TARGETNAME}" && BRKVAR=0 || BRKVAR=1
+					catalyst -s "${TARGETNAME}" && { BRKVAR=0 && return 0; }|| { BRKVAR=1 && return 1; }
 				elif emerge-webrsync; then
-					catalyst -s "${TARGETNAME}" && BRKVAR=0 || BRKVAR=1
+					catalyst -s "${TARGETNAME}" && { BRKVAR=0 && return 0; }|| { BRKVAR=1 && return 1; }
 				else
-					catalyst -s "${TARGETNAME}" && BRKVAR=0 || BRKVAR=1
+					catalyst -s "${TARGETNAME}" && { BRKVAR=0 && return 0; }|| { BRKVAR=1 && return 1; }
 				fi
 				break;;
 			[nN][oO]|[nN])
-				catalyst -s "${TARGETNAME}" && BRKVAR=0 || BRKVAR=1
+				catalyst -s "${TARGETNAME}" && { BRKVAR=0 && return 0; }|| { BRKVAR=1 && return 1; }
 				break;;
 		esac
 	done
@@ -195,7 +213,7 @@ TARGETNAME="$(grep 'snapshot:' "${CONFDIR}/system/catalyst/stage1.spec" \
 if [[ ! -e "${CATDIR}/snapshots/portage-${TARGETNAME}.tar.bz2" ]]; then
 while true; do
 	opt_f
-	echo "Could not locate snapshots/portage-${TARGETNAME}.tar.bz2 @ ${CATDIR}/snapshots"
+	echo -e "[\e[31m*\e[0m] Could not locate snapshots/portage-${TARGETNAME}.tar.bz2 @ ${CATDIR}/snapshots"
 	echo "Please select an option"
 	read -rp "Option: " ANS
 	case "$ANS" in
@@ -204,17 +222,17 @@ while true; do
 			;;
 		II|ii|2)
 			read -rp "Please enter the absolute path with the snapshot included" PATHTOSNAP
-			echo "Copying snapshot to ${CATDIR}/snapshots"
 			if [[ -n $(chk_snap_f "${PATHTOSNAP}") ]]; then
-				cp "${PATHTOSNAP}" "${CATDIR}/snapshots/portage-${TARGETNAME}.tar.bz2"
+				cp "${PATHTOSNAP}" "${CATDIR}/snapshots/portage-${TARGETNAME}.tar.bz2" \
+				&& echo -e "\e[34mCopying snapshot to ${CATDIR}/snapshots\e[0m" && BRKVAR=0 || BTWRK=1				
 			else
-				echo "The file you entered is either a heavily modified snapshot or not a snapshot"
+				echo -e "\e[31mThe file you entered is either a heavily modified snapshot or not a snapshot"
 				while true; do
 					read -rp "Do you wish to proceed? Y/N" YN
 					case "$YN" in
 						[yY][eE][sS]|[yY])
-							echo "Copying file to ${CATDIR}/snapshots"
-							cp "${PATHTOSNAP}" "${CATDIR}/snapshots/portage-${TARGETNAME}.tar.bz2"
+							echo -e "\e[34mCopying file to ${CATDIR}/snapshots\e[0m"
+							cp "${PATHTOSNAP}" "${CATDIR}/snapshots/portage-${TARGETNAME}.tar.bz2\e[0m"
 							BRKVAR=0
 							break;;
 						[nN][oO]|[nN])
@@ -227,57 +245,69 @@ while true; do
 			unset YN
 			break;;
 		III|iii|3)
-			echo "Searching..."
-			search_snap_f
-			if [[ -e "${CATDIR}/snapshots/portage-${TARGETNAME}.tar.bz2" ]]; then
-				echo "Checking..."
-				if chk_snap_f "${CATDIR}/snapshots/portage-${TARGETNAME}.tar.bz2"; then
-					echo "Located the snapshot"
-					BRKVAR=0
-				fi
+			echo -e "\e[32mSearching\e[0m..."
+			search_snap_f && echo -e "\e[32mChecking\e[0m..." || { echo -e "\e[31mCould not locate the snapshot\e[0m"; BRKVAR=1; break; }
+			echo -e "[\e[32m*\e[0m]  Located the snapshot"
+			if chk_snap_f "${CATDIR}/snapshots/portage-${TARGETNAME}.tar.bz2"; then
+				echo -e "[\e[32m*\e[0m]  Snapshot seems normal"
+				BRKVAR=0
 			else
-				echo "Could not locate the snapshot"
-				BRKVAR=1
+				echo -e "[\e[31m*\e[0m] Snapshot located but it's size is out of normal boundaries"
+				while true; do
+					read -rp "Do you wish to continue? Y/N "
+					case "$YN" in
+						[yY][eE][sS]|[yY])
+							echo -e "[\e[32m*\e[0m] Proceeding"
+							BRKVAR=0
+							break;;
+						[nN][oO]|[nN])
+							echo -e "[\e[31m*\e[0m] Returning options"
+							BRKVAR=1
+							break;;
+					esac
+				done
 			fi
 			;;
 		IV|iv|4)
-			echo "Opening a shell, please copy your snapshot to ${CATDIR}/snapshots with name: portage-${TARGETNAME}.tar.bz2"
+			echo "\e[35mOpening new shell, please copy your snapshot to ${CATDIR}/snapshots with name: portage-${TARGETNAME}.tar.bz2\e[0m"
 			sleep 5
 			exec /bin/bash
 			if [[ -e "${CATDIR}/snapshots/portage-${TARGETNAME}.tar.bz2" ]]; then
-				echo "Checking..."
+				echo -e "\e[32mChecking\e[0m..."
 				if chk_snap_f "${CATDIR}/snapshots/portage-${TARGETNAME}.tar.bz2"; then
-					echo "Snapshot located and looks normal"
+					echo -e "[\e[32m*\e[0m]  Snapshot seems normal"
 					BRKVAR=0
 				else
-					echo "Snapshot located but it's size is out of normal boundaries"
+					echo -e "[\e[31m*\e[0m] Snapshot located but it's size is out of normal boundaries"
 					while true; do
 						read -rp "Do you wish to continue? Y/N "
 						case "$YN" in
 							[yY][eE][sS]|[yY])
-								echo "Copying file to ${CATDIR}/snapshots"
-								cp "${PATHTOSNAP}" "${CATDIR}/snapshots/portage-${TARGETNAME}.tar.bz2"
+								echo -e "[\e[32m*\e[0m] Proceeding"
 								BRKVAR=0
 								break;;
 							[nN][oO]|[nN])
+								echo -e "[\e[31m*\e[0m] Returning options"
 								BRKVAR=1
 								break;;
 						esac
 					done
 				fi
 			else
-				echo "Could not locate the snapshot"
+				echo -e "[\e[31m*\e[0m] Could not locate the snapshot"
+				echo -e "[\e[31m*\e[0m] Returning options"
 				BRKVAR=1
 			fi
 			;;
 		V|v|5)
 			if [[ (($(ls -A "${CATPORTDIR}" | grep 'app-portage') != 'app-portage')) ]]; then
-				echo "${CATPORTDIR} does not look like a normal portage location"
+				echo -e "[\e[32m*\e[0m] ${CATPORTDIR} does not look like a normal portage location"
 				while true; do
 					read -rp "Do you wish to continue? Y/N "
 					case "$YN" in
 						[yY][eE][sS]|[yY])
-							build_port
+							port_prof_f "${CATPORTDIR}" \
+							&& build_port && echo -e "[\e[32m*\e[0m] Built" || echo -e "[\e[31m*\e[0m] Failed"
 							;;
 						[nN][oO]|[nN])
 							while true; do
@@ -291,18 +321,23 @@ while true; do
 												read -rp "Do you wish to proceed? Y/N "
 												case $YN in
 													[yY][eE][sS]|[yY])
-														build_port
+														export CATPORTDIR
+														port_prof_f "${CATPORTDIR}" \
+														&& build_port && echo -e "[\e[32m*\e[0m] Built" || echo -e "[\e[31m*\e[0m] Failed"
 														;;
 													[nN][oO]|[nN])
+														echo -e "[\e[31m*\e[0m] Returning back to options"
 														BRKVAR=1
 														break;;
 												esac
 											done
 										else
-											build_port
+											port_prof_f "${CATPORTDIR}" \
+											&& build_port && echo -e "[\e[32m*\e[0m] Built" || echo -e "[\e[31m*\e[0m] Failed"
 										fi
 										break;;
 									[nN][oO]|[nN])
+										echo -e "[\e[32m*\e[0m] Built" || echo -e "[\e[31m*\e[0m] Failed"
 										BRKVAR=1
 										break;;
 								esac
@@ -311,7 +346,8 @@ while true; do
 					esac
 				done
 			else
-				build_port
+				port_prof_f "${CATPORTDIR}" \
+				&& build_port && echo -e "[\e[32m*\e[0m] Built" || echo -e "[\e[31m*\e[0m] Failed"
 			fi
 			;;
 	esac
@@ -321,15 +357,6 @@ fi
 unset BRKVAR
 unset TARGETNAME
 
-tar_path_name_f() {
-TARGETPATH="$(grep 'source_subpath' "${CONFDIR}/system/catalyst/stage$1.spec" \
-| sed '/^#/ d' | awk -F ' ' '{ print $2 }')"
-
-
-TARGETNAME="$(grep 'source_subpath' "${CONFDIR}/system/catalyst/stage$1.spec" \
-| sed '/^#/ d' | awk -F ' ' '{ print $2 }' | sed  -e "s_\"__g" | awk -F '/' '{ print $2 }')"
-}
-
 tar_path_name_f 1
 unset TARGETPATH
 TARGETPATH="$(grep 'source_subpath' "${CONFDIR}/system/catalyst/stage$1.spec" \
@@ -337,7 +364,7 @@ TARGETPATH="$(grep 'source_subpath' "${CONFDIR}/system/catalyst/stage$1.spec" \
 if [[ -e "${CATDIR}/builds/${TARGETPATH}/stage3-${TARGETNAME}.tar.bz2" || "$1" == s1 ]]; then
 # STAGE 1
 
-echo "Building stage1"
+ echo -e "\e[35mBuilding stage1\e[0m"
 
 cat "${CONFDIR}/system/catalyst/stage1.spec" | sed '/^#/ d' | sed '/^\s*$/d' \
 > "${CATDIR}/.stage1.spec"
@@ -353,7 +380,7 @@ tar_path_name_f 2
 
 if [[ -e "${CATDIR}/builds/${TARGETPATH}/stage1-${TARGETNAME}.tar.bz2" || "$2" == "s2" ]]; then
 # STAGE 2
-echo "Building stage2"
+echo -e "\e[35mBuilding stage2\e[0m"
 
 cat "${CONFDIR}/system/catalyst/stage2.spec" | sed '/^#/ d' | sed '/^\s*$/d' \
 > "${CATDIR}/.stage2.spec"
@@ -370,21 +397,19 @@ tar_path_name_f 3
 if [[ -e "${CATDIR}/builds/${TARGETPATH}/stage2-${TARGETNAME}.tar.bz2" || "$1" == "s3" ]]; then
 # STAGE 3
 
-echo "Building stage3"
+echo -e "\e[35mBuilding stage3\e[0m"
 
 cat "${CONFDIR}/system/catalyst/stage3.spec" | sed '/^#/ d' | sed '/^\s*$/d' \
 > "${CATDIR}/.stage3.spec"
 
 catalyst -c "${CONFDIR}/system/catalyst/catalyst.conf" -f "${CATDIR}/.stage3.spec" \
-&& { BTWRK="${PWD}" && cd "${CATPORTDIR}" >/dev/null 2>&1}
-|| { print_inf 2 && sinit_mon 8 && exit 1; }
+&& print_inf 1 || { print_inf 2 && sinit_mon 8 && exit 1; }
 fi
 
 echo "The build was successful!"
-echo "Do you wish to gpg sign the stage3 tarball?"
+echo -e "\e[35mDo you wish to gpg sign the stage3 tarball?\e[0m"
 while true; do
-	echo "$i"
-	read -rp "Is this the snapshot? Y/N " YN
+	read -rp "Answer: Y/N " YN
 	case "$YN" in
 		[yY][eE][sS]|[yY])
 			echo "Signing..."
