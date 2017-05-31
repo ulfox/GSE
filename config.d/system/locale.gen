@@ -19,6 +19,9 @@
 # Whenever glibc is emerged, the locales listed here will be automatically
 # rebuilt for you.  After updating this file, you can simply run `locale-gen`
 # yourself instead of re-emerging glibc.
+#
+# Note: You should always include en_US.UTF-8 UTF-8, even if you wont be using it later
+#
 #aa_DJ.UTF-8 UTF-8  
 #aa_DJ ISO-8859-1  
 #aa_ER UTF-8  
