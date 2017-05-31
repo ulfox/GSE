@@ -1,5 +1,6 @@
 #!/bin/bash
 
+# PROCESS FLOW TWEAKER. DO NOT EDIT THIS.
 case "$1" in
 	1)
 		sed -i -e 's/WEBRSYNC=0/WEBRSYNC=1/g' "${CHDIR}/chsinprog";;
