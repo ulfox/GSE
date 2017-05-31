@@ -1,0 +1,180 @@
+#!/bin/bash
+
+fs_opt() {
+	case $1 in
+		1)
+			echo -e "###############  \e[94m~~File systems~~\e[39m   ###############"
+			echo "##						 ##"
+			echo -e "## [ \e[32mI\e[39m  ]	ext2		                 ##"
+			echo -e "## [ \e[32mII\e[39m ]	ext3				 ##"
+			echo -e "## [ \e[32mIII\e[39m]	ext4				 ##"
+			echo -e "## [ \e[32mIV\e[39m ]	btrfs				 ##"
+			echo -e "## [ \e[32mV\e[39m  ]	vfat				 ##"
+			echo "##						 ##"
+			echo "###################################################"
+			;;
+	esac
+}
+
+FS_OPTS=(BOOT SYS USERDATA)
+
+for i in "${FS_OPTS[@]}"; do
+		clear; fs_opt 1
+		read -p "Please select the fs type of $i partition: " SELCT
+		case ${SELCT:-5} in
+			I|i|1|-I|-i|-1)
+				eval $i=ext2;;
+			II|ii|2|-II|-ii|-2)
+				eval $i=ext3;;
+			III|iii|3|-III|-iii|-3)
+				eval $i=ext4;;
+			IV|iv|4|-IV|-iv|-4)
+				eval $i=btrfs;;
+			V|v|5|-V|-v|-5)
+				eval $i=vfat;;
+			* ) clear; men_opt 7;;
+		esac
+done
+
+[[ $BOOT == btrfs ]] && { FBOPTIONS='ro,noatime,subvol=/bootfs'; BDPPS='0 0'; } \
+|| { FBOPTIONS='ro,noatime'; BDPPS='0 2'; }
+
+[[ $SYS == btrfs ]] && { FSOPTIONS='ro,noatime,subvol=/sysfs'; SDPPS='0 0'; } \
+|| { FSOPTIONS="ro,noatime"; SDPPS="0 1"; }
+
+[[ $USERDATA == btrfs ]] && { FUOPTIONS='defaults,noatime,subvol=/userdata'; UDPPS='0 0'; } \
+|| { FUOPTIONS='defaults,noatime'; UDPPS='0 1'; }
+
+cat >"${CONFDIR}/system/fstab" <<\EOF
+# /etc/fstab: static file system information.
+#
+# noatime turns off atimes for increased performance (atimes normally aren't
+# needed); notail increases performance of ReiserFS (at the expense of storage
+# efficiency).  It's safe to drop the noatime options if you want and to
+# switch between notail / tail freely.
+#
+# The root filesystem should have a pass number of either 0 or 1.
+# All other filesystems should have a pass number of 0 or greater than 1.
+#
+# See the manpage fstab(5) for more information.
+#
+
+# <fs>                  <mountpoint>    <type>          <opts>          <dump/pass>
+
+# NOTE: If your BOOT partition is ReiserFS, add the notail option to opts.
+#
+# NOTE: Even though we list ext4 as the type here, it will work with ext2/ext3
+#       filesystems.  This just tells the kernel to use the ext4 driver.
+#
+# NOTE: You can use full paths to devices like /dev/sda3, but it is often
+#       more reliable to use filesystem labels or UUIDs. See your filesystem
+#       documentation for details on setting a label. To obtain the UUID, use
+#       the blkid(8) command.
+
+#LABEL=boot             /boot           ext4            noauto,noatime  1 2
+#UUID=58e72203-57d1-4497-81ad-97655bd56494              /               ext4            noatime         0 1
+#LABEL=swap             none            swap            sw              0 0
+#/dev/cdrom             /mnt/cdrom      auto            noauto,ro       0 0
+EOF
+
+# Boot
+echo >> "${CONFDIR}/system/fstab"
+echo "# BOOT" >> "${CONFDIR}/system/fstab"
+echo "LABEL=BOOT /boot ${BOOT} ${FBOPTIONS} ${BDPPS}" >>"${CONFDIR}/system/fstab"
+
+# System
+echo >> "${CONFDIR}/system/fstab"
+echo "# SYSTEM"	>> "${CONFDIR}/system/fstab"
+echo "LABEL=SYSTEM / ${SYS} ${FSOPTIONS} ${SDPPS}" >>"${CONFDIR}/system/fstab"
+
+# User-data
+echo >> "${CONFDIR}/system/fstab"
+echo "# USER-DATA" >> "${CONFDIR}/system/fstab"
+echo "LABEL=USERDATA /user-data ${USERDATA}	${FUOPTIONS} ${UDPPS}" >>"${CONFDIR}/system/fstab"
+
+# Home
+echo >> "${CONFDIR}/system/fstab"
+echo "# HOME" >> "${CONFDIR}/system/fstab"
+echo "/user-data/persistent/home /home/ none rw,bind 0 0" >>"${CONFDIR}/system/fstab"
+
+# var/tmp
+echo >> "${CONFDIR}/system/fstab"
+echo "# HOME" >> "${CONFDIR}/system/fstab"
+echo "tmpfs /var/tmp tmpfs nodev,nosuid,size=512M 0 0" >>"${CONFDIR}/system/fstab"
+
+# tmp
+echo >> "${CONFDIR}/system/fstab"
+echo "# HOME" >> "${CONFDIR}/system/fstab"
+echo "tmpfs /tmp tmpfs nodev,nosuid,size=512M 0 0" >>"${CONFDIR}/system/fstab"
+
+echo "BOOT ${BOOT}" > "${CONFDIR}/system/fstab.info"
+echo "SYS ${SYS}" >> "${CONFDIR}/system/fstab.info"
+echo "USERDATA ${USERDATA}" >> "${CONFDIR}/system/fstab.info"
+
+unset BOOT
+unset SYS
+unset USERDATA
+unset FS_OPTSS
+
+FS_OPTS=(BOOT SYS USERDATA)
+echo "${FS_OPTS[@]}"
+
+while true; do
+	for i in "${FS_OPTS[@]}"; do
+		clear; echo "Please give the device name of $i"
+		echo "Example: sda1"
+		echo "This device, on creation, will inherit the $i label"
+		read -p "$i device name: /dev/" DEVNAME
+		while true; do
+			echo "Your input was: /dev/${DEVNAME}"
+			read -p "Are you sure? " SELCT
+			case ${SELCT:-1} in
+			[Yy][eE][sS]|[yY])
+				eval $i="/dev/$DEVNAME"; break;;
+			[nN][oO]|[nN])
+				echo "Give a new value: "
+				read -p "$i device name: /dev/" DEVNAME;;
+			*)
+				clear; echo "Wrong option";;
+			esac
+		done
+	done
+
+if [[ -n "${BOOT}" && -n "${SYS}" && -n "${USERDATA}" ]]; then
+if [[ "${BOOT}" == "${SYS}" || "${BOOT}" == "${USERDATA}" ]]; then
+case "${BOOT}" in
+	"${SYS}")
+		echo "BOOT partition can not be the same with SYSTEM partition";;
+	*)
+		echo "BOOT partition can not be the same with USERDATA partition";;
+esac
+echo "Resetting the process"
+sleep 5
+else
+if [[ "${SYS}" == "${USERDATA}" ]]; then
+	echo "SYSTEM partition can not be the same with USERDATA partition"
+	echo "Resetting the process"
+	sleep 5
+else
+	break
+fi
+fi
+fi
+
+done
+
+echo "BOOT ${BOOT}" > "${CONFDIR}/system/devname.info"
+echo "SYS ${SYS}" >> "${CONFDIR}/system/devname.info"
+echo "USERDATA ${USERDATA}" >> "${CONFDIR}/system/devname.info"
+
+unset DEVNAME
+unset BOOT
+unset SYS
+unset USERDATA
+unset FBOPTIONS
+unset FSOPTIONS
+unset FUOPTIONS
+unset BDPPS
+unset SDPPS
+unset UDPPS
+unset FS_OPTS

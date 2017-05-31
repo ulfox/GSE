@@ -1,0 +1,593 @@
+#!/bin/bash
+
+##																						     ##
+#																						      #
+# Gentoo Stateless Environment project													      #
+#																						      #
+# Everything inside this directory has been created during Gentoo-soc 2017 and is distributed #
+# under General Public License version 2.												      #
+#																						      #
+##																						     ##
+
+LC_COLLATE=C
+
+
+# DEFINITION OF WORKDIR AND IT'S SUBDIRECTORIES
+export WORKDIR="$(dirname ${PWD})"
+export CONFDIR="${WORKDIR}/config.d"
+export DISTDIR="${WORKDIR}/dist.d"
+export LOCALLG="${WORKDIR}/local"
+
+# PATH DEFINITION FOR THE SCRIPTS WHICH WILL AID THE PROCESS
+export PATH=${PATH}:${WORKDIR}/scripts/functions
+
+STAT_VAR=''
+
+set -o
+
+# MENU OPTIONS MESSAGES
+men_opt (){
+	case $1 in
+		1 )
+			echo -e "######################  \e[94m~~Main Menu~~\e[39m   #####################"
+			echo "##							   ##"
+			echo -e "## [ \e[32mI\e[39m  ]	System menu		   	           ##"
+			echo -e "## [ \e[32mII\e[39m ]	Build the controller image		   ##"
+			echo -e "## [ \e[32mIII\e[39m]	Documentations				   ##"
+			echo -e "## [ \e[32mIV\e[39m ]	About the project			   ##"
+			echo -e "## [ \e[32mV\e[39m  ]	I shouldn't be here, please let me leave!  ##"
+			echo "##							   ##"
+			echo -e "## [ \e[32mT\e[39m  ]				  Terminal	   ##"
+			echo "##							   ##"
+			echo "#############################################################"
+			;;
+		2 )
+			echo -e "###################  \e[94m~~Documentations~~\e[39m   ####################"
+			echo "##							    ##"
+			echo -e "## [ \e[32mI\e[39m   ]	Introduction to GSE Directory		    ##"
+			echo -e "## [ \e[32mII\e[39m  ]	The Controller 				    ##"
+			echo -e "## [ \e[32mIII\e[39m ]	The Config.d Directory		 	    ##"
+			echo -e "## [ \e[32mIV\e[39m  ]	The dist.d Directory			    ##"
+			echo -e "## [ \e[32mV\e[39m   ]	Main Menu 				    ##"
+			echo "##							    ##"
+			echo "##############################################################"
+			;;
+		3 )
+			echo -e "########################  \e[94m~~About~~\e[39m   ########################"
+			echo "##							   ##"
+			echo -e "## [ \e[32mI\e[39m  ]	About the project			   ##"
+			echo -e "## [ \e[32mII\e[39m ]	Linux, Gentoo and the birth of an Idea	   ##"
+			echo -e "## [ \e[32mIII\e[39m]	Open Source To The End and Beyond	   ##"
+			echo -e "## [ \e[32mIV\e[39m ]	Main Menu 				   ##"
+			echo "##							   ##"
+			echo "#############################################################"
+			;;
+		5)
+			echo -e "######################  \e[94m~~Builder~~\e[39m   #####################"
+			echo "##						         ##"
+			echo -e "## [ \e[32mI\e[39m  ]	Built a System 		                 ##"
+			echo -e "## [ \e[32mII\e[39m ]	Configure built variables		 ##"
+			echo -e "## [ \e[32mIII\e[39m]	Select default system for distribution	 ##"
+			echo -e "## [ \e[32mIV\e[39m ]	Create a stage4 tarball			 ##"
+			echo -e "## [ \e[32mV\e[39m  ]	Return back  				 ##"
+			echo "##							 ##"
+			echo -e "## [ \e[32mT\e[39m  ]				Terminal	 ##"
+			echo "##							 ##"
+			echo "###########################################################"
+			;;
+		6)
+			echo -e "#################  \e[94m~~System Menu~~\e[39m   ################"
+			echo "##						   ##"
+			echo -e "## [ \e[32mI\e[39m  ]	Portage		  	           ##"
+			echo -e "## [ \e[32mII\e[39m ]	Catalyst			   ##"
+			echo -e "## [ \e[32mIII\e[39m]	Initiate Build			   ##"
+			echo -e "## [ \e[32mIV\e[39m ]	Return back  			   ##"
+			echo "##						   ##"
+			echo -e "## [ \e[32mT\e[39m  ]		  		Terminal   ##"
+			echo "##						   ##"
+			echo "#####################################################"
+			;;
+		7)
+			echo -e "######################  \e[94m~~Portage~~\e[39m   #####################"
+			echo "##						         ##"
+			echo -e "## [ \e[32mI\e[39m  ]	Guided/Automatic make.conf	 	 ##"
+			echo -e "## [ \e[32mII\e[39m ]	Manually edit make.conf (Reset)  	 ##"
+			echo -e "## [ \e[32mIII\e[39m]	Review make.conf	                 ##"
+			echo -e "## [ \e[32mIV\e[39m ]	Edit packages.use			 ##"
+			echo -e "## [ \e[32mV\e[39m  ]	Review packages.use	 		 ##"
+			echo -e "## [ \e[32mVI\e[39m ]	Restore packages.use	 		 ##"
+			echo -e "## [ \e[32mVII\e[39m]	Return back  				 ##"
+			echo "##							 ##"
+			echo -e "## [ \e[32mT\e[39m  ]				Terminal	 ##"
+			echo "##							 ##"
+			echo "###########################################################"
+			;;
+		8)
+			echo -e "##################  \e[94m~~Configurations~~\e[39m   ##################"
+			echo "##						         ##"
+			echo -e "## [ \e[32mI\e[39m    ]	Configure fstab/drives	      	         ##"
+			echo -e "## [ \e[32mII\e[39m   ]	Manually edit fstab	 		 ##"
+			echo -e "## [ \e[32mIII\e[39m  ]	Manually edit drive names		 ##"
+			echo -e "## [ \e[32mIV\e[39m   ]	Edit Hostname				 ##"
+			echo -e "## [ \e[32mV\e[39m    ]	Edit /etc/conf.d/net			 ##"
+			echo -e "## [ \e[32mVI\e[39m   ]	Edit Locales				 ##"
+			echo -e "## [ \e[32mVII\e[39m  ]	Edit Consolefont			 ##"
+			echo -e "## [ \e[32mVIII\e[39m ]	Edit sshd		 	 	 ##"
+			echo -e "## [ \e[32mIX\e[39m   ]	Edit sshkey		 	 	 ##"
+			echo -e "## [ \e[32mX\e[39m    ]	Symlink, bind, overlay and tmpfs	 ##"
+			echo -e "## [ \e[32mXI\e[39m   ]	Add Scripts				 ##"
+			echo -e "## [ \e[32mXII\e[39m  ]	Install Packages			 ##"
+			echo -e "## [ \e[32mXIII\e[39m ]	Edit Kernel cmdl			 ##"
+			echo -e "## [ \e[32mXIV\e[39m  ]	Edit runlevels***			 ##"
+			echo -e "## [ \e[32mXV\e[39m   ]	Return back  				 ##"
+			echo "##							 ##"
+			echo -e "## [  \e[32mT\e[39m   ]				Terminal	 ##"
+			echo "##							 ##"
+			echo "###########################################################"
+			;;
+		9)
+			echo -e "##################  \e[94m~~Select Default~~\e[39m   ##################"
+			echo "##						         ##"
+			echo -e "## [ \e[32mI\e[39m  ]	List systems		                 ##"
+			echo -e "## [ \e[32mII\e[39m ]	Edit default				 ##"
+			echo -e "## [ \e[32mIII\e[39m]	Return back				 ##"
+			echo "##							 ##"
+			echo -e "## [ \e[32mT\e[39m  ]				Terminal	 ##"
+			echo "##							 ##"
+			echo "###########################################################"
+			;;
+		10)
+			echo -e "###################  \e[94m~~Catalyst~~\e[39m   #################"
+			echo "##						   ##"
+			echo -e "## [ \e[32mI\e[39m  ]	Configure catalyst.conf	           ##"
+			echo -e "## [ \e[32mII\e[39m ]	Configure catalystrc		   ##"
+			echo -e "## [ \e[32mIII\e[39m]	Configure stage1  		   ##"
+			echo -e "## [ \e[32mIV\e[39m ]	Configure stage2  		   ##"
+			echo -e "## [ \e[32mV\e[39m  ]	Configure stage3  		   ##"
+			echo -e "## [ \e[32mVI\e[39m ]	Return  			   ##"
+			echo "##						   ##"
+			echo -e "## [ \e[32mT\e[39m  ]		  		Terminal   ##"
+			echo "##						   ##"
+			echo "#####################################################"
+			;;
+	esac
+}
+
+# CHECK IF BASH IS THE DEFAULT {CURRENT} SHELL, ISSUE A WARNING OTHERIWSE
+shl_f() {
+	SHL=$SHELL
+	ISITBASH=$(echo "${SHL}" |  awk -F "bin/" '{ print $2}')
+	if [[ ${ISITBASH} != "bash" ]]; then
+		echo "Seems like you are not using bash"
+		echo "Keep in mind that all scripts from this project are written for bash interpretation"
+		while true; do
+			read -p "Do you want to continue?: " S
+			case ${S} in
+				[Yy][eE][sS]|[yY]) clear; break;;
+				[Nn][oO]|[nN]) echo "Exiting..."; exit;;
+				* ) echo  "Select Y/N";;
+			esac
+		done
+	fi
+}
+
+# ROOT CHECK FUNCTION, IS NEEDED FOR THE CATALYST AND CHROOT PROCESS
+amiroot() {
+	if [[ "$1" != "0" ]]
+	then
+		echo "This operation requires root privileges"
+		echo "Returning back..."
+		sleep 2
+		BACKTO="MM"
+	fi
+}
+
+# MAIN MENU FUNCTION
+main_f() {
+	while true; do
+		clear; men_opt 1
+		read -p "Please select an option: " SELCT
+		case ${SELCT:-6} in
+			I|i|1|-I|-i|-1)
+				# CALL BUILDER SUBMENU
+				bs_menu_f; break;;
+			II|ii|2|-II|-ii|-2)
+				# CALL CONTROLLER SUBMENU
+				con_f; break;;
+	 		III|iii|3|-III|-iii|-3)
+				# CALL DOCUMENTATION SUBMENU
+				doc_f; break;;
+			IV|iv|4|-IV|-iv|-4)
+				# CALL ABOUT SUBMENU
+				about_f; break;;
+			V|v|5|-V|-v|-5[Qq][uU][iI][tT]|[Ee][Xx][Ii][tT]|[qQ])
+ 				echo -e "\e[32mExiting\e[39m..."; BACKTO="Q";;
+ 			[tT])
+				clear; /bin/bash
+				echo "Presh any key to return"
+				read -r 1>&-;BACKTO="MM" 
+  				clear; break;;
+			* ) clear; men_opt 1;;
+		esac
+	done
+}
+
+# BUILDER SUBMENU
+bs_menu_f() {
+	clear; men_opt 5
+	while true; do
+		read -p "Select an option: " SELCT
+		case ${SELCT:-4} in
+			I|i|1|-I|-i|-1)
+				# CALL BUILD SYSTEM SUBMENU
+				clear; bs_f
+				break;;
+			II|ii|2|-II|-ii|-2)
+				# CALL CONFIGURATION SUBMENU
+				clear; config_f
+				break;;
+			III|iii|3|-III|-iii|-3)
+				# CALL SELECT DEFAULT SYSTEM SUBMENU
+				clear; selectdef_f
+				break;;
+			IV|iv|4|-IV|-iv|-4)
+				# TBU: WILL INCLUDE A STAGE4 TARBALL CREATION
+				echo "Presh any key to return"
+				read -r 1>&-;BACKTO="BSM";
+				break;;
+			V|v|5)
+				clear; BACKTO="MM"; break;;
+			[tT])
+				clear; /bin/bash
+				echo "Presh any key to return"
+				read -r 1>&-;BACKTO="BSM";
+  				clear; break;;
+			* ) clear; men_opt 5;;
+		esac
+	done
+}
+
+# BUILD SYSTEM SUBMENU
+bs_f() {
+clear; men_opt 6
+	while true; do
+		read -p "Select an option: " SELCT
+		case ${SELCT:-3} in
+			I|i|1|-I|-i|-1)
+				# CALL PORTAGE SUBMENU
+				portage_men_f
+				break;;
+			II|ii|2|-II|-ii|-2)
+				# CALL CATALYST SUBMENU
+				catalyst_f
+				break;;
+			III|iii|3|-III|-iii|-3)
+				# START MAIN BUILDER PROCESS
+				clear; source "${WORKDIR}/scripts/sinit"
+				echo "Presh any key to return"
+				read -r 1>&-;BACKTO="SM";
+				break;;
+			IV|iv|4|-IV|-iv|-4)
+				clear; BACKTO="BSM"; break;;
+			[tT])
+				clear; /bin/bash
+				echo "Presh any key to return"
+				read -r 1>&-;BACKTO="SM";
+  				clear; break;;
+			* ) clear; men_opt 6;;
+		esac
+	done
+}
+
+# PORTAGE SUBMENU
+portage_men_f() {
+	clear; men_opt 7
+	while true; do
+		read -p "Select an option: " SELCT
+		case ${SELCT:-5} in
+			I|i|1|-I|-i|-1)
+				# MAKE MAKE.CONF: AUTOMATIC OR GUIDED CONFIGURATION
+				makeconf_ed &&{ clear; echo -e "[\e[32m*\e[0m] Configurations was successful!"
+				echo "Presh any key to return"; } || { cho -e "[\e[31m*\e[0m] Something went wrong"; }
+				read -r 1>&-; BACKTO="PORT_M"; break;;
+			II|ii|2|-II|-ii|-2)
+				# MANUAL EDIT OF MAKE.CONF
+				cp "${CONFDIR}/system/portage/makeconf.backup" "${CONFDIR}/system/portage/make.conf"
+				vim "${CONFDIR}/system/portage/make.conf"
+				clear; echo "Presh any key to return"
+				read -r 1>&-; BACKTO="PORT_M"; break;;
+			III|iii|3|-III|-iii|-3)
+				# PREVIW OF MAKE.CONF: WILL BE REMOVED AS AN OPTION
+				less "${CONFDIR}/system/portage/make.conf"
+				clear; echo "Presh any key to return"
+				read -r 1>&-; BACKTO="PORT_M"; break;;
+			IV|iv|4|-IV|-iv|-4)
+				# MANUAL EDIT OF USEFLAGS
+				vim "${CONFDIR}/system/portage/package.use/sysbuild"
+				clear; echo "Presh any key to return"
+				read -r 1>&-; BACKTO="PORT_M"; break;;
+			V|v|5|-V|-v|-5)
+				# PREVIEW OF USEFLAGS: WILL BE REMOVED AS AN OPTION
+				less "${CONFDIR}/system/portage/package.use/sysbuild"
+				clear; echo "Presh any key to return"
+				read -r 1>&-; BACKTO="PORT_M"; break;;
+			VI|vi|6|-VI|-vi|-6)
+				# REGENERATES MAKE.CONF TO DEFAULT
+				cp "${CONFDIR}/system/portage/package.use/sysbuild.backup" "${CONFDIR}/system/portage/package.use/sysbuild"
+				clear; echo "Presh any key to return"
+				read -r 1>&-; BACKTO="PORT_M"; break;;
+			VII|vii|7|-VII|-vii|-7)
+				BACKTO="SM"; break;;
+			[tT])
+				clear; /bin/bash
+				echo "Presh any key to return"
+				read -r 1>&-;BACKTO="PORT_M";
+  				clear; break;;
+			* ) clear; men_opt 7;;
+		esac
+	done
+}
+
+catalyst_f() {
+	clear; men_opt 10
+	while true; do
+		read -p "Select an option: " SELCT
+		case ${SELCT:-6} in
+			I|i|1|-I|-i|-1)
+				# CONFIGURE CATALYST.CONF
+				vim "${CONFDIR}/system/catalyst/catalyst.conf"
+				clear; echo -e "[\e[32m*\e[0m] Presh any key to return"
+				read -r 1>&-; BACKTO="CATA_M"; break;;
+			II|ii|2|-II|-ii|-2)
+				# CONFIGURE CATALYSTRC
+				vim "${CONFDIR}/system/catalyst/catalystrc"
+				clear; echo -e "[\e[32m*\e[0m] Presh any key to return"
+				read -r 1>&-; BACKTO="CATA_M"; break;;
+			III|iii|3|-III|-iii|-3)
+				# CONFIGURE STAGE1.SPEC
+				vim "${CONFDIR}/system/catalyst/stage1.spec"
+				clear; echo -e "[\e[32m*\e[0m] Presh any key to return"
+				read -r 1>&-; BACKTO="CATA_M"; break;;
+			IV|iv|4|-IV|-iv|-4)
+				# CONFIGURE STAGE2.SPEC
+				vim "${CONFDIR}/system/catalyst/stage2.spec"
+				clear; echo -e "[\e[32m*\e[0m] Presh any key to return"
+				read -r 1>&-; BACKTO="CATA_M"; break;;
+			V|v|5|-V|-v|-5)
+				# CONFIGURE STAGE3.SPEC
+				vim "${CONFDIR}/system/catalyst/stage3.spec"
+				clear; echo "Presh any key to return"
+				read -r 1>&-; BACKTO="CATA_M"; break;;
+			VI|vi|6|-VI|-vi|-6)
+				BACKTO="SM"; break;;
+			[tT])
+				clear; /bin/bash
+				echo "Presh any key to return"
+				read -r 1>&-;BACKTO="PORT_M";
+  				clear; break;;
+			* ) clear; men_opt 7;;
+		esac
+	done
+}
+# CONFIGURATION SUBMENU
+config_f() {
+	clear; men_opt 8
+	while true; do
+		read -p "Select an option: " SELCT
+		case ${SELCT:-3} in
+			I|i|1|-I|-i|-1)
+				# GUIDED FSTAB EDITOR
+				drv_interface
+				clear; echo -e "[\e[32m*\e[0m] Presh any key to return"
+				read -r 1>&-; BACKTO="CO_F"; break;;
+			II|ii|2|-II|-ii|-2)
+				# MANUAL FSTAB EDIT
+				vim "${CONFDIR}/system/fstab"
+				clear; echo -e "[\e[32m*\e[0m] Presh any key to return"
+				read -r 1>&-; BACKTO="CO_F"; break;;
+			III|iii|3|-III|-iii|-3)
+				# DEVICES FOR BOOT, SYSTEM, USERDATA: RELATED ONLY WITH THE HOSTS
+				vim "${CONFDIR}/system/devname.info"
+				clear; echo -e "[\e[32m*\e[0m] Presh any key to return"
+				read -r 1>&-; BACKTO="CO_F"; break;;
+			IV|iv|4|-IV|-iv|-4)
+				# HOSTNAME
+				vim "${CONFDIR}/system/hostname"
+				clear; echo -e "[\e[32m*\e[0m] Presh any key to return"
+				read -r 1>&-; BACKTO="CO_F"; break;;
+			V|v|5|-V|-v|-5)
+				# NETWORKING
+				vim "${CONFDIR}/system/net"
+				clear; echo -e "[\e[32m*\e[0m] Presh any key to return"
+				read -r 1>&-; BACKTO="CO_F"; break;;
+			VI|vi|6|-VI|-vi|-6)
+				# LOCALES
+				vim "${CONFDIR}/system/locale.gen"
+				clear; echo -e "[\e[32m*\e[0m] Presh any key to return"
+				read -r 1>&-; BACKTO="CO_F"; break;;
+			VII|vii|7)
+				# CONSOLEFONTS
+				vim "${CONFDIR}/system/consolefont"
+				clear; echo -e "[\e[32m*\e[0m] Presh any key to return"
+				read -r 1>&-; BACKTO="CO_F"; break;;
+			VIII|viii|8)
+				# SSHD CONFIGURATION FILE
+				vim "${CONFDIR}/system/sshd"
+				clear; echo -e "[\e[32m*\e[0m] Presh any key to return"
+				read -r 1>&-; BACKTO="CO_F"; break;;
+			IX|ix|9)
+				# SSH PUBLIC KEY: WILL BE INCLUDED ON THE HOSTS
+				vim "${CONFDIR}/system/ssh.pub"
+				clear; echo -e "[\e[32m*\e[0m] Presh any key to return"
+				read -r 1>&-; BACKTO="CO_F"; break;;
+			X|x|10)
+				# SETS SYMLINKS, BIND MOUNTS, TMPFS AND OVERLAYS
+				vim "${CONFDIR}/system/system_links"
+				clear; echo -e "[\e[32m*\e[0m] Presh any key to return"
+				read -r 1>&-; BACKTO="CO_F"; break;;
+			XI|xi|11)
+				# SETS CUSTOM USER SCRIPTS ON BOOTUP
+				vim "${CONFDIR}/system/custom_scripts"
+				clear; echo -e "[\e[32m*\e[0m] Presh any key to return"
+				read -r 1>&-; BACKTO="CO_F"; break;;
+			XII|xii|12)
+				# LIST FOR CUSTOM PACKAGES TO BE INSTALLED DURING THE PROCESS
+				vim "${CONFDIR}/system/custom_pacl"
+				clear; echo -e "[\e[32m*\e[0m] Presh any key to return"
+				read -r 1>&-; BACKTO="CO_F"; break;;
+			XIII|xiii|13)
+				# KERNEL COMAND LINE
+				vim "${CONFDIR}/system/kernel-cmdl"
+				clear; echo -e "[\e[32m*\e[0m] Presh any key to return"
+				read -r 1>&-; BACKTO="CO_F"; break;;
+			XIV|xiv|14)
+				# UPDATES RUNLEVEL ENTRIES
+				vim "${CONFDIR}/system/runlevels"
+				clear; echo -e "[\e[32m*\e[0m] Presh any key to return"
+				read -r 1>&-; BACKTO="CO_F"; break;;
+			XV|xv|15)
+				BACKTO="BSM"; break;;
+			[tT])
+				clear; /bin/bash
+				echo "Presh any key to return"
+				read -r 1>&-;BACKTO="CO_F";
+  				clear; break;;
+			* ) clear; men_opt 8;;
+		esac
+	done
+}
+
+# SELECT DEFAULT SYSTEM MENU
+selectdef_f() {
+	#show list of local builds
+	#add imput for setting default
+		#will change the dist system-arch-version to system-arch-version-default
+		#same for kernel-arch-version
+	clear; men_opt 9
+	while true; do
+		read -p "Select an option: " SELCT
+		case ${SELCT:-3} in
+			I|i|1|-I|-i|-1)
+				clear; echo "Documentations submenu option a)"
+				echo "Presh any key to return"
+				read -r 1>&-; BACKTO="SELDEF"; break;;
+			II|ii|2|-II|-ii|-2)
+				clear; echo "Documentations submenu option b)"
+				echo "Presh any key to return"
+				read -r 1>&-; BACKTO="SELDEF"; break;;
+			III|iii|3|-III|-iii|-3)
+				clear; BACKTO="BSM"; break;;
+			[tT])
+				clear; /bin/bash
+				echo "Presh any key to return"
+				read -r 1>&-;BACKTO="SELDEF";
+  				clear; break;;
+			* ) clear; men_opt 9;;
+		esac
+	done
+}
+
+# THE CONTROLLER MENU
+con_f() {
+	clear; amiroot "$UID"; echo "You selected: build the controller image"; echo
+	source cinit.sh
+	BACKTO="MM"
+}
+
+# DOCUMENTATIONS MENU
+doc_f(){
+	clear; echo "	      Documentations. Please enjoy yourself!"; echo
+	men_opt 2
+	while true; do
+		read -p "Choose a document you wish to read: " SELCT
+		case ${SELCT:-5} in
+			I|i|1|-I|-i|-1)
+				clear; echo "Documentations submenu option a)"
+				echo "Presh any key to return"
+				read -r 1>&-; BACKTO="DOC"; break;;
+			II|ii|2|-II|-ii|-2)
+				clear; echo "Documentations submenu option b)"
+				echo "Presh any key to return"
+				read -r 1>&-; BACKTO="DOC"; break;;
+			III|iii|3|-III|-iii|-3)
+				clear; echo "Documentations submenu option c)"
+				echo "Presh any key to return"
+				read -r 1>&-; BACKTO="DOC"; break;;
+			IV|iv|4|-IV|-iv|-4)
+				clear; echo "Documentations submenu option d)"
+				echo "Presh any key to return"
+				read -r 1>&-; BACKTO="DOC"; break;;
+			V|v|5|-V|-v|-5)
+				clear; echo "Documentations submenu option e)"
+				BACKTO="MM"; break;;
+			* ) clear; men_opt 2;;
+		esac
+	done
+}
+
+# ABOUT MENU
+about_f() {
+	clear; echo "		     Welcome to About Menu"; echo
+	men_opt 3
+	while true; do
+		read -p "Choose a journey: " SELCT
+		case ${SELCT:-4} in
+			I|i|1|-I|-i|-1)
+				clear; echo "About submenu option a)"
+				echo "Presh any key to return"
+				read -r 1>&-; BACKTO="AB"; break;;
+			II|ii|2|-II|-ii|-2)
+				clear; echo "About submenu option b)"
+				echo "Presh any key to return"
+				read -r 1>&-; BACKTO="AB"; break;;
+			III|iii|3|-III|-iii|-3)
+				clear; echo "About submenu option c)"
+				echo "Presh any key to return"
+				read -r 1>&-; BACKTO="AB"; break;;
+			IV|iv|4|-IV|-iv|-4)
+				clear; echo "About submenu option d)"
+				BACKTO="MM"; break;;
+			* ) clear; men_opt 3;;
+		esac
+	done
+}
+
+# MAIN LOOP FUNCTION
+mainlp_f() {
+BACKTO="MM"
+while true; do
+	case "${BACKTO:-MM}" in
+		MM)
+			# PULLS MAIN MENU FUNCTION
+			main_f;;
+		DOC)
+			# PULLS DOCUMENTATION MENU FUNCTION
+			doc_f;;
+		AB)
+			# PULLS ABOUT MENU FUNCTION
+			about_f;;
+		PORT_M)
+			# PULLS PORTAGE SUBMENU FUNCTION
+			portage_men_f;;
+		CATA_M)
+			catalyst_f;;
+		SM)
+			# PULLS BUILD SYSTEM SUBMENU: THIS IS A SUBMENU OF BULDERS MENU
+			bs_f;;
+		BSM)
+			# PULLS BUILDER MENU
+			bs_menu_f;;
+		CO_F)
+			# PULLS CONFIGURATION SUBMENU: SUBMENU OF BUILDERS MENU
+			config_f;;
+		SELDEF)
+			# PULLS SELECT DEFAULT SYSTEM SUBMENU: SUBMENU OF BUILDERS MENU
+			selectdef_f;;
+		Q)
+			exit 0;;
+	esac
+done
+}
+
+# STARTS MAIN LOOP FUNCTION
+mainlp_f; unset BACKTO; exit 0

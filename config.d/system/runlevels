@@ -1,0 +1,13 @@
+# Runlevel entries
+#
+# Add or remove entries from a specific runlevel
+# Please use this section with care! Misconfiguration here will make your system unbootable.
+#
+# Syntax: {daemon} {add/dell} {runlevel}
+# Example: distccd add default -> rc-update add distccd default
+#
+#
+consolefont add boot
+
+
+

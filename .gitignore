@@ -1,0 +1,15 @@
+trash
+s.sh
+dist.d
+list
+sources.conf
+gitcrt
+sources.sh
+bootstrap_workdir.conf
+bootstrap_workdir.sh
+update.sh
+sync_mecha
+create_dracut.sh
+inprogress
+flashit.sh
+makeit_go.sh

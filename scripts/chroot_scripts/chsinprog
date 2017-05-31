@@ -1,0 +1,11 @@
+# Don't edit this file manually. It controlls the flow of builder's process
+WEBRSYNC=0
+BOOTSTRAP=0
+REBUILD=0
+CONFIGURE=0
+INSTALL=0
+RESUMEREB=0
+RESUMEINST=0
+RUNLEVEL=0
+KERNEL=0
+

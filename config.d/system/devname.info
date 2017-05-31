@@ -1,0 +1,3 @@
+BOOT /dev/sda
+SYS /dev/sdb
+USERDATA /dev/sdc

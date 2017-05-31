@@ -1,0 +1,26 @@
+#!/bin/bash
+
+# Error messages
+case $1 in
+	1)
+		echo -e "[\e[32m*\e[0m] Done";;
+	2)
+		echo -e "[\e[31m*\e[0m] FAILED";;
+	3)
+		clear
+		echo "If this message is printed while using the Maim Menu"
+		echo "That means essential files are altered or something bad is happening."
+		echo
+		echo "Please run a health-check from the ~Main Menu~ and a Version check first."
+		echo "If you see this again after the health/version check, please submit a bug report"
+		echo "and stop using the program, or data loss may occur."
+		echo
+		echo "Exiting..."
+		sleep 2
+		exit 1;;
+	4)
+		echo -e "[\e[31m*\e[0m] [\e[31mERROR\e[0m: Wrong parameters"
+		exit 1;;
+	5)
+		echo -e "[\e[31m*\e[0m] Failed getting version"
+esac

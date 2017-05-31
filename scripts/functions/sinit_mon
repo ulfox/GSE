@@ -1,0 +1,23 @@
+#!/bin/bash
+
+case "$1" in
+	1)
+		sed -i -e 's/KEY=0/KEY=1/g' "${LOCALLG}/sinprog"
+		sed -i -e 's/NEW=0/NEW=1/g' "${LOCALLG}/sinprog";;
+	2)
+		sed -i -e 's/WGETST3=0/WGETST3=1/g' "${LOCALLG}/sinprog";;
+	3)
+		sed -i -e 's/VERIFICATION=0/VERIFICATION=1/g' "${LOCALLG}/sinprog";;
+	4)
+		sed -i -e 's/EXTRACTION=0/EXTRACTION=1/g' "${LOCALLG}/sinprog"
+		sed -i -e 's/PARTA=0/PARTA=1/g' "${LOCALLG}/sinprog";;
+	5)
+		sed -i -e 's/1/0/g' "${LOCALLG}/sinprog"
+		sed -i -e 's/NEW=1/NEW=0/g' "${LOCALLG}/sinprog"
+		sed -i -e 's/PARTA=1/PARTA=0/g' "${LOCALLG}/sinprog";;
+	6)
+		sed -i -e 's/PARTB=0/PARTA=1/g' "${LOCALLG}/sinprog";;
+	7)
+		sed -i -e 's/CATALYST=1/CATALYST=0/g' "${LOCALLG}/sinprog";;
+	dn) ;;
+esac

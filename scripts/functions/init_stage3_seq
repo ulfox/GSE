@@ -1,0 +1,131 @@
+#!/bin/bash
+
+# GET LATEST PORTAGE SNAPSHOT, CREATE GSE PROFILE AND LAST INITIATE THE STAGE 1,2,3 BUILD SEQUENCE
+CATADIR=$(grep storedir "${CONFDIR}/system/catalyst/catalyst.conf" \
+| sed '/^#/ d' | awk -F '=' '{ print $2 }' | sed  -e "s_\"__g")
+CATPORTDIR=$(grep portdir "${CONFDIR}/system/catalyst/catalyst.conf" \
+| sed '/^#/ d' | awk -F '=' '{ print $2 }' | sed  -e "s_\"__g")
+CATPORTCACHEDIR=$(grep "snapshot_cache" "${CONFDIR}/system/catalyst/catalyst.conf" \
+| sed '/^#/ d' | awk -F '=' '{ print $2 }' | sed  -e "s_\"__g")
+CATLOGDIR=$(grep "port_logdir" "${CONFDIR}/system/catalyst/catalyst.conf" \
+| sed '/^#/ d' | awk -F '=' '{ print $2 }' | sed  -e "s_\"__g")
+CATDISTDIR=$(grep "distdir" "${CONFDIR}/system/catalyst/catalyst.conf" \
+| sed '/^#/ d' | awk -F '=' '{ print $2 }' | sed  -e "s_\"__g")
+
+mkdir -p "${CATADIR}"
+mkdir -p "${CATPORTDIR}"
+mkdir -p "${CATPORTCACHEDIR}"
+mkdir -p "${CATLOGDIR}"
+mkdir -p "${CATDISTDIR}"
+
+# PORTAGE MD5SUM
+wget -O "${CATPORTDIR}/portage-latest.tar.bz2.md5sum" >/dev/null 2>&1 \
+http://distfiles.gentoo.org/snapshots/portage-latest.tar.bz2.md5sum \
+&& echo -e "[\e[32m*\e[0m] Getting md5sum" \
+|| echo -e "[\e[31m*\e[0m] Getting md5sum"
+
+BTWRK="${PWD}" && cd "${CATPORTDIR}" >/dev/null 2>&1
+if md5sum -c "portage-latest.tar.bz2.md5sum" >/dev/null 2>&1 && cd -; then
+{ cd "${BTWRK}" >/dev/null 2>&1
+echo -e "[\e[32m*\e[0m] Latest version is already present locally"; }
+else
+{ cd "${BTWRK}" >/dev/null 2>&1
+while true; do
+echo -e "[\e[31m*\e[0m] Portage snapshot is either corrupt or out of date!"
+read -p "Fetch new? Yn: " yn
+
+case $yn in
+[yY][eE][sS]|[yY])
+
+# PORTAGE SNAPSHOT
+rm -f "${CATPORTDIR}/portage-latest.tar.bz2" && echo -e "[\e[32m*\e[0m] Purging local snapshot"
+echo "Getting latest portage snapshot"
+wget -O "${CATPORTDIR}/portage-latest.tar.bz2" http://distfiles.gentoo.org/snapshots/portage-latest.tar.bz2 \
+&& print_inf 1 || { print_inf 2; exit 1; }
+
+# VERIFYING SNAPSHOT
+[[ $(cd "${CATPORTDIR}" md5sum -c "portage-latest.tar.bz2.md5sum" && cd "${BTWRK}") ]] \
+&& echo -e "[\e[32m*\e[0m] Snapshot verified" \
+|| echo -e "[\e[31m*\e[0m] Snapshot verified"
+break;;
+
+[nN][oO]|[nN])
+break;;
+esac
+done; }
+fi
+
+unset BTWRK
+
+echo "Extracting snapshot"
+tar xvjpf "${CATPORTDIR}/portage-latest.tar.bz2" -C "${CATPORTDIR}" >/dev/null 2>&1 \
+&& echo -e "[\e[32m*\e[0m] ALL GOOD" || echo -e "[\e[31m*\e[0m] AN ERROR OCCURRED"
+
+# GSE PROFILE DIRECTORIES AND FILES
+mkdir -p "${CATPORTDIR}/portage/profiles/gse"
+mkdir -p "${CATPORTDIR}/portage/profiles/defaults/linux/${ARCH}/13.0/gse"
+
+{ cp "${CONFDIR}/system/portage/profile/parent-gse/eapi" "${CATPORTDIR}/portage/profiles/gse/eapi"
+# MAKE.DEFAULTS
+cp "${CONFDIR}/system/portage/profile/parent-gse/make.defaults" "${CATPORTDIR}/portage/profiles/gse/make.defaults"
+# PACKAGE.USE
+cp "${CONFDIR}/system/portage/profile/parent-gse/package.use" "${CATPORTDIR}/portage/profiles/gse/package.use"
+# PACKAGE.USE.FORCE
+cp "${CONFDIR}/system/portage/profile/parent-gse/package.use.force" "${CATPORTDIR}/portage/profiles/gse/package.use.force"
+cp "${CONFDIR}/system/portage/profile/child-gse/eapi" "${CATPORTDIR}/portage/profiles/defaults/linux/${ARCH}/13.0/gse/eapi"
+# PARENT
+cp "${CONFDIR}/system/portage/profile/child-gse/parent" "${CATPORTDIR}/portage/profiles/defaults/linux/${ARCH}/13.0/gse/parent"
+} && echo -e "[\e[32m*\e[0m] Creating profile" \
+|| { echo -e "[\e[31m*\e[0m] Creating profile"; exit 1; }
+# END OF GSE PROFILE
+
+# BEGIN OF PORTAGE SNAPSHOT BUILD & STAGE{1,2,3} BUILD SEQUENCE
+VERCN=0
+while true; do
+	if [[ "${GSE_VER}.${VERCN}" != $(ls | grep "${GSE_VER}.${VERCN}") ]]; then
+		GSE_VER="${GSE_VER}.${VERCN}"
+	fi
+	((++VERCN))
+done
+unset VERCN
+# GENERATE NEW PORTAGE SNAPSHOT
+echo "Generating new portage snapshot"
+cp "${CONFDIR}/system/catalyst/catalyst.conf" "${CATADIR}/.catalyst.conf"
+cp "${CONFDIR}/system/catalyst/catalystrc" "${CATADIR}/.catalystrc"
+catalyst -c "${CONFDIR}/system/catalyst/catalyst.conf" -s "${GSE_VER}" \
+&& print_inf 1 || { print_inf 2 && exit 1; }
+
+# STAGE 1
+echo "Building stage1"
+cat "${CONFDIR}/system/catalyst/stage1.spec" | sed '/^#/ d' | sed '/^\s*$/d' \
+> "${CATADIR}/catalyst/.stage1.spec"
+awk -F ' ' '/snapshot:/{ print $2 }' < "${CATADIR}/.stage1.spec" \
+| sed -i -e "s_AUTOEDITED_"${GSE_VER}"_g"
+catalyst -c "${CONFDIR}/system/catalyst/catalyst.conf" -f "${CATADIR}/.stage1.spec" \
+&& print_inf 1 || { print_inf 2 && sinit_mon 8 && exit 1; }
+
+# STAGE 2
+echo "Building stage2"
+cat "${CONFDIR}/system/catalyst/stage2.spec" | sed '/^#/ d' | sed '/^\s*$/d' \
+> "${CATADIR}/.stage2.spec"
+awk -F ' ' '/snapshot:/{ print $2 }' < "${CATADIR}/.stage2.spec" \
+| sed -i -e "AUTOEDITED"${GSE_VER}"_g"
+catalyst -c "${CONFDIR}/system/catalyst/catalyst.conf" -f "${CATADIR}/.stage2.spec" \
+&& print_inf 1 || { print_inf 2 && sinit_mon 8 && exit 1; }
+
+# STAGE 3
+echo "Building stage3"
+cat "${CONFDIR}/system/catalyst/stage3.spec" | sed '/^#/ d' | sed '/^\s*$/d' \
+> "${CATADIR}/.stage3.spec"
+awk -F ' ' '/snapshot:/{ print $2 }' < "${CATADIR}/.stage3.spec" \
+| sed -i -e "s_AUTOEDITED_"${GSE_VER}"_g"
+catalyst -c "${CONFDIR}/system/catalyst/catalyst.conf" -f "${CATADIR}/.stage3.spec" \
+&& { print_inf 1 && sinit_mon 7 && echo "CATALYST=0" > "${LOCALLG}/tborigin"; } \
+|| { print_inf 2 && sinit_mon 8 && echo "CATALYST=1" > "${LOCALLG}/tborigin" && exit 1; }
+
+unset CATADIR
+unset CATPORTDIR
+unset CATPORTCACHEDIR
+unset CATLOGDIR
+unset CATDISTDIR
+

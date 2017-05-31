@@ -1,0 +1,3 @@
+# Public ssh key
+# If you don't enable sshd and authorized_keys, this key wont do anything
+# Key must begin exactly on the next line.

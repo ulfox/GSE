@@ -1,0 +1,27 @@
+#!/bin/bash
+
+case "$1" in
+	1)
+		sed -i -e 's/WEBRSYNC=0/WEBRSYNC=1/g' "${CHDIR}/chsinprog";;
+	2)
+		sed -i -e 's/BOOTSTRAP=0/BOOTSTRAP=1/g' "${CHDIR}/chsinprog";;
+	3)
+		sed -i -e 's/REBUILD=0/REBUILD=1/g' "${CHDIR}/chsinprog";;
+	4)
+		sed -i -e 's/CONFIGURE=0/CONFIGURE=1/g' "${CHDIR}/chsinprog";;
+	5)
+		sed -i -e 's/INSTALL=0/INSTALL=1/g' "${CHDIR}/chsinprog";;
+	6)
+		sed -i -e 's/RESUMEREBUILD=1/RESUMEREBUILD=0/g' "${CHDIR}/chsinprog";;
+	7)
+		sed -i -e 's/RESUMEINSTALL=1/RESUMEINSTALL=0/g' "${CHDIR}/chsinprog";;
+	8)
+		sed -i -e 's/RESUMEREB=0/RESUMEREB=1/g' "${CHDIR}/chsinprog";;
+	9)
+		sed -i -e 's/RESUMEINST=0/RESUMEINST=1/g' "${CHDIR}/chsinprog";;
+	rn)
+		sed -i -e 's/RUNLEVEL=0/RUNLEVEL=1/g' "${CHDIR}/chsinprog";;
+	kern)
+		sed -i -e 's/KERNEL=0/KERNEL=1/g' "${CHDIR}/chsinprog";;
+	dn) ;;
+esac

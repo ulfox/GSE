@@ -1,0 +1,5 @@
+# Please note that for now, only ethernet is supported by the controller, but more options will be added on future releases
+# If you don't change net-int, then it will be set automatically by the controller
+# 
+config_net-int=("dhcp")
+# modules_net-int=(" ")

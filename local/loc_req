@@ -1,0 +1,37 @@
+# Runtime Dependencies
+# TBU
+
+sys-apps/busybox
+sys-apps/less
+sys-apps/which
+sys-apps/grep
+www-client/lynx
+net-misc/wget
+sys-devel/automake
+net-misc/rsync
+sys-devel/gnuconfig
+app-arch/bzip2
+app-arch/gzip
+sys-kernel/genkernel
+sys-libs/timezone-data
+sys-devel/gettext
+sys-devel/autoconf
+sys-kernel/dracut
+sys-apps/file
+sys-devel/make
+sys-libs/zlib
+dev-libs/lzo
+app-portage/mirrorselect
+app-editors/vim
+app-crypt/gnupg
+sys-apps/iproute2
+app-crypt/gnupg
+sys-process/cronie
+net-misc/openssh
+app-arch/tar
+sys-apps/sed
+sys-apps/gawk
+sys-devel/patch
+sys-block/parted
+dev-util/catalyst
+app-portage/eix

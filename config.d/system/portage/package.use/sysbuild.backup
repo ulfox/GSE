@@ -1,0 +1,55 @@
+sys-apps/busybox static
+net-misc/rsync xattr static acl iconv
+app-arch/bzip2 static-libs
+sys-fs/e2fsprogs fuse static-libs
+sys-libs/e2fsprogs-libs static-libs
+sys-libs/zlib static-libs minizip
+dev-libs/lzo static-libs
+sys-fs/squashfs-tools lz4 lzma xattr xz
+sys-fs/squashfuse lz4 lzma lzo zlib
+sys-fs/btrfs-progs convert static static-libs
+sys-apps/openrc ncurses netifrc static-libs unicode
+sys-fs/dosfstools udev
+
+# required by net-misc/networkmanager-1.4.4-r1::gentoo[wifi]
+# required by net-misc/networkmanager (argument)
+>=net-wireless/wpa_supplicant-2.6 dbus
+# required by sys-auth/polkit-0.113::gentoo[-systemd]
+# required by net-misc/networkmanager-1.4.4-r1::gentoo
+# required by net-misc/networkmanager (argument)
+>=sys-auth/consolekit-1.1.0-r1 policykit
+# required by sys-auth/consolekit-1.1.0-r1::gentoo
+# required by sys-auth/polkit-0.113::gentoo[-systemd]
+# required by net-misc/networkmanager-1.4.4-r1::gentoo
+# required by net-misc/networkmanager (argument)
+>=dev-libs/glib-2.50.3-r1 dbus
+
+# required by net-misc/rsync-3.1.2::gentoo[xattr,static]
+# required by sys-apps/portage-2.3.5::gentoo[-build]
+# required by virtual/package-manager-0::gentoo
+# required by @system
+# required by @world (argument)
+>=sys-apps/attr-2.4.47-r2 static-libs
+# required by net-misc/rsync-3.1.2::gentoo[static]
+# required by sys-apps/portage-2.3.5::gentoo[-build]
+# required by virtual/package-manager-0::gentoo
+# required by @system
+# required by @world (argument)
+>=dev-libs/popt-1.16-r2 static-libs
+# required by virtual/acl-0-r2::gentoo
+# required by sys-apps/sed-4.2.2::gentoo
+# required by sys-apps/portage-2.3.5::gentoo[-build]
+# required by virtual/package-manager-0::gentoo
+# required by @system
+# required by @world (argument)
+>=sys-apps/acl-2.2.52-r1 static-libs
+# required by net-misc/rsync-3.1.2::gentoo[acl,static]
+# required by sys-apps/portage-2.3.5::gentoo[-build]
+# required by virtual/package-manager-0::gentoo
+# required by @system
+# required by @world (argument)
+>=virtual/acl-0-r2 static-libs
+
+# required by sys-fs/btrfs-progs-4.10.2::gentoo[static]
+# required by sys-fs/btrfs-progs (argument)
+>=sys-apps/util-linux-2.28.2 static-libs
