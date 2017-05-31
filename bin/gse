@@ -134,12 +134,18 @@ clear; men_opt 6
 				catalyst_f
 				break;;
 			III|iii|3|-III|-iii|-3)
+				# START LOCAL BUILD
+				clear; source "${WORKDIR}/scripts/local_rbuild"
+				echo "Presh any key to return"
+				read -r 1>&-;BACKTO="SM";
+				break;;
+			IV|iv|4|-IV|-iv|-4)
 				# START MAIN BUILDER PROCESS
 				clear; source "${WORKDIR}/scripts/sinit"
 				echo "Presh any key to return"
 				read -r 1>&-;BACKTO="SM";
 				break;;
-			IV|iv|4|-IV|-iv|-4)
+			V|v|5)
 				clear; BACKTO="BSM"; break;;
 			[tT])
 				clear; /bin/bash
@@ -318,6 +324,11 @@ config_f() {
 				clear; echo -e "[\e[32m*\e[0m] Presh any key to return"
 				read -r 1>&-; BACKTO="CO_F"; break;;
 			XV|xv|15)
+				# INJECT CUSTOM FILES
+				vim "${CONFDIR}/system/inject_files"
+				clear; echo -e "[\e[32m*\e[0m] Presh any key to return"
+				read -r 1>&-; BACKTO="CO_F"; break;;
+			XVI|xvi|16)
 				BACKTO="BSM"; break;;
 			[tT])
 				clear; /bin/bash
