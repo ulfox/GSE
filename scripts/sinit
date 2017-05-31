@@ -105,22 +105,21 @@ sinit_mon 3
 fi
 unset VERIFICATION
 }
-# CATALYST BEGINS HERE
 
-echo -e "\e[34mCallling Catalyst\e[0m"
-sleep 0.5
+case "$2" in
+	catalyst)
+		# CATALYST BEGINS HERE
+		echo -e "\e[34mCallling Catalyst\e[0m"
+		sleep 0.5
 
-if init_stage3_seq; then
-sinit_mon 7 && echo "CATALYST=0" > "${LOCALLG}/tborigin"
-else
-sinit_mon 8 && echo "CATALYST=1" > "${LOCALLG}/tborigin"
-fi
-unset CATADIR
-unset CATPORTDIR
-unset CATPORTCACHEDIR
-unset CATLOGDIR
-unset CATDISTDIR
-# CATALYST ENDS HERE
+		if init_stage3_seq; then
+			sinit_mon 7 && echo "CATALYST=0" > "${LOCALLG}/tborigin"
+		else
+			sinit_mon 8 && echo "CATALYST=1" > "${LOCALLG}/tborigin"
+		fi
+		# CATALYST ENDS HERE
+	localrb)
+		
 exit
 if cp "${CATADIR}/builds/defaults/stage3-${ARCH}-${GSE_VER}.tar.bz2"; then echo "Stage3 tarball built"; echo "Extracting"; fi
 
