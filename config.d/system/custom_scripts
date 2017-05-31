@@ -1,1 +1,7 @@
-# TBU
+# Custom scripts configuration file
+# Please input the path to your script ( absolute path ) and the runlevel your want it to run
+# During installation your scripts will be injected on the requested runlevel stage.
+# 
+# It requires no explanation about the effects of a miss-configured that runs on a important runlevel staage
+# So please include scripts that have been checked and if they are mandatory for providing a function that you
+# can not obtain otherwise. Apart from those reasons, you should avoid this area as mush as you can.
