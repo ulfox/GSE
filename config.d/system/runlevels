@@ -6,7 +6,7 @@
 # Syntax: {daemon} {add/dell} {runlevel}
 # Example: distccd add default -> rc-update add distccd default
 #
-#
+# This section together with custom scripts file, can make the system unbootable
 consolefont add boot
 
 
