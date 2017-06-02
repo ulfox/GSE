@@ -135,17 +135,17 @@ clear; men_opt 6
 				break;;
 			III|iii|3|-III|-iii|-3)
 				# START LOCAL BUILD
-				clear; source "${WORKDIR}/scripts/local_rbuild"
+				clear; source "${WORKDIR}/scripts/sinit" "no_seed" "localrb"
 				echo "Presh any key to return"
 				read -r 1>&-;BACKTO="SM";
 				break;;
 			IV|iv|4|-IV|-iv|-4)
-				# START MAIN BUILDER PROCESS
-				clear; source "${WORKDIR}/scripts/sinit"
+				# START PRE PRECOMPILED
+				clear; source "${WORKDIR}/scripts/sinit" "seed" "precomp"
 				echo "Presh any key to return"
 				read -r 1>&-;BACKTO="SM";
 				break;;
-			V|v|5)
+			V|v|5|-V|-v|-5)
 				clear; BACKTO="BSM"; break;;
 			[tT])
 				clear; /bin/bash
@@ -237,6 +237,12 @@ catalyst_f() {
 				clear; echo "Presh any key to return"
 				read -r 1>&-; BACKTO="CATA_M"; break;;
 			VI|vi|6|-VI|-vi|-6)
+				# START MAIN BUILDER PROCESS
+				clear; source "${WORKDIR}/scripts/sinit" "seed" "catalyst" "s1" "s2" "s3"
+				echo "Presh any key to return"
+				read -r 1>&-;BACKTO="CATA_M";
+				break;;
+			VII|vii|7)
 				BACKTO="SM"; break;;
 			[tT])
 				clear; /bin/bash
