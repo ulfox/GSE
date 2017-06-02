@@ -22,7 +22,7 @@ case $1 in
 		echo -e "[\e[31m*\e[0m] [\e[31mERROR\e[0m: Wrong parameters"
 		exit 1;;
 	5)
-		echo -e "[\e[31m*\e[0m] Failed getting version"
+		echo -e "[\e[31m*\e[0m] Failed getting version";;
 	6)
-		echo -e "[\e[31m*\e[0m] FATAL"
+		echo -e "[\e[31m*\e[0m] FATAL";;
 esac
