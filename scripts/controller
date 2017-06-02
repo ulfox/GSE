@@ -1,6 +1,5 @@
 #!/bin/bash
 
-
 # directory structure
 echo "Creating initramfs directories"
 mkdir -p initramfs/mnt/{root,boot}
