@@ -16,9 +16,9 @@ source "${CHDIR}/chinit.conf" || { chprint_inf 2; exit 1; }
 
 # PART C BEGINS
 if [[ "$(awk -F '=' '/WEBRSYNC/{ print $2 }' <"${CHDIR}/chsinprog")" == 0 ]]; then
-clear; echo "Part C: Preparing to bootstrap"
+clear; echo -e "\e[35mPart C: Syncing Portage\e[0m"
 # server_set_f "${SERVERS[@]}"
-echo "Getting latest portage snapshot"
+echo -e "\e[34mGetting latest portage snapshot\e[0m"
 emerge-webrsync && chprint_inf 1 || { chprint_inf 2; exit 1; }
 env-update > /dev/null 2>&1
 chsinit_mon 1
@@ -30,9 +30,18 @@ cp "${CHDIR}/make.conf" /etc/portage/make.conf \
 && cp "${CHDIR}/sysbuild" /etc/portage/package.use/sysbuild
 
 # SELECTING BASIC PROFILE
-eselect profile set 1
+GSE_PROF=$(eselect profile list | grep "gse" | awk -F '[' '{print $2}' | awk -F ']' '{print $1}') \
+&& eselect profile set "${GSE_PROF}" \
+&& echo -e "[\e[31m*\e[0m] \e[34mSetting Profile\e[0m" \
+|| { echo -e "[\e[31m*\e[0m] \e[34mSetting Profile\e[0m"; exit 1; }
 
-if [[ "$(awk -F '=' '/CATALYST/{ print $2 }' < "${CHDIR}/tborigin")" == 0 ]]; then
+# APPLYING PROFILE CHANGES
+echo -e "[\e[32m*\e[0m] \e[34mApplying new profile changes\e[0m"
+emerge -q --update --deep --newuse @world \
+&& chprint_inf 1 \
+|| { chprint_inf 2; exit 1; }
+
+if [[ "$1" == "precomp" ]]; then
 # Part D Begins
 if [[ "$(awk -F '=' '/REBUILD/{ print $2 }' <"${CHDIR}/chsinprog")" == 0 ]]; then
 clear; echo "Part D: Rebuilding system"
@@ -110,9 +119,10 @@ cat "${CHDIR}/fstab" > /etc/fstab && echo -e "[\e[32m*\e[0m] Creating fstab entr
 { while read -r i; do
 	case $(echo $i | awk -F ' ' '{ print $1 }') in
 		tmpfs)
-			echo #>> /etc/fstab
+			echo >> /etc/fstab
 			echo "# $(echo $i | awk -F ' ' '{ print $2 }')" >> /etc/fstab
 			echo "tmpfs $(echo $i | awk -F ' ' '{ print $2 }') tmpfs nodev,nosuid,size=$(echo $i | awk -F ' ' '{ print $3 }')" >> /etc/fstab
+			echo >> /etc/fstab
 			;;
 		symlink)
 			if [[ $(echo $i | awk -F ' ' '{ print $2 }') == 'f=n' ]]; then
@@ -127,11 +137,13 @@ cat "${CHDIR}/fstab" > /etc/fstab && echo -e "[\e[32m*\e[0m] Creating fstab entr
 				echo >> /etc/fstab
 				echo "# bind mount: $(echo $i | awk -F ' ' '{ print $3 }')" >> /etc/fstab
 				echo "$(echo $i | awk -F ' ' '{ print $3 }') $(echo $i | awk -F ' ' '{ print $4 }') none rw,bind 0 0" >> /etc/fstab
+				echo >> /etc/fstab
 			elif [[ $(echo $i | awk -F ' ' '{ print $2 }') == 'f=y' ]]; then
 				echo >> /etc/fstab
 				echo "# bind mount: $(echo $i | awk -F ' ' '{ print $4 }')" >> /etc/fstab
 				mkdir -p $(echo $i | awk -F ' ' '{ print $3 }')
 				echo "$(echo $i | awk -F ' ' '{ print $4 }') $(echo $i | awk -F ' ' '{ print $5 }') none rw,bind 0 0" >> /etc/fstab
+				echo >> /etc/fstab
 			fi
 			;;
 		overlay)
@@ -141,6 +153,7 @@ cat "${CHDIR}/fstab" > /etc/fstab && echo -e "[\e[32m*\e[0m] Creating fstab entr
 			OVLFSUD=$(echo $i | awk -F ' ' '{ print $3 }')
 			OVLFSWD=$(echo $i | awk -F ' ' '{ print $4 }')
 			echo "overlay /merged overlay noauto,lowerdir=${OVLFSLD},uperdir=${OVLFSUD},workdir=${OVLFSWD} 0 0" >> /etc/fstab
+			echo >> /etc/fstab
 			unset OVLFSLD
 			unset OVLFSUD
 			unset OVLFSWD
