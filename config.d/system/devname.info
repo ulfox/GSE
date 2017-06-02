@@ -9,3 +9,6 @@
 BOOT /dev/sda 300M
 SYS /dev/sdb 
 USERDATA /dev/sdc
+
+
+# EOF

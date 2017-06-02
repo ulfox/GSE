@@ -45,3 +45,5 @@ tmpfs /var/tmp tmpfs nodev,nosuid,size=512M 0 0
 
 # HOME
 tmpfs /tmp tmpfs nodev,nosuid,size=512M 0 0
+
+# EOF

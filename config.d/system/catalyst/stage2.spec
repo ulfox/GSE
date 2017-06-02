@@ -27,8 +27,8 @@ snapshot: latest
 # for the seed tarball stage3-bar.tar.bz2
 #
 # For stage{2,3} the source_subpath sould target the previous stage. For example for stage 3
-# you must provide foo/stage2-bar.tar.bz2 and for stage2 you must provide foo/stage1-bar.tar.bz2
-source_subpath: default/latest
+# you must provide foo/stage2-${subarch}-bar.tar.bz2 and for stage2 you must provide foo/stage1-${subarch}-bar.tar.bz2
+source_subpath: default/stage1-amd64-latest
 
 # Distcc hosts tell catalyst which hosts will be participating in the building process.
 # This option alone does nothing. Distcc must be enabled on all hosts, started on the server

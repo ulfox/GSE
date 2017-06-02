@@ -24,8 +24,8 @@ snapshot: latest
 
 # This is the subpath under $storedir/builds/ that catalyst will use for the seed tarball
 # Example: foo/bar means that catalyst will search under $storedir/builds/foo
-# for the seed tarball stage3-bar.tar.bz2
-source_subpath: default/latest
+# for the seed tarball bar.tar.bz2
+source_subpath: default/stage3-latest
 
 # Distcc hosts tell catalyst which hosts will be participating in the building process.
 # This option alone does nothing. Distcc must be enabled on all hosts, started on the server
