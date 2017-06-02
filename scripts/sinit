@@ -45,7 +45,7 @@ esac
 done
 fi
 
-keep_out(){
+seed_f(){
 # PART A FUNDAMENTALS
 [[ "$(awk -F '=' '/PARTA/{ print $2 }' <"${LOCALLG}/sinprog")" == 0 ]] \
 && clear && echo -e "\e[35mPART:A Fundamentals\e[0m" && sleep 2
@@ -106,9 +106,11 @@ fi
 unset VERIFICATION
 }
 
+[[ "$1" == "seed" ]] && seed_f
+
 case "$2" in
 	catalyst)
-		# CATALYST BEGINS HERE
+		# CATALYST
 		echo -e "\e[34mCallling Catalyst\e[0m"
 		sleep 0.5
 
@@ -117,23 +119,44 @@ case "$2" in
 		else
 			sinit_mon 8 && echo "CATALYST=1" > "${LOCALLG}/tborigin"
 		fi
-		# CATALYST ENDS HERE
+		;;
 	localrb)
+		local_rbuild;;
+esac
 		
 exit
-if cp "${CATADIR}/builds/defaults/stage3-${ARCH}-${GSE_VER}.tar.bz2"; then echo "Stage3 tarball built"; echo "Extracting"; fi
-
 # Extract the tarball
 if [[ "$(awk -F '=' '/EXTRACTION/{ print $2 }' < "${LOCALLG}/sinprog")" == 0 ]]; then
-echo "Extracting tarball"
-if [[ "$(awk -F '=' '/CATALYST/{ print $2 }' < "${LOCALLG}/sinprog")" == 0 ]]; then
-tar xvjpf "${DISTDIR}/dists/catalyst/builds/defaults/stage3-${ARCH}-${GSE_VER}.tar.bz2" \
--C "${DISTDIR}/${STAGE3TB}" --xattrs --numeric-owner && echo -e "[\e[32m*\e[0m] ALL GOOD" \
+
+if [[ "$2" == "catalyst" ]]; then
+
+CATDIR=$(grep storedir "${CONFDIR}/system/catalyst/catalyst.conf" \
+| sed '/^#/ d' | awk -F '=' '{ print $2 }' | sed  -e "s_\"__g")
+
+TARGETPATH="$(grep 'source_subpath' "${CONFDIR}/system/catalyst/stage3.spec" \
+| sed '/^#/ d' | awk -F ' ' '{ print $2 }' | sed  -e "s_\"__g" | awk -F '/' '{ print $1 }')"
+
+TARGETSTAMP="$(grep 'version_stamp' "${CONFDIR}/system/catalyst/stage3.spec" \
+| sed '/^#/ d' | awk -F ' ' '{ print $2 }' | sed  -e "s_\"__g")"
+
+mkdir -p "${DISTDIR}/stage3-amd64-${TARGETSTAMP}-${GSEVER}"
+
+echo -e "\e[34mExtracting tarball\e[0m"
+tar xvjpf "${CATDIR}/builds/${TARGETPATH}/stage3-amd64-${TARGETSTAMP}.tar.bz2" \
+-C "${DISTDIR}/stage3-amd64-${TARGETSTAMP}-${GSEVER}" --xattrs --numeric-owner && echo -e "[\e[32m*\e[0m] Extracted" \
 || echo -e "[\e[31m*\e[0m] AN ERROR OCCURRED"
-else
-tar xvjpf "${DISTDIR}/dists/${STAGE3TB}" -C "${DISTDIR}/${STAGE3TB}" --xattrs --numeric-owner \
-&& echo -e "[\e[32m*\e[0m] ALL GOOD" \
+
+elif [[ "$2" == "precomp" ]]; then
+
+mkdir -p "${DISTDIR}/stage3-amd64-latest-${GSEVER}"
+
+echo -e "\e[34mExtracting tarball\e[0m"
+
+tar xvjpf "${DISTDIR}/dists/${STAGE3TB}" -C "${DISTDIR}/stage3-amd64-latest-${GSEVER}" --xattrs --numeric-owner \
+&& echo -e "[\e[32m*\e[0m] Extracted" \
 || echo -e "[\e[31m*\e[0m] AN ERROR OCCURRED"
+fi
+
 sinit_mon 4
 fi
 unset EXTRACTION
@@ -146,7 +169,7 @@ unset EXTRACTION
 amiroot() {
 	if [[ "$1" != "0" ]]
 	then
-		echo "This operation requires root privileges"
+		echo -e "\e[31mThis operation requires root privileges\e[0m"
 		echo "Returning back..."
 		sleep 2
 		BACKTO="MM"
@@ -155,65 +178,118 @@ amiroot() {
 	return 0
 }
 
-amiroot "$UID"
-sleep 1
+amiroot "$UID" || exit 1
+sleep 
 echo -e "[\e[32m*\e[0m] Requesting root privileges"
 
-cp -L /etc/resolv.conf "${DISTDIR}/${STAGE3TB}/etc/"
+pr_chroot_f() {
+cp -L /etc/resolv.conf "$1/etc/"
 
-# Check if mounted
-#cat /proc/mounts | grep 'dist.d/stage3' | awk -F ' ' '{ print $1 }'
-if [[ -n $(cat /proc/mounts | grep 'dist.d/stage3' | awk -F ' ' '{ print $1 }') ]]; then
+# CHECK IF PSEUDOS ARE MOUNTED
+if [[ -n $(cat /proc/mounts | grep 'stage3-amd64-' | awk -F ' ' '{ print $1 }') ]]; then
 echo "Pseudos possibly mounted at target directory"
-umount -l "${DISTDIR}/${STAGE3TB}/dev" >/dev/null 2>&1
-umount -l "${DISTDIR}/${STAGE3TB}/proc" >/dev/null 2>&1
-umount -l "${DISTDIR}/${STAGE3TB}/sys" >/dev/null 2>&1
-umount -l "${DISTDIR}/${STAGE3TB}"/* >/dev/null 2>&1
+umount -l "$1/dev" >/dev/null 2>&1
+umount -l "$1/proc" >/dev/null 2>&1
+umount -l "$1/sys" >/dev/null 2>&1
+umount -l "$1"/* >/dev/null 2>&1
 sleep 2
 fi
 
-echo "Mounting pseudo"
-[[ -z $(grep 'dist.d/stage3' /proc/mounts | awk -F ' ' '{ print $1 }') ]] \
-&& { mount -t proc /proc "${DISTDIR}/${STAGE3TB}/proc" \
+echo -e "\e[34mMounting pseudo\e[0m"
+[[ -z $(grep 'stage3-amd64-' /proc/mounts | awk -F ' ' '{ print $1 }') ]] \
+&& { mount -t proc /proc "$1/proc" \
 && echo -e "[\e[32m*\e[0m] Mounting proc" \
 || { echo -e "[\e[31m*\e[0m] Mounting proc"; return 1; }
 
-mount --rbind /dev "${DISTDIR}/${STAGE3TB}/dev" \
-&& mount --make-rslave "${DISTDIR}/${STAGE3TB}/dev" \
+mount --rbind /dev "$1/dev" \
+&& mount --make-rslave "$1/dev" \
 && echo -e "[\e[32m*\e[0m] Mounting dev" \
 || { echo -e "[\e[321*\e[0m] Mounting dev"; return 1; }
 
-mount --rbind /sys "${DISTDIR}/${STAGE3TB}/sys" \
-&& mount --make-rslave "${DISTDIR}/${STAGE3TB}/sys" \
+mount --rbind /sys "$1/sys" \
+&& mount --make-rslave "$1/sys" \
 && echo -e "[\e[32m*\e[0m] Mounting sys" \
 || { echo -e "[\e[321*\e[0m] Mounting sys"; return 1; }; }
 
-mkdir -p "${DISTDIR}/${STAGE3TB}/sinit.d"
+mkdir -p "$1/sinit.d"
 
-rsync -avhPr "${WORKDIR}/scripts/chroot_scripts/" "${DISTDIR}/${STAGE3TB}/sinit.d/" >/dev/null 2>&1 \
-&& rsync -a "${CONFDIR}/system/portage/make.conf" "${DISTDIR}/${STAGE3TB}/sinit.d/" >/dev/null 2>&1 \
-&& rsync -a "${CONFDIR}/system/portage/package.use/sysbuild" "${DISTDIR}/${STAGE3TB}/sinit.d/" >/dev/null 2>&1 \
-&& rsync -a --exclude="portage" "${CONFDIR}/system/" "${DISTDIR}/${STAGE3TB}/sinit.d/" >/dev/null 2>&1 \
+rsync -avhPr "${WORKDIR}/scripts/chroot_scripts/" "$1/sinit.d/" >/dev/null 2>&1 \
+&& rsync -a "${CONFDIR}/system/portage/make.conf" "$1/sinit.d/" >/dev/null 2>&1 \
+&& rsync -a "${CONFDIR}/system/portage/package.use/sysbuild" "$1/sinit.d/" >/dev/null 2>&1 \
+&& rsync -a --exclude="portage" "${CONFDIR}/system/" "$1/sinit.d/" >/dev/null 2>&1 \
 && echo -e "[\e[32m*\e[0m] Copying required files to new system" \
 || { echo -e "[\e[31m*\e[0m] Copying required files to new system"; return 1; }
 
-# Create repos.conf dir & copy repos.conf to it
-mkdir -p "${DISTDIR}/${STAGE3TB}/etc/portage/repos.conf"
-cp "${DISTDIR}/${STAGE3TB}/usr/share/portage/config/repos.conf" "${DISTDIR}/${STAGE3TB}/etc/portage/repos.conf/gentoo.conf"
+# CREATE REPOS.CONF DIRECOTRY & AND COPY REPOS.CONF TO IT
+mkdir -p "$1/etc/portage/repos.conf"
+cp "$1usr/share/portage/config/repos.conf" "$1/etc/portage/repos.conf/gentoo.conf"
 
 # Set local timezone if set
 if [[ -n $(cat /etc/timezone) ]]; then
 TIMEZONE=$(cat /etc/timezone)
-sed -i -e "s_TMZ_${TIMEZONE}_g" "${DISTDIR}/${STAGE3TB}/sinit.d/init.conf"
+sed -i -e "s_TMZ_${TIMEZONE}_g" "$1/sinit.d/init.conf"
 unset TIMEZONE
 fi
 
-echo "Chrooting at new system"
-sleep 2
-chroot "${DISTDIR}/${STAGE3TB}" "sinit.d/chroot_init" || { echo -e "[\e[31m*\e[0m] Chrooting at new system"; return 1; }
-sinit_mon 6
+echo -e "[\e[32m*\e[0m] Copying requested files" 
+while read -r INJFL;do
+	echo "Copying $($INJFL | awk -F ' ' '{ print $1 }') to $($INJFL | awk -F ' ' '{ print $2 }')"
+	rsync -aAXPhrv ${INJFL} >/dev/null 2>&1 && print_inf 1 || { print_inf 2 mapfile -t INJFLERR < <($INJFL | awk -F ' ' '{ print $1 }'); }
+done < <(cat "${CONFDIR}/system/inject_files" | sed '/^#/ d' | sed '/^\s*$/d')
+unset INJFL
+echo "Failed to copy the following packages: "
+echo "${INJFLERR[@]}"
+while true; do
+	echo "You can list the failed files again, continue, request terminal or exit"
+	read -rp "Please choose: LIST/CONTINUE/TERMINAL/EXIT" INJFLANS
+	case "$INJFLANS" in
+		LIST)
+			clear; echo "${INJFLERR[@]}";;
+		CONTINUE)
+			while true; do
+				read -p "Are you sure? Y/N " YN
+				case $YN in
+					[yY])
+						echo "Proceeding"
+						INJFLESC=0;;
+					[nN])
+						INJFLESC=1;;
+				esac
+			done
+		TERMINAL)
+			exec /bin/bash
+			INJFLESC=0;;
+		EXIT)
+			echo "Aborting..."
+			exit 0;;
+	esac
+	[[ "$INFESC" == 0 ]] && break
+done
+unset INJFLESC
+unset INJFLANS
+unset INJFLERR
 
-# TBU
+echo -e "\e[34mChrooting at new system\e[0m"
+sleep 2
+chroot "$1" "sinit.d/chroot_init" || { echo -e "[\e[31m*\e[0m] Chrooting at new system"; return 1; }
+
+sinit_mon 6
+}
+
+case "$2" in
+	catalyst)
+		pr_chroot_f "${DISTDIR}/stage3-amd64-${TARGETSTAMP}-${GSEVER}";;
+	precomp)
+		pr_chroot_f "${DISTDIR}/stage3-amd64-latest-${GSEVER}";;
+esac
+
+case "$2" in
+	catalyst)
+		tar cvf "${DISTDIR}/stage3-amd64-${TARGETSTAMP}-${GSEVER}.tar.bz2" -C "${DISTDIR}/stage3-amd64-${TARGETSTAMP}-${GSEVER}";;
+	precomp)
+		pr_chroot_f "${DISTDIR}/stage3-amd64-latest-${GSEVER}.tar.bz2" -C "${DISTDIR}/stage3-amd64-latest-${GSEVER}";;
+esac
+sinit_mon 7
 exit
 
 gpg --armor --export email > ${FINALDIST}/key.asc # THIS WILL BE ADDED TO THE HOSTS
