@@ -8,6 +8,8 @@
 # 
 
 LC_COLLATE="C"
+LC_ALL="en_US.UTF-8"
+LC_CTYPE="en_US.UTF-8"
 
 source /etc/profile && export PS1="( 'Part C: Preparing to bootstrap' ) $PS1"
 export CHDIR="/sinit.d"
@@ -16,11 +18,12 @@ source "${CHDIR}/chinit.conf" || { chprint_inf 2; exit 1; }
 
 # PART C BEGINS
 if [[ "$(awk -F '=' '/WEBRSYNC/{ print $2 }' <"${CHDIR}/chsinprog")" == 0 ]]; then
-clear; echo -e "\e[35mPart C: Syncing Portage\e[0m"
-# server_set_f "${SERVERS[@]}"
-echo -e "\e[34mGetting latest portage snapshot\e[0m"
-emerge-webrsync >/dev/nill 2>&1 && chprint_inf 1 || { chprint_inf 2; exit 1; }
-env-update > /dev/null 2>&1
+echo "============================================================================"
+echo -e "\e[35mPart C: Syncing Portage\e[0m"
+echo "============================================================================"
+echo -e "\e[34mUpdating the database\e[0m"
+emerge --sync >/dev/nill 2>&1 && chprint_inf 1 || { chprint_inf 2; exit 1; }
+env-update >/dev/null 2>&1
 export CHDIR="/sinit.d"
 export PATH=${PATH}:${CHDIR}
 source "${CHDIR}/chinit.conf" || { chprint_inf 2; exit 1; }
@@ -29,15 +32,12 @@ fi
 
 rm -f /etc/portage/make.conf \
 && rm -r /etc/portage/package.use/sysbuild >/dev/null 2>&1 \
-&& mkdir -p /etc/portage/package.use
-cp "${CHDIR}/make.conf" /etc/portage/make.conf \
-&& cp "${CHDIR}/sysbuild" /etc/portage/package.use/sysbuild
+&& mkdir -p "/etc/portage/package.use/" \
+&& cp "${CHDIR}/make.conf" /etc/portage/make.conf \
+&& cp "${CHDIR}/sysbuild" "/etc/portage/package.use/sysbuild"
 
 # SELECTING BASIC PROFILE
-GSE_PROF=$(eselect profile list | grep "gse" | awk -F '[' '{print $2}' | awk -F ']' '{print $1}') \
-&& eselect profile set "${GSE_PROF}" \
-&& echo -e "[\e[31m*\e[0m] \e[34mSetting Profile\e[0m" \
-|| { echo -e "[\e[31m*\e[0m] \e[34mSetting Profile\e[0m"; exit 1; }
+eselect profile set 1
 
 # APPLYING PROFILE CHANGES
 echo -e "[\e[32m*\e[0m] \e[34mApplying new profile changes\e[0m"
@@ -48,12 +48,13 @@ emerge -q --update --deep --newuse @world \
 if [[ "$1" == "precomp" ]]; then
 # Part D Begins
 if [[ "$(awk -F '=' '/REBUILD/{ print $2 }' <"${CHDIR}/chsinprog")" == 0 ]]; then
-clear; echo "Part D: Rebuilding system"
+echo -e "\e[35mPart D: Rebuilding system\e[0m"
 env-update > /dev/null 2>&1 && source /etc/profile && export PS1="( 'Part D: Rebuilding system' ) $PS1"
 export PATH=${PATH}:${CHDIR}
 
 # EMERGIN WORLD
 while true; do
+	echo "----------------------------------------------------------------------------"
 	echo "Do you wish to rebuild the system?"
 	echo "If catalyst built this system, simply say no"
 	read -p "Answer Yes or No: " yn
@@ -76,18 +77,22 @@ fi
 
 # PART E BEGINS
 if [[ "$(awk -F '=' '/CONFIGURE/{ print $2 }' <"${CHDIR}/chsinprog")" == 0 ]]; then
-clear; echo "Part E: Configuring system"
+echo "============================================================================"
+echo -e "\e[35mPart E: Configuring system\e[0m"
+echo "============================================================================"
 env-update > /dev/null 2>&1 && source /etc/profile && export PS1="( 'Part E: Configuring system' ) $PS1"
 export PATH=${PATH}:${CHDIR}
 
-# TIMEZONE CONFIGURATION
+# TIMEZONE CONFIGURATIONecho 
 if [[ "${TIMEZONE}" != TMZ ]]; then
-echo "${TIMEZONE}" > /etc/timezone && echo -e "[\e[32m*\e[0m] Configuring Timezone"
+echo "----------------------------------------------------------------------------"
+echo "${TIMEZONE}" > /etc/timezone && echo -e "[\e[32m*\e[0m] Configuring \e[34mTimezone\e[0m"
 else
-echo "UTC" > /etc/timezone && echo -e "[\e[32m*\e[0m] Configuring Timezone"
+echo "----------------------------------------------------------------------------"
+echo "UTC" > /etc/timezone && echo -e "[\e[32m*\e[0m] \e[34mConfiguring Timezone\e[0m"
 fi
 
-if emerge --config sys-libs/timezone-data | grep "invalid"; then
+if emerge --config sys-libs/timezone-data | grep "invalid" >/dev/null 2>&1; then
 echo "UTC" >/etc/timezone; emerge --config sys-libs/timezone-data \
 && echo -e "[\e[32m*\e[0m] Resetting to UTC" \
 || echo -e "[\e[31m*\e[0m] Resetting to UTC"
@@ -96,12 +101,12 @@ fi
 # HOST CONFIGURATION
 if [[ -z $(cat "${CHDIR}/locale.gen" | sed '/^#/ d' | sed '/^\s*$/d') ]]; then
 sed -i '/en_US.UTF-8/d' /etc/locale.gen
-echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen && echo -e "[\e[32m*\e[0m] Configuring locale" \
+echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen && echo -e "[\e[32m*\e[0m] Configuring \e[34mlocale\e[0m" \
 || echo -e "[\e[31m*\e[0m] Configuring locale"
 else
 echo $(cat "${CHDIR}/locale.gen") > /etc/locale.gen
 sed -i '/en_US.UTF-8/d' /etc/locale.gen
-echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen && echo -e "[\e[32m*\e[0m] Configuring locale" \
+echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen && echo -e "[\e[32m*\e[0m] Configuring \e[34mlocale\e[0m" \
 || echo -e "[\e[31m*\e[0m] Configuring locale"
 fi
 
@@ -110,52 +115,52 @@ export LC_ALL="en_US.UTF-8"
 SETLOC=$(eselect locale list | grep en_US | awk -F ' ' '{ print $1 }' \
 | awk -F '[' '{ print $2 }' | awk -F ']' '{ print $1 }')
 
-eselect locale set ${SETLOC} && echo -e "[\e[32m*\e[0m] Setting locale to en_US" \
+eselect locale set ${SETLOC} && echo -e "[\e[32m*\e[0m] Setting locale to \e[34men_US\e[0m" \
 || echo -e "[\e[31m*\e[0m] Setting locale en_US"
 unset SETLOC
 chsinit_mon 4
 fi
 
 # GENERATING FSTAB
-cat "${CHDIR}/fstab" > /etc/fstab && echo -e "[\e[32m*\e[0m] Creating fstab entries" \
-|| echo -e "[\e[31m*\e[0m] Creating fstab entries"
+cat "${CHDIR}/fstab" > /etc/fstab && echo -e "[\e[32m*\e[0m] Creating \e[34mfstab entries\e[0m" \
+|| echo -e "[\e[31m*\e[0m] Creating \e[34mfstab entries\e[0m"
 
-{ while read -r i; do
-	case $(echo $i | awk -F ' ' '{ print $1 }') in
+[[ -n $(cat "${CHDIR}/system_links" | sed '/^#/ d' | sed '/^\s*$/d') ]] && { while read -r i; do
+	case $(echo "$i" | awk -F ' ' '{ print $1 }') in
 		tmpfs)
 			echo >> /etc/fstab
-			echo "# $(echo $i | awk -F ' ' '{ print $2 }')" >> /etc/fstab
-			echo "tmpfs $(echo $i | awk -F ' ' '{ print $2 }') tmpfs nodev,nosuid,size=$(echo $i | awk -F ' ' '{ print $3 }')" >> /etc/fstab
+			echo "# $(echo "$i" | awk -F ' ' '{ print $2 }')" >> /etc/fstab
+			echo "tmpfs $(echo "$i" | awk -F ' ' '{ print $2 }') tmpfs nodev,nosuid,size=$(echo "$i" | awk -F ' ' '{ print $3 }')" >> /etc/fstab
 			echo >> /etc/fstab
 			;;
 		symlink)
-			if [[ $(echo $i | awk -F ' ' '{ print $2 }') == 'f=n' ]]; then
-				echo "ln -s $(echo $i | awk -F ' ' '{ print $3 }') $(echo $i | awk -F ' ' '{ print $4 }')"
-			elif [[ $(echo $i | awk -F ' ' '{ print $2 }') == 'f=y' ]]; then
-				mkdir -p $(echo $i | awk -F ' ' '{ print $3 }')
-				echo "ln -s $(echo $i | awk -F ' ' '{ print $4 }') $(echo $i | awk -F ' ' '{ print $5 }')"
+			if [[ $(echo "$i" | awk -F ' ' '{ print $2 }') == 'f=n' ]]; then
+				echo "ln -s $(echo "$i" | awk -F ' ' '{ print $3 }') $(echo "$i" | awk -F ' ' '{ print $4 }')"
+			elif [[ $(echo "$i" | awk -F ' ' '{ print $2 }') == 'f=y' ]]; then
+				mkdir -p $(echo "$i" | awk -F ' ' '{ print $3 }')
+				echo "ln -s $(echo "$i" | awk -F ' ' '{ print $4 }') $(echo "$i" | awk -F ' ' '{ print $5 }')"
 			fi
 			;;
 		bindmount)
-			if [[ $(echo $i | awk -F ' ' '{ print $2 }') == 'f=n' ]]; then
+			if [[ $(echo "$i" | awk -F ' ' '{ print $2 }') == 'f=n' ]]; then
 				echo >> /etc/fstab
-				echo "# bind mount: $(echo $i | awk -F ' ' '{ print $3 }')" >> /etc/fstab
-				echo "$(echo $i | awk -F ' ' '{ print $3 }') $(echo $i | awk -F ' ' '{ print $4 }') none rw,bind 0 0" >> /etc/fstab
+				echo "# bind mount: $(echo "$i" | awk -F ' ' '{ print $3 }')" >> /etc/fstab
+				echo "$(echo "$i" | awk -F ' ' '{ print $3 }') $(echo "$i" | awk -F ' ' '{ print $4 }') none rw,bind 0 0" >> /etc/fstab
 				echo >> /etc/fstab
-			elif [[ $(echo $i | awk -F ' ' '{ print $2 }') == 'f=y' ]]; then
+			elif [[ $(echo "$i" | awk -F ' ' '{ print $2 }') == 'f=y' ]]; then
 				echo >> /etc/fstab
-				echo "# bind mount: $(echo $i | awk -F ' ' '{ print $4 }')" >> /etc/fstab
-				mkdir -p $(echo $i | awk -F ' ' '{ print $3 }')
-				echo "$(echo $i | awk -F ' ' '{ print $4 }') $(echo $i | awk -F ' ' '{ print $5 }') none rw,bind 0 0" >> /etc/fstab
+				echo "# bind mount: $(echo "$i" | awk -F ' ' '{ print $4 }')" >> /etc/fstab
+				mkdir -p $(echo "$i" | awk -F ' ' '{ print $3 }')
+				echo "$(echo "$i" | awk -F ' ' '{ print $4 }') $(echo "$i" | awk -F ' ' '{ print $5 }') none rw,bind 0 0" >> /etc/fstab
 				echo >> /etc/fstab
 			fi
 			;;
 		overlay)
 			echo >> /etc/fstab
 			echo "# overlay: $(echo $i | awk -F ' ' '{ print $2 }')" >> /etc/fstab
-			OVLFSLD=$(echo $i | awk -F ' ' '{ print $2 }')
-			OVLFSUD=$(echo $i | awk -F ' ' '{ print $3 }')
-			OVLFSWD=$(echo $i | awk -F ' ' '{ print $4 }')
+			OVLFSLD=$(echo "$i" | awk -F ' ' '{ print $2 }')
+			OVLFSUD=$(echo "$i" | awk -F ' ' '{ print $3 }')
+			OVLFSWD=$(echo "$i" | awk -F ' ' '{ print $4 }')
 			echo "overlay /merged overlay noauto,lowerdir=${OVLFSLD},uperdir=${OVLFSUD},workdir=${OVLFSWD} 0 0" >> /etc/fstab
 			echo >> /etc/fstab
 			unset OVLFSLD
@@ -163,57 +168,60 @@ cat "${CHDIR}/fstab" > /etc/fstab && echo -e "[\e[32m*\e[0m] Creating fstab entr
 			unset OVLFSWD
 			;;
 	esac
-done < <(cat "${CHDIR}/system_links" | sed '/^#/ d' | sed '/^\s*$/d'); } && chprint_inf 1 || { chprint_inf 2; exit 1; } \
-&& echo -e "[\e[32m*\e[0m] Creating system links and requested fstab entries" \
-|| echo -e "[\e[31m*\e[0m] Creating system links and requested fstab entries"
+done < <(cat "${CHDIR}/system_links" | sed '/^#/ d' | sed '/^\s*$/d') && chprint_inf 1 || { chprint_inf 2; exit 1; } \
+&& echo -e "[\e[32m*\e[0m] Creating system links and requested \e[34mfstab entries\e[0m" \
+|| echo -e "[\e[31m*\e[0m] Creating system links and requested \e[34mfstab entries\e[0m"; }
 
-if cp "${CHDIR}/hostname" /etc/conf.d/hostname; then
-echo -e "[\e[32m*\e[0m] Configuring hostname"
+[[ -n $(cat "${CHDIR}/hostname" | sed '/^#/ d' | sed '/^\s*$/d') ]] && if cp "${CHDIR}/hostname" /etc/conf.d/hostname; then
+echo -e "[\e[32m*\e[0m] Configuring \e[34mhostname\e[0m"
 else
-echo -e "[\e[31m*\e[0m] Configuring hostname"
+echo -e "[\e[31m*\e[0m] Configuring \e[34mhostname\e[0m"
 fi
 
-if cp "${CHDIR}/net"  /etc/conf.d/net; then
-echo -e "[\e[32m*\e[0m] Configuring /etc/conf.d/net"
+[[ -n $(cat "${CHDIR}/net" | sed '/^#/ d' | sed '/^\s*$/d') ]] && if cp "${CHDIR}/net"  /etc/conf.d/net; then
+echo -e "[\e[32m*\e[0m] Configuring \e[34m/etc/conf.d/net\e[0m"
 else
-echo -e "[\e[31m*\e[0m] Configuring /etc/conf.d/net"
+echo -e "[\e[31m*\e[0m] Configuring \e[34m/etc/conf.d/net\e[0m"
 fi
 
-echo "Configuring /etc/ssh/sshd_config"
-if cp "${CHDIR}/sshd"  /etc/ssh/sshd_config; then
-echo -e "[\e[32m*\e[0m] Configuring /etc/ssh/sshd_config"
+[[ -n $(cat "${CHDIR}/sshd" | sed '/^#/ d' | sed '/^\s*$/d') ]] && if cp "${CHDIR}/sshd"  /etc/ssh/sshd_config; then
+echo -e "[\e[32m*\e[0m] Configuring \e[34m/etc/ssh/sshd_config\e[0m"
 else
-echo -e "[\e[31m*\e[0m] Configuring /etc/ssh/sshd_config"
+echo -e "[\e[31m*\e[0m] Configuring \e[34m/etc/ssh/sshd_config\e[0m"
 fi
 
-mkdir -p /root/.ssh
-if cat "${CHDIR}/ssh.pub" | sed '/^#/ d' | sed '/^\s*$/d' > /root/.ssh/authorized_keys; then
-echo -e "[\e[32m*\e[0m] Adding ssh.pub key to /root/.ssh/authorized_keys"
+[[ -n $(cat "${CHDIR}/ssh.pub" | sed '/^#/ d' | sed '/^\s*$/d') ]] && mkdir -p /root/.ssh \
+&& if cat "${CHDIR}/ssh.pub" | sed '/^#/ d' | sed '/^\s*$/d' > /root/.ssh/authorized_keys; then
+echo -e "[\e[32m*\e[0m] Adding ssh.pub key to \e[34m/root/.ssh/authorized_keys\e[0m"
+echo "----------------------------------------------------------------------------"
 else
-echo -e "[\e[31m*\e[0m] Adding ssh.pub key to /root/.ssh/authorized_keys"
+echo -e "[\e[31m*\e[0m] Adding ssh.pub key to \e[34m/root/.ssh/authorized_keys\e[0m"
+echo "----------------------------------------------------------------------------"
 fi
 
 # PART F BEGINS
 if [[ "$(awk -F '=' '/INSTALL/{ print $2 }' <"${CHDIR}/chsinprog")" == 0 ]]; then
 # This list will change
-clear; echo "Part F: Installing required packages"
+echo
+echo "----------------------------------------------------------------------------"
+echo -e "\e[35mPart F: Installing required packages\e[0m"
+echo "----------------------------------------------------------------------------"
 env-update > /dev/null 2>&1 && source /etc/profile && export PS1="( 'Part F: Installing required packages' ) $PS1"
 export PATH=${PATH}:${CHDIR}
 
-if [[ "$(awk -F '=' '/RESUMEINST/{ print $2 }' <"${CHDIR}/chsinprog")" == 1 ]]; then
-emerge -v ${INS_PARTF} || { chsinit_mon 7; chprint_inf 2; exit 1; }
+[[ -n ${INS_PARTF} ]] && if [[ "$(awk -F '=' '/RESUMEINST/{ print $2 }' <"${CHDIR}/chsinprog")" == 1 ]]; then
+emerge -q ${INS_PARTF} || { chsinit_mon 7; chprint_inf 2; exit 1; }
 else
-emerge -v "${INS_PARTF}" || { chsinit_mon 9; chprint_inf 2; exit 1; }
+emerge -q ${INS_PARTF} || { chsinit_mon 9; chprint_inf 2; exit 1; }
 fi
 
-echo "Emerging requested packages"
-sleep 1
-{ while read -r i; do
-	emerge -v "$i"
+[[ -n $(cat "${CHDIR}/custom_pacl" | sed '/^#/ d' | sed '/^\s*$/d') ]] && echo "Emerging requested packages" \
+&& { while read -r i; do
+	emerge -q "$i"
 done < <(cat "${CHDIR}/custom_pacl" | sed '/^#/ d' | sed '/^\s*$/d'); } \
 && { echo -e "[\e[32m*\e[0m] Emerged successfully"; sleep 2; } || chprint_inf 2
 
-echo "Cleaning leftovers"
+echo -e "\e[34mCleaning leftovers\e[0m"
 emerge --depclean
 
 chsinit_mon 5
@@ -221,7 +229,10 @@ fi
 
 # PART G BEGINS
 if [[ "$(awk -F '=' '/RUNLEVEL/{ print $2 }' <"${CHDIR}/chsinprog")" == 0 ]]; then
-clear; echo "Part G: Updating Runlevel Entries"
+echo
+echo "----------------------------------------------------------------------------"
+echo -e "\e[35mPart G: Updating Runlevel Entries\e[0m"
+echo "----------------------------------------------------------------------------"
 env-update > /dev/null 2>&1 && source /etc/profile && export PS1="( 'Part G: Updating Runlevel Entries' ) $PS1"
 export PATH=${PATH}:${CHDIR}
 { while read -r i; do
@@ -235,9 +246,13 @@ fi
 
 # PART H BEGINS
 if [[ "$(awk -F '=' '/KERNEL/{ print $2 }' <"${CHDIR}/chsinprog")" == 0 ]]; then
-clear; echo "Part H: Building the Kernel"
+echo
+echo "----------------------------------------------------------------------------"
+echo -e "\e[35mPart H: Building the Kernel\e[0m"
+echo "----------------------------------------------------------------------------"
 env-update > /dev/null 2>&1 && source /etc/profile && export PS1="( 'Part H: Building the Kernel' ) $PS1"
 export PATH=${PATH}:${CHDIR}
+MKPS=$(grep MAKEOPTS "/etc/portage/make.conf" | sed '/^#/ d' | sed  -e "s_\"__g" | awk -F '-j' '{print $2}' | sed '/^\s*$/d')
 while true; do
 	echo "Do you wish to configure the kernel?"
 	echo "Please keep in mind that main function of the controller are related with kernel builtins"
@@ -245,13 +260,13 @@ while true; do
 	read -p "Select an option Y/N: " SELCT
 		case ${SELCT:-y} in
 			[Yy][eE][sS]|[yY])
-				if genkernel --install kernel --menuconfig --kernel-config="${CHDIR}/kernel-conf"; then
+				if genkernel --install kernel --menuconfig --kernel-config="${CHDIR}/kernel-conf" --makeopts="-j${MKPS}"; then
 				echo "The built was successful"
 				else
 				chprint_inf 2; exit 1
 				fi;;
 			[nN][oO]|[nN])
-				if genkernel --install kernel --kernel-config="${CHDIR}/kernel-conf"; then
+				if genkernel --install kernel --kernel-config="${CHDIR}/kernel-conf" --makeopts="-j${MKPS}"; then
 				echo "The built was successful"
 				else
 				chprint_inf 2; exit 1
