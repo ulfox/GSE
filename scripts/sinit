@@ -1,25 +1,35 @@
 #!/bin/bash
 
 LC_COLLATE=C
+LC_ALL="en_US.UTF-8"
+LC_CTYPE="en_US.UTF-8"
 
 # MAIN BUILDER
 
 # CHECK FOR THE POSITIONAL PARAMETERS AND BAILOUT IF THEY ARE MISSING
 [[ -z "${DISTDIR}" ]] && print_inf 4 && return 1
+echo "============================================================================"
 echo -e "\e[34mChecking for dependencies\e[0m"
 #lcreq || exit 1
 echo -e "[\e[32m*\e[0m] \e[34mInitializing\e[0m"
 sleep 0.5
 
 # ALL ESSENTIAL VARIABLES FOR THE DOWNLOAD AND AUTHENTICATION PROCESS
-source "${WORKDIR}/etc/gentoo.conf" >/dev/null 2>&1 && { echo -e "[\e[32m*\e[0m] \e[35mExporting variables\e[0m" ;} \
+source "${WORKDIR}/etc/gentoo.conf" >/dev/null 2>&1 && { echo -e "[\e[32m*\e[0m] \e[35mExporting variables\e[0m"
+echo "============================================================================"; } \
 || { echo -e "[\e[31m*\e[0m] \e[35mExporting variables\e[0m"; echo -e "[\e[31mAborting\e[0m..."; sleep 2; return 1; }
-
+if ping -c 3 www.gentoo.org >/dev/null 2>&1; then
 export GENTOOKEY="$(lynx -dump ${SIGNING_KEY} |  grep "(4096-bit RSA)" | head -1 | awk -F '(' '{ print $1}')"
 export "GENTOOKEY"
 export GENTOOLATEST="$DIST/$(wget -q -O- "${DIST}/latest-stage3-$ARCH.txt" | tail -n 1 | awk -F ' ' '{ print $1 }')"
 export STAGE3TB=$(wget -q -O- "${DIST}/latest-stage3-$ARCH.txt" | tail -n 1 | awk -F ' ' '{ print $1 }' | awk -F '/' '{ print $2 }')
 export GENTOOLATESTASC="$DIST/$(wget -q -O- "${DIST}/latest-stage3-$ARCH.txt" | tail -n 1 | awk -F ' ' '{ print $1 }').DIGESTS.asc"
+else
+echo -e "[\e[31m*\e[0m] \e[34mConnection could not be established\e[0m"
+echo -e "[\e[31m*\e[0m] \e[35mSearching for local\e[0m"
+export STAGE3TB=$(sha512sum -c "${DISTDIR}/dist/stage3-amd64-latest.sha512" \
+| awk -F ' ' '{ print $1 }' | awk -F ':' '{ print $1 }')
+fi
 
 # PROMPT TO CONTINUE OR START ANEW
 if [[ "$(awk -F '=' '/KEY/{ print $2 }' <"${LOCALLG}/sinprog")" == 1 ]]; then
@@ -46,10 +56,12 @@ fi
 seed_f(){
 # PART A FUNDAMENTALS
 [[ "$(awk -F '=' '/PARTA/{ print $2 }' <"${LOCALLG}/sinprog")" == 0 ]] \
-&& clear && echo -e "\e[35mPART:A Fundamentals\e[0m" && sleep 2
+&& clear; echo "============================================================================"
+echo -e "\e[35mPART:A Fundamentals\e[0m"
+echo "============================================================================"
 
 # FETCH THE KEYS FOR THE CRYPTOGRAPHIC AUTHENTICATION
- if [[ "$(awk -F '=' '/KEY/{ print $2 }' <"${LOCALLG}/sinprog")" == 0 ]]; then
+if [[ "$(awk -F '=' '/KEY/{ print $2 }' <"${LOCALLG}/sinprog")" == 0 ]]; then
 
 [[ -z "${GENTOOKEY}" ]] && print_inf 4 && return 1
 
@@ -64,27 +76,25 @@ if [[ "$(awk -F '=' '/WGETST3/{ print $2 }' <"${LOCALLG}/sinprog")" == 0 ]]; the
 
 [[ -z "${GENTOOLATEST}" || -z "${GENTOOLATESTASC}" ]] && print_inf 4 && return 1
 
-mkdir -p "${DISTDIR}/${STAGE3TB}" "${DISTDIR}/dists"
-
-if [[ ! -e "${DISTDIR}/dists/${STAGE3TB}" ]]; then
+mkdir -p "${DISTDIR}/${STAGE3TB}" "${DISTDIR}/dists" \
+&& if [[ ! -e "${DISTDIR}/dists/${STAGE3TB}" ]]; then
 echo -e "[\e[32m*\e[0m] Getting \e[34m${STAGE3TB}\e[0m"
 wget -c --progress=dot -P "${DISTDIR}/dists" "${GENTOOLATEST}" \
 && print_inf 1 || { print_inf 2; return 1; }
 elif [[ -e "${DISTDIR}/dists/${STAGE3TB}" ]]; then
 echo -e "[\e[32m*\e[0m] Located \e[34m${STAGE3TB}\e[0m"
-fi
-
-if [[ ! -e "${DISTDIR}/dists/${GENTOOLATESTASC}" ]]; then
+fi \
+&& if [[ ! -e "${DISTDIR}/dists/${GENTOOLATESTASC}" ]]; then
 wget -c --progress=dot -P "${DISTDIR}/dists" "${GENTOOLATESTASC}" >/dev/null 2>&1 \
 && echo -e "[\e[32m*\e[0m] Getting \e[34m${GENTOOLATEST}\e[0m" \
 || echo -e "[\e[31m*\e[0m] \e[31mFAILD\e[0m: Getting \e[34m${GENTOOLATEST}\e[0m"
-fi
-
-if [[ ! -e "${DISTDIR}/dists/${GENTOOLATEST}.DIGESTS" ]]; then
+fi \
+&& if [[ ! -e "${DISTDIR}/dists/${GENTOOLATEST}.DIGESTS" ]]; then
 wget -c --progress=dot -P "${DISTDIR}/dists" "${GENTOOLATEST}.DIGESTS" >/dev/null 2>&1 \
 && echo -e "[\e[32m*\e[0m] Getting \e[34m${GENTOOLATEST}.DIGESTS\e[0m" \
 || echo -e "[\e[31m*\e[0m] \e[31mFAILD\e[0m: Getting $\e[34m${GENTOOLATEST}.DIGESTS\e[0m"
-fi
+fi \
+&& sha512sum "${DISTDIR}/dists/${STAGE3TB}" > "${DISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2.sha512"
 
 sinit_mon 2
 fi
@@ -104,8 +114,9 @@ fi
 unset VERIFICATION
 }
 
-[[ "$1" == "sseed" ]] && seed_f
+[[ "$1" == "seed" ]] && seed_f
 
+if [[ "$(awk -F '=' '/CATALYST/{ print $2 }' < "${LOCALLG}/sinprog")" == 0 ]]; then
 case "$2" in
 	catalyst)
 		# CATALYST
@@ -133,18 +144,23 @@ case "$2" in
 				esac
 			done
 		else
-			sinit_mon 8
+			sinit_mon catalyst
 		fi
 		;;
 	localrb)
-		local_rbuild;;
+		local_rbuild
+		sinit_mon catalyst;;
 esac
+fi
 
 # Extract the tarball
 if [[ "$(awk -F '=' '/EXTRACTION/{ print $2 }' < "${LOCALLG}/sinprog")" == 0 ]]; then
 
 CATDIR=$(grep storedir "${CONFDIR}/system/catalyst/catalyst.conf" \
 | sed '/^#/ d' | awk -F '=' '{ print $2 }' | sed  -e "s_\"__g")
+
+TARGETNAME="$(grep 'snapshot:' "${CONFDIR}/system/catalyst/stage1.spec" \
+| sed '/^#/ d' | sed '/^\s*$/d' | awk -F ' ' '{ print $2 }' | sed  -e "s_\"__g")"
 
 TARGETPATH="$(grep 'source_subpath' "${CONFDIR}/system/catalyst/stage3.spec" \
 | sed '/^#/ d' | awk -F ' ' '{ print $2 }' | sed  -e "s_\"__g" | awk -F '/' '{ print $1 }')"
@@ -156,53 +172,58 @@ extract_tarball() {
 mkdir -p "$2"
 
 echo -e "\e[34mExtracting tarball\e[0m"
-tar xvjpf "$1" \
--C "$2" --xattrs --numeric-owner >/dev/null 2>&1 \
+tar xvjpf "$1" -C "$2" --xattrs --numeric-owner >/dev/null 2>&1 \
+&& echo -e "[\e[32m*\e[0m] Extracted" \
+|| echo -e "[\e[31m*\e[0m] AN ERROR OCCURRED" \
+&& [[ -n "$3" ]] \
+&& echo -e "\e[34mExtracting portage\e[0m" \
+&& tar xvjpf "$3" --xattrs --numeric-owner -C "$2/usr/" >/dev/null 2>&1 \
 && echo -e "[\e[32m*\e[0m] Extracted" \
 || echo -e "[\e[31m*\e[0m] AN ERROR OCCURRED"
 }
 
 check_dir() {
-if [[ -d "$1" ]]; then
+if [[ -d "$2" ]]; then
 while true; do
-	echo "Seems that $1 already exists"
+	echo "Seems that $2 already exists"
 	echo "Continue, backup as old or purge? "
 	read -rp "Answer CONTINUE/OLD/PURGE " ANS
 	case $ANS in
 		OLD)
 			echo "Backing up..."
-			mv "$1" "$1.old"
-			extract_tarball "$2" "$1"
+			mv "$2" "$2.old"
+			extract_tarball "$@"
 			break;;
 		PURGE)
 			echo "This may take some time"
 			echo "Purging..."
 			if [[ -n $(cat /proc/mounts | grep 'stage3-amd64-' | awk -F ' ' '{ print $1 }') ]]; then
-				umount -l "$1/dev" >/dev/null 2>&1
-				umount -l "$1/proc" >/dev/null 2>&1
-				umount -l "$1/sys" >/dev/null 2>&1
-				umount -l "$1"/* >/dev/null 2>&1
+				umount -l "$2/dev" >/dev/null 2>&1
+				umount -l "$2/proc" >/dev/null 2>&1
+				umount -l "$2/sys" >/dev/null 2>&1
+				umount -l "$2"/* >/dev/null 2>&1
 				sleep 2
 			fi
-			rm -rf "$1"
-			extract_tarball "$2" "$1"
+			rm -rf "$2"
+			extract_tarball "$@"
 			break;;
 		CONTINUE)
 			break;;
 	esac
 done
 else
-	extract_tarball "$2" "$1"
+	extract_tarball "$@"
 fi
 }
 
 case "$2" in
 	catalyst)
-		check_dir "${DISTDIR}/stage3-amd64-${TARGETSTAMP}-${GSEVER}" \
-		"${CATDIR}/builds/${TARGETPATH}/stage3-amd64-${TARGETSTAMP}.tar.bz2"
+		check_dir "${CATDIR}/builds/${TARGETPATH}/stage3-amd64-${TARGETSTAMP}.tar.bz2" \
+		"${DISTDIR}/stage3-amd64-${TARGETSTAMP}-${GSEVER}" \
+		"${CATDIR}/snapshots/portage-${TARGETNAME}.tar.bz2"
 		;;
 	precomp)
-		check_dir "${DISTDIR}/stage3-amd64-latest-${GSEVER}" "${DISTDIR}/dists/${STAGE3TB}"
+		check_dir "${DISTDIR}/dists/${STAGE3TB}" "${DISTDIR}/stage3-amd64-latest-${GSEVER}"
 		;;
 esac
 unset EXTRACTION
@@ -211,8 +232,11 @@ sinit_mon 4
 fi
 
 # PART B
-[[ "$(awk -F '=' '/PARTB/{ print $2 }' <"${LOCALLG}/sinprog")" == 0 ]] \
-&& clear && echo -e "\e[35mPART:B Preparing to enter the new system\e[0m" && sleep 2
+[[ "$(awk -F '=' '/PARTB/{ print $2 }' <"${LOCALLG}/sinprog")" == 0 ]]
+echo
+echo "============================================================================"
+echo -e "\e[35mPART:B Preparing to enter the new system\e[0m"
+echo "============================================================================"
 
 # Root check function
 amiroot() {
@@ -232,6 +256,7 @@ sleep 0.5
 echo -e "[\e[32m*\e[0m] Requesting root privileges"
 
 pr_chroot_f() {
+
 cp -L /etc/resolv.conf "$1/etc/"
 
 # CHECK IF PSEUDOS ARE MOUNTED
@@ -308,7 +333,7 @@ while true; do
 				esac
 			done;;
 		TERMINAL)
-			exec /bin/bash
+			exec /bin/bash "$@"
 			INJFLESC=0;;
 		EXIT)
 			while true; do
@@ -334,10 +359,13 @@ fi
 
 echo -e "\e[34mChrooting at new system\e[0m"
 sleep 2
-chroot "$1" "sinit.d/chroot_init" || { echo -e "[\e[31m*\e[0m] Chrooting at new system"; return 1; }
+chroot "$1" "sinit.d/chroot_init" "$@" || { echo -e "[\e[31m*\e[0m] Chrooting at new system"; return 1; }
 rm -rf "$1/sinit.d"
 sinit_mon 6
 }
+
+TARGETSTAMP="$(grep 'version_stamp' "${CONFDIR}/system/catalyst/stage3.spec" \
+| sed '/^#/ d' | awk -F ' ' '{ print $2 }' | sed  -e "s_\"__g")"
 
 case "$2" in
 	catalyst)
@@ -345,7 +373,7 @@ case "$2" in
 	precomp)
 		pr_chroot_f "${DISTDIR}/stage3-amd64-latest-${GSEVER}";;
 esac
-
+exit
 case "$2" in
 	catalyst)
 		tar cvf "${DISTDIR}/stage3-amd64-${TARGETSTAMP}-${GSEVER}.tar.bz2" -C "${DISTDIR}/stage3-amd64-${TARGETSTAMP}-${GSEVER}";;

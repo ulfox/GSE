@@ -18,6 +18,8 @@ case "$1" in
 		sed -i -e 's/PARTA=1/PARTA=0/g' "${LOCALLG}/sinprog";;
 	6)
 		sed -i -e 's/PARTB=0/PARTA=1/g' "${LOCALLG}/sinprog";;
+	catalyst)
+		sed -i -e 's/CATALYST=0/CATALYST=1/g' "${LOCALLG}/sinprog";;
 	dn)
 		;;
 esac

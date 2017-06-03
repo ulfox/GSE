@@ -11,7 +11,6 @@ case ${SELCT:-9} in
 [Yy][eE][sS]|[yY])
 break ;;
 [nN][oO]|[nN])
-export CORES="$(cat /proc/cpuinfo | grep processor | wc -l)"
 echo "Starting automatic configuration..."
 sleep 1
 print_inf 1
@@ -36,11 +35,12 @@ DISTDIR="${PORTDIR}/distfiles"
 PKGDIR="${PORTDIR}/packages"
 # MAKE OPTS
 EOF
-echo "MAKEOPTS="\"-j${CORES}\""">>"${CONFDIR}/system/portage/make.conf"
+MKCORES=$(( $(grep -c ^processor /proc/cpuinfo) + 1 ))
+echo "MAKEOPTS="\"-j${MKCORES}\""">>"${CONFDIR}/system/portage/make.conf"
 echo "# EMERGE DEFAULT OPTS">>"${CONFDIR}/system/portage/make.conf"
 echo "EMERGE_DEFAULT_OPTS="\"--load-average ${CORES}\""">>"${CONFDIR}/system/portage/make.conf"
 echo "# MIRRORS">>"${CONFDIR}/system/portage/make.conf"
-
+unset MKCORES
 echo "Determining optimal servers..."
 
 GENMIRR="$(netselect -v -t2 -s10 ftp://ftp.swin.edu.au/gentoo http://ftp.swin.edu.au/gentoo http://gd.tuwien.ac.at/opsys/linux/gentoo/ ftp://gd.tuwien.ac.at/opsys/linux/gentoo/ \
