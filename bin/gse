@@ -10,7 +10,8 @@
 ##																						     ##
 
 LC_COLLATE=C
-
+LC_ALL="en_US.UTF-8"
+LC_CTYPE="en_US.UTF-8"
 
 # DEFINITION OF WORKDIR AND IT'S SUBDIRECTORIES
 export WORKDIR="$(dirname ${PWD})"
