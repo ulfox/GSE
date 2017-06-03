@@ -15,6 +15,6 @@ check() {
 
 # called by dracut
 install() {
-	dracut_install -o rsync nano ifconfig ping clear
+# Hooks the script to clean up phase
 	inst_hook cleanup 01 "$moddir/etc_tmpfs.sh"
 }
