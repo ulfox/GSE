@@ -8,4 +8,3 @@
 # Example: For a quadcore system -> export MAKEOPTS="-j5"
 MKCORES$(( $(grep -c ^processor /proc/cpuinfo) + 1 ))
 export MAKEOPTS="-j${MKCORES}"
-unset MKCORES
