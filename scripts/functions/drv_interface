@@ -49,7 +49,7 @@ done
 [[ $USERDATA == btrfs ]] && { FUOPTIONS='defaults,noatime,subvol=/userdata'; UDPPS='0 0'; } \
 || { FUOPTIONS='defaults,noatime'; UDPPS='0 1'; }
 
-cat >"${CONFDIR}/system/fstab" <<\EOF
+cat >"${CCONFDIR}/system/fstab" <<\EOF
 # /etc/fstab: static file system information.
 #
 # noatime turns off atimes for increased performance (atimes normally aren't
@@ -82,38 +82,38 @@ cat >"${CONFDIR}/system/fstab" <<\EOF
 EOF
 
 # Boot
-echo >> "${CONFDIR}/system/fstab"
-echo "# BOOT" >> "${CONFDIR}/system/fstab"
-echo "LABEL=BOOT /boot ${BOOT} ${FBOPTIONS} ${BDPPS}" >>"${CONFDIR}/system/fstab"
+echo >> "${CCONFDIR}/system/fstab"
+echo "# BOOT" >> "${CCONFDIR}/system/fstab"
+echo "LABEL=BOOT /boot ${BOOT} ${FBOPTIONS} ${BDPPS}" >>"${CCONFDIR}/system/fstab"
 
 # System
-echo >> "${CONFDIR}/system/fstab"
-echo "# SYSTEM"	>> "${CONFDIR}/system/fstab"
-echo "LABEL=SYSTEM / ${SYS} ${FSOPTIONS} ${SDPPS}" >>"${CONFDIR}/system/fstab"
+echo >> "${CCONFDIR}/system/fstab"
+echo "# SYSTEM"	>> "${CCONFDIR}/system/fstab"
+echo "LABEL=SYSTEM / ${SYS} ${FSOPTIONS} ${SDPPS}" >>"${CCONFDIR}/system/fstab"
 
 # User-data
-echo >> "${CONFDIR}/system/fstab"
-echo "# USER-DATA" >> "${CONFDIR}/system/fstab"
-echo "LABEL=USERDATA /user-data ${USERDATA}	${FUOPTIONS} ${UDPPS}" >>"${CONFDIR}/system/fstab"
+echo >> "${CCONFDIR}/system/fstab"
+echo "# USER-DATA" >> "${CCONFDIR}/system/fstab"
+echo "LABEL=USERDATA /user-data ${USERDATA}	${FUOPTIONS} ${UDPPS}" >>"${CCONFDIR}/system/fstab"
 
 # Home
-echo >> "${CONFDIR}/system/fstab"
-echo "# HOME" >> "${CONFDIR}/system/fstab"
-echo "/user-data/persistent/home /home/ none rw,bind 0 0" >>"${CONFDIR}/system/fstab"
+echo >> "${CCONFDIR}/system/fstab"
+echo "# HOME" >> "${CCONFDIR}/system/fstab"
+echo "/user-data/persistent/home /home/ none rw,bind 0 0" >>"${CCONFDIR}/system/fstab"
 
 # var/tmp
-echo >> "${CONFDIR}/system/fstab"
-echo "# HOME" >> "${CONFDIR}/system/fstab"
-echo "tmpfs /var/tmp tmpfs nodev,nosuid,size=512M 0 0" >>"${CONFDIR}/system/fstab"
+echo >> "${CCONFDIR}/system/fstab"
+echo "# HOME" >> "${CCONFDIR}/system/fstab"
+echo "tmpfs /var/tmp tmpfs nodev,nosuid,size=512M 0 0" >>"${CCONFDIR}/system/fstab"
 
 # tmp
-echo >> "${CONFDIR}/system/fstab"
-echo "# HOME" >> "${CONFDIR}/system/fstab"
-echo "tmpfs /tmp tmpfs nodev,nosuid,size=512M 0 0" >>"${CONFDIR}/system/fstab"
+echo >> "${CCONFDIR}/system/fstab"
+echo "# HOME" >> "${CCONFDIR}/system/fstab"
+echo "tmpfs /tmp tmpfs nodev,nosuid,size=512M 0 0" >>"${CCONFDIR}/system/fstab"
 
-echo "BOOT ${BOOT}" > "${CONFDIR}/system/fstab.info"
-echo "SYS ${SYS}" >> "${CONFDIR}/system/fstab.info"
-echo "USERDATA ${USERDATA}" >> "${CONFDIR}/system/fstab.info"
+echo "BOOT ${BOOT}" > "${CCONFDIR}/system/fstab.info"
+echo "SYS ${SYS}" >> "${CCONFDIR}/system/fstab.info"
+echo "USERDATA ${USERDATA}" >> "${CCONFDIR}/system/fstab.info"
 
 unset BOOT
 unset SYS
@@ -167,9 +167,9 @@ fi
 
 done
 
-echo "BOOT ${BOOT}" > "${CONFDIR}/system/devname.info"
-echo "SYS ${SYS}" >> "${CONFDIR}/system/devname.info"
-echo "USERDATA ${USERDATA}" >> "${CONFDIR}/system/devname.info"
+echo "BOOT ${BOOT}" > "${CCONFDIR}/system/devname.info"
+echo "SYS ${SYS}" >> "${CCONFDIR}/system/devname.info"
+echo "USERDATA ${USERDATA}" >> "${CCONFDIR}/system/devname.info"
 
 unset DEVNAME
 unset BOOT
