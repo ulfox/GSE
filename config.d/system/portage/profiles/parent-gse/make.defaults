@@ -1,4 +1,22 @@
 # Copyright 1999-2014 Gentoo Foundation
 # Distributed under the terms of the GNU General Public License v2
 #
-# TBU
+# 
+
+### CFLAGS ###
+CFLAGS="-O2 -pipe"
+
+### CPU_FLAGS_X86 ###
+CPU_FLAGS_X86="mmx sse sse2"
+
+### CHOST ###
+CHOST="x86_64-pc-linux-gnu"
+
+### USE FLAGS ###
+USE="lzo ncurses sasl xattr nls acpi modules session acl consolekit vim-syntax bash-completion \
+fortran aac ssl upnp ctype zlib seccomp ruby cscope unicode lua cxx vala dbus usb upower bzip2 python perl fftw"
+
+#USE="${USE} xml truetype sharedmem mtp bluetoot math plotutils lm_sensors cdr dvd dvdr branding lddap adns"
+
+### FEATURES ###
+FEATURES="cgroup clean-logs merge-sync parallel-fetch userfetch"
