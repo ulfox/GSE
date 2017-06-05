@@ -1,0 +1,345 @@
+#!/bin/bash
+
+# Distcc, distcc_pump, ccache & some features
+
+CHFEATURES=''
+# CHROOT CONFIGURATION STAGE
+# COMMENT OUT TO REMOVE
+
+# Enable portage support for the distcc package. 
+#
+CHFEATURES="${CHFEATURES} distcc"
+
+# Enable portage support for the distcc package with pump mode. 
+#
+CHFEATURES="${CHFEATURES} distcc-pump"
+
+# Use Linux control group to control processes spawned by ebuilds.
+# This allows emerge to safely kill all subprocesses when ebuild phase exits.
+#
+# CHFEATURES="${CHFEATURES} cgroups"
+
+# Enable automatic execution of the command specified by the PORT_LOGDIR_CLEAN variable.
+# The default PORT_LOGDIR_CLEAN setting will remove all files from PORT_LOGDIR that were last modified at least 7 days ago.
+# 
+# CHFEATURES="${CHFEATURES} clean-logs"
+
+# The causes all build logs to be compressed while they are being written.
+# Log file names have an extension that is appropriate for the compression type.
+# Currently, only gzip(1) compression is supported, so build logs will have a '.gz' extension when this feature is enabled. 
+#
+# CHFEATURES="${CHFEATURES} clean-logs"
+
+# This causes the CONFIG_PROTECT behavior to be skipped for files that have not been modified since they were installed.
+# This feature is enabled by default. 
+#
+# CHFEATURES="${CHFEATURES} config-protect-if-modified"
+
+# Do not delete the ${T} directory after the merge process.
+#
+# CHFEATURES="${CHFEATURES} keeptemp"
+
+# Do not delete the ${WORKDIR} directory after the merge process.
+# ${WORKDIR} can then be reused since this feature disables most of the clean phase that runs prior to each build.
+# Due to lack of proper cleanup, this feature can interfere with normal emerge operation 
+# and therefore it should not be left enabled for more than a short period of time.
+#
+# CHFEATURES="${CHFEATURES} keepwork"
+
+# After a package is merged or unmerged, sync relevant files to disk in order to avoid data-loss in the event of a power failure.
+# This feature is enabled by default.
+#
+# CHFEATURES="${CHFEATURES} merge-sync"
+
+# Automatically perform a metadata transfer when `emerge --sync` is run. In versions of portage >=2.1.5, this feature is disabled by default.
+# When metadata-transfer is disabled, metadata cache from the ${repository_location}/metadata/md5-cache/ directory will be used directly (if available). 
+#
+# CHFEATURES="${CHFEATURES} metadata-transfer"
+
+# Preserve extended attributes (filesystem-stored metadata) when installing files (see attr(1)).
+# The PORTAGE_XATTR_EXCLUDE variable may be used to exclude specific attributes from being preserved. 
+#
+# CHFEATURES="${CHFEATURES} xattr"
+
+# Enable GPG verification when using emerge-webrsync. 
+#
+# CHFEATURES="${CHFEATURES} webrsync-gpg"
+
+# Drop privileges to the owner of ${repository_location} for emerge(1) --sync operations.
+# Note that this feature assumes that all subdirectories of ${repository_location} have the same ownership as ${repository_location} itself.
+# It is the user's responsibility to ensure correct ownership, since otherwise Portage would have to waste time validating ownership for each and every sync operation. 
+#
+# CHFEATURES="${CHFEATURES} usersync"
+
+# Enable the sandbox in the compile phase, when running without root privs (userpriv). 
+#
+# CHFEATURES="${CHFEATURES} usersandbox"
+
+# Allow portage to drop root privileges and compile packages as portage:portage without a sandbox (unless usersandbox is also used). 
+#
+# CHFEATURES="${CHFEATURES} userpriv"
+
+# When portage is run as root, drop privileges to portage:portage during the fetching of package sources. 
+#
+# CHFEATURES="${CHFEATURES} userfetch"
+
+# If a file is not claimed by another package in the same slot and it is not protected by CONFIG_PROTECT, 
+# unmerge it even if the modification time or checksum differs from the file that was originally installed. 
+#
+# CHFEATURES="${CHFEATURES} unmerge-orphans"
+
+# Keep logs from successful unmerge phases. This is relevant only when PORT_LOGDIR is set.
+#
+# CHFEATURES="${CHFEATURES} unmerge-logs"
+
+# Call quickpkg(1) to create a backup of each package before it is unmerged (if a binary package of the same version does not already exist). 
+# Also see the related downgrade-backup feature. 
+#
+# CHFEATURES="${CHFEATURES} unmerge-backup"
+
+# Warn if FEATURES contains one or more unknown values. 
+#
+# CHFEATURES="${CHFEATURES} unknown-features-warn"
+
+# Filter out any unknown values that the FEATURES variable contains. 
+#
+# CHFEATURES="${CHFEATURES} unknown-features-filter"
+
+# If "test" is enabled FEATURES and the test phase of an ebuild fails, continue to execute the remaining phases as if the failure had not occurred. 
+# Note that the test phase for a specific package may be disabled by masking the "test" USE flag in package.use.mask (see portage(5)). 
+#
+# CHFEATURES="${CHFEATURES} test-fail-continue"
+
+# Run package-specific tests during each merge to help make sure the package compiled properly. 
+# See test in ebuild(1) and src_test() in ebuild(5). 
+# This feature implies the "test" USE flag if it is a member of IUSE, either explicitly or implicitly (see ebuild(5) for more information about IUSE). 
+# The "test" USE flag is also automatically disabled when the "test" feature is disabled.
+#
+# CHFEATURES="${CHFEATURES} test"
+
+# Before merging packages to the live filesystem, automatically strip setuid bits from any file that is not listed in /etc/portage/suidctl.conf.
+#
+# CHFEATURES="${CHFEATURES} suidctl"
+
+# Have portage react strongly to conditions that have the potential to be dangerous (like missing or incorrect digests for ebuilds). 
+#
+# CHFEATURES="${CHFEATURES} strict"
+
+# Have portage react strongly to conditions that may conflict with system security provisions (for example textrels, executable stack). 
+# Read about the QA_STRICT_* variables in make.conf(5). 
+#
+# CHFEATURES="${CHFEATURES} stricter"
+
+# Prior to stripping ELF etdyn and etexec files, the debugging info is stored for later use by various debuggers. 
+# This feature is disabled by nostrip. You should also consider setting compressdebug so the files don't suck up a lot of space. 
+# For installation of source code, see installsources. 
+#
+# CHFEATURES="${CHFEATURES} splitdebug"
+
+# Store build logs in category subdirectories of PORT_LOGDIR/build, instead of using PORT_LOGDIR directly. 
+#
+# CHFEATURES="${CHFEATURES} split-log"
+
+# Store logs created by PORTAGE_ELOG_SYSTEM="save" in category subdirectories of PORT_LOGDIR/elog, instead of using PORT_LOGDIR/elog directly.
+#
+# CHFEATURES="${CHFEATURES} split-elog"
+
+# Skip write access checks on DISTDIR when fetching files. 
+# This is useful when FETCHCOMMAND and RESUMECOMMAND are used to forward fetch requests to a server that exposes DISTDIR as a read-only NFS share. 
+# A read-only DISTDIR is not compatible with the distlocks, so it is recommended to also add "-distlocks" to FEATURES in order to avoid warning messages 
+# that are triggered by this incompatibility. 
+#
+# CHFEATURES="${CHFEATURES} skiprocheck"
+
+# When commiting work to cvs with repoman(1), sign the Manifest with a GPG key. Read about the PORTAGE_GPG_KEY variable in make.conf(5). 
+#
+# CHFEATURES="${CHFEATURES} sign"
+
+# Stands for Smart Filesystem Permissions. Before merging packages to the live filesystem, automatically search for and set permissions on setuid and setgid files. 
+# Files that are setuid have the group and other read bits removed while files that are setgid have the other read bit removed. See also suidctl below. 
+#
+# CHFEATURES="${CHFEATURES} sfperms"
+
+# Enable SELinux sandbox-ing. Do not toggle this FEATURE yourself. 
+#
+# CHFEATURES="${CHFEATURES} sesandbox"
+
+# Enable sandbox-ing when running emerge(1) and ebuild(1). 
+#
+# CHFEATURES="${CHFEATURES} sandbox"
+
+# Output a verbose trace of python execution to stderr when a command's --debug option is enabled. 
+#
+# CHFEATURES="${CHFEATURES} python-trace"
+
+# This is identical to the collision-protect feature except that files may be overwritten if they are not explicitly listed in the contents of a currently installed package. 
+# This is particularly useful on systems that have lots of orphan files that have been left behind by older versions of portage that did not support the unmerge-orphans feature. 
+# Like collision-protect, the COLLISION_IGNORE variable can be used to selectively disable this feature. 
+# It is recommended to leave either protect-owned or collision-protect enabled at all times, since otherwise file collisions between packages may result in files being overwritten or uninstalled at inappropriate times. 
+# If collision-protect is enabled then it takes precedence over protect-owned.
+#
+# CHFEATURES="${CHFEATURES} protect-owned"
+
+# Preserve libraries when the sonames change during upgrade or downgrade. Libraries are preserved only if consumers of those libraries are detected. 
+# Preserved libraries are automatically removed when there are no remaining consumers. Run `emerge @preserved-rebuild` in order to rebuild all consumers of preserved libraries. 
+#
+# CHFEATURES="${CHFEATURES} preserve-libs"
+
+# If prelink(8) is installed then use it to undo any prelinks on files before computing checksums for merge and unmerge. 
+# This feature is useful only if prelink(8) is installed and accurate checksums (despite prelinking) are needed for some reason such as for checking the integrity of installed files or because the unmerge-orphans feature is disabled.
+#
+# Note that normal emerging of packages from source computes the checksums before things will be prelinked, so in such cases, this feature isn't required either. 
+# Undoing prelinking while merging is only required when using tools like quickpkg(1) which can cause already prelinked files to be merged. 
+#
+# CHFEATURES="${CHFEATURES} prelink-checksums"
+
+# Use finer-grained locks when installing packages, allowing for greater parallelization. For additional parallelization, disable ebuild-locks. 
+#
+# CHFEATURES="${CHFEATURES} parallel-install"
+
+# Fetch in the background while compiling. Run `tail -f /var/log/emerge-fetch.log` in a terminal to view parallel-fetch progress.
+#
+# CHFEATURES="${CHFEATURES} parallel-fetch"
+
+# Disables xterm titlebar updates (which contains status info). 
+#
+# CHFEATURES="${CHFEATURES} notitles"
+
+# Prevents the stripping of binaries that are merged to the live filesystem.
+#
+# CHFEATURES="${CHFEATURES} nostrip"
+
+# Do not install manpages. 
+#
+# CHFEATURES="${CHFEATURES} noman"
+
+# Do not install info pages. 
+#
+# CHFEATURES="${CHFEATURES} noinfo"
+
+# Do not install doc files (/usr/share/doc).
+#
+# CHFEATURES="${CHFEATURES} nodoc"
+
+# Do not delete the the source and temporary files after the merge process.
+#
+# CHFEATURES="${CHFEATURES} noclean"
+
+# When utilizing ebuild(1), only run the function requested. 
+# Also, forces the corresponding ebuild and eclasses to be sourced again for each phase, in order to account for modifications. 
+#
+# CHFEATURES="${CHFEATURES} noauto"
+
+# Enable GLEP 42 news support. See https://wiki.gentoo.org/wiki/GLEP:42. 
+#
+CHFEATURES="${CHFEATURES} -news"
+
+# Enable escaping network-sandbox through SOCKSv5 proxy. Enabling distcc feature also enables the proxy. 
+#
+# CHFEATURES="${CHFEATURES} network-sandbox-proxy"
+
+# Isolate the ebuild phase functions from host network interfaces. Supported only on Linux. Requires network namespace support in kernel. 
+#
+# CHFEATURES="${CHFEATURES} network-sandbox"
+
+# Many Makefiles assume that their libraries should go to /usr/lib, or $(prefix)/lib. 
+# This assumption can cause a serious mess if /usr/lib isn't a symlink to /usr/lib64. To find the bad packages, we have a portage feature called multilib-strict. 
+# It will prevent emerge from putting 64bit libraries into anything other than (/usr)/lib64. 
+#
+# CHFEATURES="${CHFEATURES} multilib-strict"
+
+# Fetch everything in SRC_URI regardless of USE settings, except do not fetch anything when mirror is in RESTRICT. 
+#
+# CHFEATURES="${CHFEATURES} mirror"
+
+# Automatically perform a metadata transfer when `emerge --sync` is run. In versions of portage >=2.1.5, this feature is disabled by default. 
+# When metadata-transfer is disabled, metadata cache from the ${repository_location}/metadata/md5-cache/ directory will be used directly (if available). 
+#
+# CHFEATURES="${CHFEATURES} metadata-transfer"
+
+# When mirror is enabled in FEATURES, fetch files even when mirror is also in the ebuild(5) RESTRICT variable. 
+# Do NOT use lmirror for clients that need to override RESTRICT when fetching from a local mirror, but instead use a "local" mirror setting in /etc/portage/mirrors, 
+# as described in portage(5). 
+#
+# CHFEATURES="${CHFEATURES} lmirror"
+
+# Isolate the ebuild phase functions from host IPC namespace. Supported only on Linux. Requires IPC namespace support in kerne
+#
+# CHFEATURES="${CHFEATURES} ipc-sandbox"
+
+# Install source code into /usr/src/debug/${CATEGORY}/${PF} (also see splitdebug). 
+# This feature works only if debugedit is installed and CFLAGS is set to include debug information (such as with the -ggdb flag). 
+#
+# CHFEATURES="${CHFEATURES} installsources"
+
+# Enable portage support for the icecream package.
+#
+# CHFEATURES="${CHFEATURES} icecream"
+
+# Force emerges to always try to fetch files from the PORTAGE_BINHOST. See make.conf(5) for more information. 
+#
+# CHFEATURES="${CHFEATURES} getbinpkg"
+
+# Enable prefix support for all ebuilds, regardless of EAPI, since older EAPIs would otherwise be useless with prefix configurations. 
+# This brings compatibility with the prefix branch of portage, which also supports EPREFIX for all EAPIs (for obvious reasons). 
+#
+# CHFEATURES="${CHFEATURES} force-prefix"
+
+# Only fetch files from configured mirrors, ignoring SRC_URI, except when mirror is in the ebuild(5) RESTRICT variable. 
+#
+# CHFEATURES="${CHFEATURES} force-mirror"
+
+# Modifies .la files to not include other .la files and some other fixes (order of flags, duplicated entries, ...) 
+#
+# CHFEATURES="${CHFEATURES} fixlafiles"
+
+# Enable fakeroot for the install and package phases when a non-root user runs the ebuild(1) command.
+#
+# CHFEATURES="${CHFEATURES} fakeroot"
+
+# Clean up temporary files after a build failure. This is particularly useful if you have PORTAGE_TMPDIR on tmpfs. 
+# If this feature is enabled, you probably also want to enable PORT_LOGDIR in order to save the build log. 
+# Both the ebuild(1) command and the noclean feature cause the fail-clean feature to be automatically disabled. 
+#
+# CHFEATURES="${CHFEATURES} fail-clean"
+
+# Use locks to ensure that unsandboxed ebuild phases never execute concurrently. Also see parallel-install. 
+#
+# CHFEATURES="${CHFEATURES} ebuild-locks"
+
+# When a package is downgraded to a lower version, call quickpkg(1) in order to create a backup of the installed 
+# version before it is unmerged (if a binary package of the same version does not already exist). 
+# Also see the related unmerge-backup feature. 
+#
+# CHFEATURES="${CHFEATURES} downgrade-backup"
+
+# Portage uses lockfiles to ensure competing instances don't clobber each other's files. 
+# This feature is enabled by default but may cause heartache on less intelligent remote filesystems like NFSv2 
+# and some strangely configured Samba server (oplocks off, NFS re-export). 
+# A tool /usr/lib/portage/bin/clean_locks exists to help handle lock issues when a problem arises (normally due to a crash or disconnect). 
+#
+# CHFEATURES="${CHFEATURES} distlocks"
+
+# Enable portage support for the ccache package. If the ccache dir is not present in the user's environment, then portage will default to ${PORTAGE_TMPDIR}/ccache.
+#
+CHFEATURES="${CHFEATURES} ccache"
+
+# Build binary packages for just packages in the system set. 
+#
+# CHFEATURES="${CHFEATURES} buildsyspkg"
+
+# Binary packages will be created for all packages that are merged. Also see quickpkg(1) and emerge(1) --buildpkg and --buildpkgonly options. 
+#
+# CHFEATURES="${CHFEATURES} buildpkg"
+
+# Keep logs from successful binary package merges. This is relevant only when PORT_LOGDIR is set. 
+#
+# CHFEATURES="${CHFEATURES} binpkg-logs"
+
+export CHFEATURES
+
+# SETTING A VALUE HERE, ENABLES CCACHE
+CCCACHESIZE='2G'
+
+export CCCACHESIZE
+
