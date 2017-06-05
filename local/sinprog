@@ -2,10 +2,11 @@
 # If you want to start again, please select START NEW when prompted during
 # the PartA: Fundamentals
 PARTA=0
-NEW=1
-KEY=1
-WGETST3=1
-VERIFICATION=1
-CATALYST=1
-EXTRACTION=1
+NEW=0
+KEY=0
+WGETST3=0
+VERIFICATION=0
+CATALYST=0
+LOCALRB=0
+EXTRACTION=0
 PARTB=0

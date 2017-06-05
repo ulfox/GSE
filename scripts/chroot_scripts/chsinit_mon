@@ -12,17 +12,13 @@ case "$1" in
 		sed -i -e 's/CONFIGURE=0/CONFIGURE=1/g' "${CHDIR}/chsinprog";;
 	5)
 		sed -i -e 's/INSTALL=0/INSTALL=1/g' "${CHDIR}/chsinprog";;
-	6)
-		sed -i -e 's/RESUMEREBUILD=1/RESUMEREBUILD=0/g' "${CHDIR}/chsinprog";;
-	7)
-		sed -i -e 's/RESUMEINSTALL=1/RESUMEINSTALL=0/g' "${CHDIR}/chsinprog";;
-	8)
-		sed -i -e 's/RESUMEREB=0/RESUMEREB=1/g' "${CHDIR}/chsinprog";;
-	9)
-		sed -i -e 's/RESUMEINST=0/RESUMEINST=1/g' "${CHDIR}/chsinprog";;
 	rn)
 		sed -i -e 's/RUNLEVEL=0/RUNLEVEL=1/g' "${CHDIR}/chsinprog";;
 	kern)
 		sed -i -e 's/KERNEL=0/KERNEL=1/g' "${CHDIR}/chsinprog";;
+	initramfs)
+		sed -i -e 's/INITRAMFS=0/INITRAMFS=1/g' "${CHDIR}/chsinprog";;
+	portage)
+		sed -i -e 's/PORTAGE=0/PORTAGE=1/g' "${CHDIR}/chsinprog";;
 	dn) ;;
 esac
