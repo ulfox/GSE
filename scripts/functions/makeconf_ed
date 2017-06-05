@@ -142,7 +142,7 @@ ENTRY4
 ENTRY5
 # MIRRORS
 EOF
-
+echo "FEATURES=\"cgroup clean-logs merge-sync parallel-fetch userfetch\"" >> "${CCONFDIR}/system/portage/make.conf"
 optim() {
 	while true; do
 		opt_men 1
