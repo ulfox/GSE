@@ -35,9 +35,14 @@ echo -e "\e[35mPart C: Syncing Portage\e[0m"
 echo "============================================================================"
 echo -e "\e[34mUpdating the database\e[0m"
 mkdir -p "/etc/portage/repos.conf"
-cp /usr/share/portage/config/repos.conf /etc/portage/repos.conf/gentoo.conf \
-&& emerge --sync >/dev/nill 2>&1 && chprint_inf 1 || { chprint_inf 2; exit 1; }
-env-update >/dev/null 2>&1 \
+cp /usr/share/portage/config/repos.conf /etc/portage/repos.conf/gentoo.conf
+if [[ "$1" != "catalyst" ]]; then
+emerge --sync >/dev/nill 2>&1 && chprint_inf 1 || { chprint_inf 2; exit 1; }
+env-update >/dev/null 2>&1
+else
+emerge--webrsync >/dev/nill 2>&1 && chprint_inf 1 || { chprint_inf 2; exit 1; }
+env-update >/dev/null 2>&1
+fi \
 && [[ -z $(whereis eix | awk -F ':' '{ print $2 }') ]] \
 && { echo -e "\e[34mEmerging eix\e[0m" \
 && emerge -q app-portage/eix >/dev/null 2>&1 \
@@ -64,9 +69,9 @@ done
 }
 
 if [[ "$(awk -F '=' '/WEBRSYNC/{ print $2 }' <"${CHDIR}/chsinprog")" == 0 ]]; then
-part_c_f
+part_c_f $1
 else
-repeat_part_f "Portage Update" "part_c_f"
+repeat_part_f "Portage Update" "part_c_f $1"
 fi
 
 emerge_resume_f() {
@@ -413,8 +418,15 @@ else
 echo -e "[\e[31m*\e[0m] Configuring [\e[34m/etc/conf.d/net\e[0m]"
 fi
 
-#if cp 
+[[ -n $(cat "${CHDIR}/grub" | sed '/^#/ d' | sed '/^\s*$/d') ]] && if cp "${CHDIR}/grub"  "/etc/default/grub"; then
+echo -e "[\e[32m*\e[0m] Configuring [\e[34m/etc/conf.d/grub\e[0m]"
+else
+echo -e "[\e[31m*\e[0m] Configuring [\e[34m/etc/conf.d/grub\e[0m]"
+fi
 
+### Custom scripts entry will be here
+
+### Initscripts entry here
 
 [[ -n $(cat "${CHDIR}/sshd" | sed '/^#/ d' | sed '/^\s*$/d') ]] && if cp "${CHDIR}/sshd"  /etc/ssh/sshd_config; then
 echo -e "[\e[32m*\e[0m] Configuring [\e[34m/etc/ssh/sshd_config\e[0m]"
