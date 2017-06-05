@@ -44,7 +44,7 @@ sys-block/parted
 dev-util/catalyst
 app-portage/eix
 sys-fs/dosfstools
-sys-fs/fus
+sys-fs/fuse
 
 
 
