@@ -10,6 +10,7 @@ CHOST="x86_64-pc-linux-gnu"
 # These are the USE and USE_EXPAND flags that were used for
 # buidling in addition to what is provided by the profile.
 USE="bindist"
+FEATURES="cgroup clean-logs merge-sync parallel-fetch userfetch"
 CPU_FLAGS_X86="mmx sse sse2"
 PORTDIR="/usr/portage"
 DISTDIR="${PORTDIR}/distfiles"
