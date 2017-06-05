@@ -62,6 +62,7 @@ echo "==========================================================================
 echo -e "[\e[32m*\e[0m] \e[34mInitializing\e[0m"
 sleep 0.5
 
+if [[ "$2" != "localrb" ]]; then
 # ALL ESSENTIAL VARIABLES FOR THE DOWNLOAD AND AUTHENTICATION PROCESS
 source "${CWORKDIR}/etc/gentoo.conf" >/dev/null 2>&1 && { echo -e "[\e[32m*\e[0m] \e[35mExporting variables\e[0m"
 echo "============================================================================"; } \
@@ -284,15 +285,31 @@ case "$2" in
 	catalyst)
 		check_dir "${CATDIR}/builds/${TARGETPATH}/stage3-amd64-${TARGETSTAMP}.tar.bz2" \
 		"${CDISTDIR}/stage3-amd64-${TARGETSTAMP}-${GSEVER}" \
-		"${CATDIR}/snapshots/portage-${TARGETNAME}.tar.bz2"
+		"${CATDIR}/snapshots/portage-${TARGETNAME}.tar.bz2" \
+		&& export BWORKDIR="${CDISTDIR}/stage3-amd64-${TARGETSTAMP}-${GSEVER}"
 		;;
 	precomp)
-		check_dir "${CDISTDIR}/dists/${STAGE3TB}" "${CDISTDIR}/stage3-amd64-latest-${GSEVER}"
+		check_dir "${CDISTDIR}/dists/${STAGE3TB}" "${CDISTDIR}/stage3-amd64-latest-${GSEVER}" \
+		&& export BWORKDIR="${CDISTDIR}/stage3-amd64-latest-${GSEVER}"
 		;;
 esac
 unset EXTRACTION
 
 sinit_mon 4
+fi
+
+else
+echo "============================================================================"
+echo -e "\e[35mInitializing build from host process\e[0m"
+echo "============================================================================"
+mkdir -p "${CDISTDIR}/workdir"
+MKCORES=$(( $(grep -c ^processor /proc/cpuinfo) + 1 ))
+source "${CCONFDIR}/system/coptions"
+
+MAKEOPTS="-j${MKCORES}" FEATURES="${FEATURES} ${CHFEATURES}" CFLAGS="-O2 -pipe" ROOT="${CDISTDIR}/workdir" emerge -q sys-apps/baselayout \
+&& MAKEOPTS="-j${MKCORES}" FEATURES="${FEATURES} ${CHFEATURES}" CFLAGS="-O2 -pipe" ROOT="${CDISTDIR}/workdir" emerge -q @system \
+&& local_rbuild && print_inf 1 || { print_inf 2 ** exit 1; }
+export BWORKDIR="${CDISTDIR}/workdir"
 fi
 
 # PART B
@@ -323,6 +340,7 @@ pr_chroot_f() {
 
 cp -L /etc/resolv.conf "$1/etc/"
 
+if [[ "$2" != "localrb" ]]; then
 # CHECK IF PSEUDOS ARE MOUNTED
 if [[ -n $(cat /proc/mounts | grep 'stage3-amd64-' | awk -F ' ' '{ print $1 }') ]]; then
 echo "Pseudos possibly mounted at target directory"
@@ -335,9 +353,27 @@ fi
 
 echo -e "\e[34mMounting pseudo\e[0m"
 [[ -z $(grep 'stage3-amd64-' /proc/mounts | awk -F ' ' '{ print $1 }') ]] \
-&& { mount -t proc /proc "$1/proc" \
+&& mount -t proc /proc "$1/proc" \
 && echo -e "[\e[32m*\e[0m] Mounting proc" \
 || { echo -e "[\e[31m*\e[0m] Mounting proc"; return 1; }
+
+else
+
+if [[ -n $(cat /proc/mounts | grep 'workdir' | awk -F ' ' '{ print $1 }') ]]; then
+echo "Pseudos possibly mounted at target directory"
+umount -l "$1/dev" >/dev/null 2>&1
+umount -l "$1/proc" >/dev/null 2>&1
+umount -l "$1/sys" >/dev/null 2>&1
+umount -l "$1"/* >/dev/null 2>&1
+sleep 2
+fi
+
+echo -e "\e[34mMounting pseudo\e[0m"
+[[ -z $(grep 'workdir' /proc/mounts | awk -F ' ' '{ print $1 }') ]] \
+&& mount -t proc /proc "$1/proc" \
+&& echo -e "[\e[32m*\e[0m] Mounting proc" \
+|| { echo -e "[\e[31m*\e[0m] Mounting proc"; return 1; }
+fi
 
 mount --rbind /dev "$1/dev" \
 && mount --make-rslave "$1/dev" \
@@ -347,7 +383,7 @@ mount --rbind /dev "$1/dev" \
 mount --rbind /sys "$1/sys" \
 && mount --make-rslave "$1/sys" \
 && echo -e "[\e[32m*\e[0m] Mounting sys" \
-|| { echo -e "[\e[321*\e[0m] Mounting sys"; return 1; }; }
+|| { echo -e "[\e[321*\e[0m] Mounting sys"; return 1; }
 
 mkdir -p "$1/sinit.d"
 
@@ -430,24 +466,27 @@ sinit_mon 6
 TARGETSTAMP="$(grep 'version_stamp' "${CCONFDIR}/system/catalyst/stage3.spec" \
 | sed '/^#/ d' | awk -F ' ' '{ print $2 }' | sed  -e "s_\"__g")"
 
-case "$2" in
-	catalyst)
-		pr_chroot_f "${CDISTDIR}/stage3-amd64-${TARGETSTAMP}-${GSEVER}" "${RREQ}";;
-	precomp)
-		pr_chroot_f "${CDISTDIR}/stage3-amd64-latest-${GSEVER}" "${RREQ}";;
-esac
-exit
-case "$2" in
-	catalyst)
-		tar cvf "${CDISTDIR}/stage3-amd64-${TARGETSTAMP}-${GSEVER}.tar.bz2" -C "${CDISTDIR}/stage3-amd64-${TARGETSTAMP}-${GSEVER}";;
-	precomp)
-		pr_chroot_f "${CDISTDIR}/stage3-amd64-latest-${GSEVER}.tar.bz2" -C "${CDISTDIR}/stage3-amd64-latest-${GSEVER}";;
-esac
+SUBBUILD=0
+GSEVER="${GSEVER}.${SUBBUILD}"
+pr_chroot_f "${BWORKDIR}" "${RREQ}" \
+&& while true; do
+if ! ls "${CDISTDIR}/stage3-amd64-${GSEVER}.tar.bz2" >/dev/null 2>&1; then
+echo -e "\e[34mArchiving...\e[0m"
+tar cvf "${CDISTDIR}/stage3-amd64-${GSEVER}.tar.bz2" -C "${BWORKDIR}" >/dev/null 2>&1 \
+&& { print_inf 1 && echo -e "\e[34mYou can find your system @ ${CDISTDIR}\e[0m"
+echo -e "\e[34mWith version extension: ${GSEVER}\e[0m"; } \
+|| { print_inf 2; exit 1; }
+break
+else
+((++SUBBUILD))
+fi
+done
 sinit_mon 7
+
 exit
 
-gpg --armor --export email > ${FINALDIST}/key.asc # THIS WILL BE ADDED TO THE HOSTS
-gpg --detach-sign -o ${GSE_VER}.gpg ${FINALDIST}/${IMAGE}
+gpg --armor --export email > "${FINALDIST}/key.asc" # THIS WILL BE ADDED TO THE HOSTS
+gpg --detach-sign -o ${GSE_VER}.gpg "${FINALDIST}/${IMAGE}"
 #rm -rf "$1/sinit.d"
 unset CATDIR
 unset TARGETPATH
