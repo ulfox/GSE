@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # HERE MAKE.CONF IS CONFIGURED, BY EITHER AN AUTOMATIC METHOD OR BY A GUIDED METHOD
-[[ -z "${CONFDIR}" ]] && exit 1
+[[ -z "${CCONFDIR}" ]] && exit 1
 
 clear; while true; do
 echo "You can automatically generate the make.conf based on the machine or configure it following the guider"
@@ -14,14 +14,14 @@ break ;;
 echo "Starting automatic configuration..."
 sleep 1
 print_inf 1
-cat >"${CONFDIR}/system/portage/make.conf" <<\EOF
+cat >"${CCONFDIR}/system/portage/make.conf" <<\EOF
 # These settings were set by the catalyst build script that automatically
 # built this stage.
 # Please consult /usr/share/portage/config/make.conf.example for a more
 # detailed example.
 EOF
-echo "CFLAGS=\"-O2 -pipe\"">>"${CONFDIR}/system/portage/make.conf"
-cat >>"${CONFDIR}/system/portage/make.conf" <<\EOF
+echo "CFLAGS=\"-O2 -pipe\"">>"${CCONFDIR}/system/portage/make.conf"
+cat >>"${CCONFDIR}/system/portage/make.conf" <<\EOF
 CXXFLAGS="${CFLAGS}"
 # WARNING: Changing your CHOST is not something that should be done lightly.
 # Please consult http://www.gentoo.org/doc/en/change-chost.xml before changing.
@@ -35,11 +35,12 @@ DISTDIR="${PORTDIR}/distfiles"
 PKGDIR="${PORTDIR}/packages"
 # MAKE OPTS
 EOF
+echo "FEATURES=\"cgroup clean-logs merge-sync parallel-fetch userfetch\"">>"${CCONFDIR}/system/portage/make.conf"
 MKCORES=$(( $(grep -c ^processor /proc/cpuinfo) + 1 ))
-echo "MAKEOPTS="\"-j${MKCORES}\""">>"${CONFDIR}/system/portage/make.conf"
-echo "# EMERGE DEFAULT OPTS">>"${CONFDIR}/system/portage/make.conf"
-echo "EMERGE_DEFAULT_OPTS="\"--load-average ${CORES}\""">>"${CONFDIR}/system/portage/make.conf"
-echo "# MIRRORS">>"${CONFDIR}/system/portage/make.conf"
+echo "MAKEOPTS="\"-j${MKCORES}\""">>"${CCONFDIR}/system/portage/make.conf"
+echo "# EMERGE DEFAULT OPTS">>"${CCONFDIR}/system/portage/make.conf"
+echo "EMERGE_DEFAULT_OPTS="\"--load-average ${CORES}\""">>"${CCONFDIR}/system/portage/make.conf"
+echo "# MIRRORS">>"${CCONFDIR}/system/portage/make.conf"
 unset MKCORES
 echo "Determining optimal servers..."
 
@@ -85,9 +86,9 @@ http://mirror.lug.udel.edu/pub/gentoo/ ftp://cosmos.illinois.edu/pub/gentoo/ htt
 rsync://gentoo.cs.uni.edu/gentoo-distfiles http://mirror.usu.edu/mirrors/gentoo/ \
 | awk -F ' ' '{ print $2 }' 2>/dev/null)" \
 && print_inf 1 || { print_inf 2 echo "There was a problem automatically generating the servers."
-echo "Please use manually: mirrorselect -i -o >> {CONFDIR}/system/portage/make.conf"; }
+echo "Please use manually: mirrorselect -i -o >> {CCONFDIR}/system/portage/make.conf"; }
 
-echo "GENTOO_MIRRORS=\""${GENMIRR}"\"" >>"${CONFDIR}/system/portage/make.conf"
+echo "GENTOO_MIRRORS=\""${GENMIRR}"\"" >>"${CCONFDIR}/system/portage/make.conf"
 unset GENMIRR
 unset CORE
 exit 0;;
@@ -116,7 +117,7 @@ opt_men (){
 	esac
 }
 
-cat >"${CONFDIR}/system/portage/make.conf" <<\EOF
+cat >"${CCONFDIR}/system/portage/make.conf" <<\EOF
 # These settings were set by the catalyst build script that automatically
 # built this stage.
 # Please consult /usr/share/portage/config/make.conf.example for a more
@@ -148,21 +149,21 @@ optim() {
 		read -p "Select an option: " SELCT
 		case ${SELCT:-9} in
 			1) 
-				sed -i -e 's/ENTRY1/CFLAGS="-O -pipe"/g' "${CONFDIR}/system/portage/make.conf"; break ;;
+				sed -i -e 's/ENTRY1/CFLAGS="-O -pipe"/g' "${CCONFDIR}/system/portage/make.conf"; break ;;
 			2)
-				sed -i -e 's/ENTRY1/CFLAGS="-O0 -pipe"/g' "${CONFDIR}/system/portage/make.conf"; break ;;
+				sed -i -e 's/ENTRY1/CFLAGS="-O0 -pipe"/g' "${CCONFDIR}/system/portage/make.conf"; break ;;
 			3)
-				sed -i -e 's/ENTRY1/CFLAGS="-O1 -pipe"/g' "${CONFDIR}/system/portage/make.conf"; break ;;
+				sed -i -e 's/ENTRY1/CFLAGS="-O1 -pipe"/g' "${CCONFDIR}/system/portage/make.conf"; break ;;
 			4)
-				sed -i -e 's/ENTRY1/CFLAGS="-O2 -pipe"/g' "${CONFDIR}/system/portage/make.conf"; break ;;
+				sed -i -e 's/ENTRY1/CFLAGS="-O2 -pipe"/g' "${CCONFDIR}/system/portage/make.conf"; break ;;
 			5)
-				sed -i -e 's/ENTRY1/CFLAGS="-O3 -pipe"/g' "${CONFDIR}/system/portage/make.conf"; break ;;
+				sed -i -e 's/ENTRY1/CFLAGS="-O3 -pipe"/g' "${CCONFDIR}/system/portage/make.conf"; break ;;
 			6)
-				sed -i -e 's/ENTRY1/CFLAGS="-Os -pipe"/g' "${CONFDIR}/system/portage/make.conf"; break ;;
+				sed -i -e 's/ENTRY1/CFLAGS="-Os -pipe"/g' "${CCONFDIR}/system/portage/make.conf"; break ;;
 			7)
-				sed -i -e 's/ENTRY1/CFLAGS="-Og -pipe"/g' "${CONFDIR}/system/portage/make.conf"; break ;;
+				sed -i -e 's/ENTRY1/CFLAGS="-Og -pipe"/g' "${CCONFDIR}/system/portage/make.conf"; break ;;
 			8)
-				sed -i -e 's/ENTRY1/CFLAGS="-Ofast -pipe"/g' "${CONFDIR}/system/portage/make.conf"; break ;;
+				sed -i -e 's/ENTRY1/CFLAGS="-Ofast -pipe"/g' "${CCONFDIR}/system/portage/make.conf"; break ;;
 			9)
 				return 1;;
 			*)
@@ -187,7 +188,7 @@ cpuflagsx86() {
 			esac
 		done
 	done
-	sed -i -e s/ENTRY2/CPU_FLAGS_X86=\""${cpufx86}"\"/g "${CONFDIR}/system/portage/make.conf"
+	sed -i -e s/ENTRY2/CPU_FLAGS_X86=\""${cpufx86}"\"/g "${CCONFDIR}/system/portage/make.conf"
 	unset cpufx86
 	unset incld
 }
@@ -205,7 +206,7 @@ makeopts() {
 					read -p "Are you sure? " SELCT
 					case ${SELCT:-1} in
 					[Yy][eE][sS]|[yY])
-						sed -i -e "s/ENTRY4/MAKEOPTS=\"-j${CRS}\"/g" "${CONFDIR}/system/portage/make.conf"; break ;;
+						sed -i -e "s/ENTRY4/MAKEOPTS=\"-j${CRS}\"/g" "${CCONFDIR}/system/portage/make.conf"; break ;;
 					[nN][oO]|[nN])
 						echo "Give a new value: "
 						read -p "Cores: " CRS;;
@@ -216,7 +217,7 @@ makeopts() {
 				unset CRS
 				break;;
 			[nN][oO]|[nN])
-				sed -i -e "s/ENTRY4//g" "${CONFDIR}/system/portage/make.conf"; break ;;
+				sed -i -e "s/ENTRY4//g" "${CCONFDIR}/system/portage/make.conf"; break ;;
 			*)
 				echo "Wrong option";;
 		esac
@@ -228,13 +229,13 @@ usef() {
 		read -p "Do you want to import USE FLAGS?: " SELCT
 		case ${SELCT:-y} in
 			[Yy][eE][sS]|[yY])
-				vim "${CONFDIR}/system/portage/usef"
-				USEFLAGS=$(cat "${CONFDIR}/system/portage/usef")
-				sed -i -e "s/ENTRY3/"${USEFLAGS}"/g" "${CONFDIR}/system/portage/make.conf"
+				vim "${CCONFDIR}/system/portage/usef"
+				USEFLAGS=$(cat "${CCONFDIR}/system/portage/usef")
+				sed -i -e "s/ENTRY3/"${USEFLAGS}"/g" "${CCONFDIR}/system/portage/make.conf"
 				unset USEFLAGS
 				break;;
 			[nN][oO]|[nN])
-				sed -i -e "s/ENTRY3//g" "${CONFDIR}/system/portage/make.conf"
+				sed -i -e "s/ENTRY3//g" "${CCONFDIR}/system/portage/make.conf"
 				break;;
 			*)
 				echo "Wrong option";;
@@ -247,13 +248,13 @@ defemopt() {
 		read -p "Do you want to include EMERGE_DEFAULT_OPTS?: " SELCT
 		case ${SELCT:-y} in
 			[Yy][eE][sS]|[yY])
-				vim "${CONFDIR}/system/portage/emdefopt"
-				EMDOPT=$(cat "${CONFDIR}/system/portage/emdefopt")
-				sed -i -e "s/ENTRY5/"${EMDOPT}"/g" "${CONFDIR}/system/portage/make.conf"
+				vim "${CCONFDIR}/system/portage/emdefopt"
+				EMDOPT=$(cat "${CCONFDIR}/system/portage/emdefopt")
+				sed -i -e "s/ENTRY5/"${EMDOPT}"/g" "${CCONFDIR}/system/portage/make.conf"
 				unset EMDOPT
 				break;;
 			[nN][oO]|[nN])
-				sed -i -e "s/ENTRY5//g" "${CONFDIR}/system/portage/make.conf"
+				sed -i -e "s/ENTRY5//g" "${CCONFDIR}/system/portage/make.conf"
 				break;;
 			*)
 				echo "Wrong option";;
@@ -264,14 +265,14 @@ defemopt() {
 optim
 cpuflagsx86
 
-if [[ ! -e "${CONFDIR}/system/portage/usef" ]]; then
-cat >"${CONFDIR}/system/portage/usef" <<\EOF
+if [[ ! -e "${CCONFDIR}/system/portage/usef" ]]; then
+cat >"${CCONFDIR}/system/portage/usef" <<\EOF
 USE=""
 EOF
 fi
 
-if [[ ! -e "${CONFDIR}/system/portage/emdefopt" ]]; then
-cat >"${CONFDIR}/system/portage/emdefopt" <<\EOF
+if [[ ! -e "${CCONFDIR}/system/portage/emdefopt" ]]; then
+cat >"${CCONFDIR}/system/portage/emdefopt" <<\EOF
 EMERGE_DEFAULT_OPTS=""
 EOF
 fi
@@ -285,7 +286,7 @@ while true; do
 	read -p "Y/N?: " SELCT
 	case ${SELCT:-y} in
 		[Yy][eE][sS]|[yY])
-			mirrorselect -i -o >> "${CONFDIR}/system/portage/make.conf"; break;;
+			mirrorselect -i -o >> "${CCONFDIR}/system/portage/make.conf"; break;;
 		[nN][oO]|[nN])
 			break;;
 		*)
@@ -298,7 +299,7 @@ while true; do
 	read -p "Y/N?: " SELCT
 	case ${SELCT:-y} in
 		[Yy][eE][sS]|[yY])
-			vim "${CONFDIR}/system/portage/make.conf"; break;;
+			vim "${CCONFDIR}/system/portage/make.conf"; break;;
 		[nN][oO]|[nN])
 			break;;
 		*)
