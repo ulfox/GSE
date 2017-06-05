@@ -18,7 +18,7 @@ export CWORKDIR="$(dirname ${PWD})"
 export CCONFDIR="${CWORKDIR}/config.d"
 export CDISTDIR="${CWORKDIR}/dist.d"
 export CLOCALLG="${CWORKDIR}/local"
-export CREL=g #$(grep ^NAME /etc/*release | awk -F '=' '{ print $2 }')
+export CREL="$(grep ^NAME /etc/*release | awk -F '=' '{ print $2 }')"
 
 # PATH DEFINITION FOR THE SCRIPTS WHICH WILL AID THE PROCESS
 export PATH=${PATH}:${CWORKDIR}/scripts/functions
