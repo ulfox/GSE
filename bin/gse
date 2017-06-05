@@ -10,17 +10,18 @@
 ##																						     ##
 
 LC_COLLATE=C
-LC_ALL="en_US.UTF-8"
+#LC_ALL="en_US.UTF-8"
 LC_CTYPE="en_US.UTF-8"
 
-# DEFINITION OF WORKDIR AND IT'S SUBDIRECTORIES
-export WORKDIR="$(dirname ${PWD})"
-export CONFDIR="${WORKDIR}/config.d"
-export DISTDIR="${WORKDIR}/dist.d"
-export LOCALLG="${WORKDIR}/local"
+# DEFINITION OF CWORKDIR AND IT'S SUBDIRECTORIES
+export CWORKDIR="$(dirname ${PWD})"
+export CCONFDIR="${CWORKDIR}/config.d"
+export CDISTDIR="${CWORKDIR}/dist.d"
+export CLOCALLG="${CWORKDIR}/local"
+export CREL=g #$(grep ^NAME /etc/*release | awk -F '=' '{ print $2 }')
 
 # PATH DEFINITION FOR THE SCRIPTS WHICH WILL AID THE PROCESS
-export PATH=${PATH}:${WORKDIR}/scripts/functions
+export PATH=${PATH}:${CWORKDIR}/scripts/functions
 
 STAT_VAR=''
 
@@ -55,6 +56,17 @@ amiroot() {
 	fi
 }
 
+subterm_f() {
+	echo -e "\e[33mCalling bash subshell\e[0m"
+	sleep 2
+	echo 'echo -e "\e[33mInside Subshell\e[0m"' >> /root/.bashrc
+	echo 'echo -e "\e[33mExit to return back to parent\e[0m"' >> /root/.bashrc
+	(clear; exec /bin/bash;)
+	sed -i "/Inside Subshell/d" "/root/.bashrc"
+	sed -i "/Exit to return back to parent/d" "/root/.bashrc"
+	echo -e "\e[33mYou are back to parent\e[0m"
+}
+
 # MAIN MENU FUNCTION
 main_f() {
 	while true; do
@@ -74,9 +86,10 @@ main_f() {
 				# CALL ABOUT SUBMENU
 				about_f; break;;
 			V|v|5|-V|-v|-5[Qq][uU][iI][tT]|[Ee][Xx][Ii][tT]|[qQ])
- 				echo -e "\e[32mExiting\e[39m..."; BACKTO="Q";;
+ 				echo -e "\e[32mExiting\e[39m..."; BACKTO="Q"
+ 				break;;
  			[tT])
-				clear; /bin/bash
+				subterm_f
 				echo "Presh any key to return"
 				read -r 1>&-;BACKTO="MM" 
   				clear; break;;
@@ -99,7 +112,7 @@ bs_menu_f() {
 				# CALL CONFIGURATION SUBMENU
 				clear; config_f
 				break;;
-			III|iii|3|-III|-iii|-3)
+			III|iii|3|-III|-iii|-3)subterm_f
 				# CALL SELECT DEFAULT SYSTEM SUBMENU
 				clear; selectdef_f
 				break;;
@@ -111,7 +124,7 @@ bs_menu_f() {
 			V|v|5)
 				clear; BACKTO="MM"; break;;
 			[tT])
-				clear; /bin/bash
+				subterm_f
 				echo "Presh any key to return"
 				read -r 1>&-;BACKTO="BSM";
   				clear; break;;
@@ -136,20 +149,20 @@ clear; men_opt 6
 				break;;
 			III|iii|3|-III|-iii|-3)
 				# START LOCAL BUILD
-				clear; source "${WORKDIR}/scripts/sinit" "no_seed" "localrb"
+				clear; source "${CWORKDIR}/scripts/sinit" "no_seed" "localrb"
 				echo "Presh any key to return"
 				read -r 1>&-;BACKTO="SM";
 				break;;
 			IV|iv|4|-IV|-iv|-4)
 				# START PRE PRECOMPILED
-				clear; source "${WORKDIR}/scripts/sinit" "seed" "precomp"
+				clear; source "${CWORKDIR}/scripts/sinit" "seed" "precomp"
 				echo "Presh any key to return"
 				read -r 1>&-;BACKTO="SM";
 				break;;
 			V|v|5|-V|-v|-5)
 				clear; BACKTO="BSM"; break;;
 			[tT])
-				clear; /bin/bash
+				subterm_f
 				echo "Presh any key to return"
 				read -r 1>&-;BACKTO="SM";
   				clear; break;;
@@ -171,34 +184,39 @@ portage_men_f() {
 				read -r 1>&-; BACKTO="PORT_M"; break;;
 			II|ii|2|-II|-ii|-2)
 				# MANUAL EDIT OF MAKE.CONF
-				cp "${CONFDIR}/system/portage/makeconf.backup" "${CONFDIR}/system/portage/make.conf"
-				vim "${CONFDIR}/system/portage/make.conf"
+				cp "${CCONFDIR}/system/portage/makeconf.backup" "${CCONFDIR}/system/portage/make.conf"
+				vim "${CCONFDIR}/system/portage/make.conf"
 				clear; echo "Presh any key to return"
 				read -r 1>&-; BACKTO="PORT_M"; break;;
 			III|iii|3|-III|-iii|-3)
-				# PREVIW OF MAKE.CONF: WILL BE REMOVED AS AN OPTION
-				less "${CONFDIR}/system/portage/make.conf"
+				# FEATURES & CCACHE
+				vim "${CCONFDIR}/system/coptions"
 				clear; echo "Presh any key to return"
 				read -r 1>&-; BACKTO="PORT_M"; break;;
 			IV|iv|4|-IV|-iv|-4)
-				# MANUAL EDIT OF USEFLAGS
-				vim "${CONFDIR}/system/portage/package.use/sysbuild"
+				# EDIT DISTCC
+				vim "${CCONFDIR}/system/portage/hosts"
 				clear; echo "Presh any key to return"
 				read -r 1>&-; BACKTO="PORT_M"; break;;
 			V|v|5|-V|-v|-5)
-				# PREVIEW OF USEFLAGS: WILL BE REMOVED AS AN OPTION
-				less "${CONFDIR}/system/portage/package.use/sysbuild"
+				# MANUAL EDIT OF USEFLAGS
+				vim "${CCONFDIR}/system/portage/package.use/sysbuild"
 				clear; echo "Presh any key to return"
 				read -r 1>&-; BACKTO="PORT_M"; break;;
 			VI|vi|6|-VI|-vi|-6)
-				# REGENERATES MAKE.CONF TO DEFAULT
-				cp "${CONFDIR}/system/portage/package.use/sysbuild.backup" "${CONFDIR}/system/portage/package.use/sysbuild"
+				# PREVIEW OF USEFLAGS: WILL BE REMOVED AS AN OPTION
+				less "${CCONFDIR}/system/portage/package.use/sysbuild"
 				clear; echo "Presh any key to return"
 				read -r 1>&-; BACKTO="PORT_M"; break;;
 			VII|vii|7|-VII|-vii|-7)
+				# REGENERATES MAKE.CONF TO DEFAULT
+				cp "${CCONFDIR}/system/portage/package.use/sysbuild.backup" "${CCONFDIR}/system/portage/package.use/sysbuild"
+				clear; echo "Presh any key to return"
+				read -r 1>&-; BACKTO="PORT_M"; break;;
+			VIII|viii|8)
 				BACKTO="SM"; break;;
 			[tT])
-				clear; /bin/bash
+				subterm_f
 				echo "Presh any key to return"
 				read -r 1>&-;BACKTO="PORT_M";
   				clear; break;;
@@ -214,39 +232,39 @@ catalyst_f() {
 		case ${SELCT:-6} in
 			I|i|1|-I|-i|-1)
 				# CONFIGURE CATALYST.CONF
-				vim "${CONFDIR}/system/catalyst/catalyst.conf"
+				vim "${CCONFDIR}/system/catalyst/catalyst.conf"
 				clear; echo -e "[\e[32m*\e[0m] Presh any key to return"
 				read -r 1>&-; BACKTO="CATA_M"; break;;
 			II|ii|2|-II|-ii|-2)
 				# CONFIGURE CATALYSTRC
-				vim "${CONFDIR}/system/catalyst/catalystrc"
+				vim "${CCONFDIR}/system/catalyst/catalystrc"
 				clear; echo -e "[\e[32m*\e[0m] Presh any key to return"
 				read -r 1>&-; BACKTO="CATA_M"; break;;
 			III|iii|3|-III|-iii|-3)
 				# CONFIGURE STAGE1.SPEC
-				vim "${CONFDIR}/system/catalyst/stage1.spec"
+				vim "${CCONFDIR}/system/catalyst/stage1.spec"
 				clear; echo -e "[\e[32m*\e[0m] Presh any key to return"
 				read -r 1>&-; BACKTO="CATA_M"; break;;
 			IV|iv|4|-IV|-iv|-4)
 				# CONFIGURE STAGE2.SPEC
-				vim "${CONFDIR}/system/catalyst/stage2.spec"
+				vim "${CCONFDIR}/system/catalyst/stage2.spec"
 				clear; echo -e "[\e[32m*\e[0m] Presh any key to return"
 				read -r 1>&-; BACKTO="CATA_M"; break;;
 			V|v|5|-V|-v|-5)
 				# CONFIGURE STAGE3.SPEC
-				vim "${CONFDIR}/system/catalyst/stage3.spec"
+				vim "${CCONFDIR}/system/catalyst/stage3.spec"
 				clear; echo "Presh any key to return"
 				read -r 1>&-; BACKTO="CATA_M"; break;;
 			VI|vi|6|-VI|-vi|-6)
 				# START MAIN BUILDER PROCESS
-				clear; source "${WORKDIR}/scripts/sinit" "seed" "catalyst" "s1" "s2" "s3"
+				clear; source "${CWORKDIR}/scripts/sinit" "seed" "catalyst" "s1" "s2" "s3"
 				echo "Presh any key to return"
 				read -r 1>&-;BACKTO="CATA_M";
 				break;;
 			VII|vii|7)
 				BACKTO="SM"; break;;
 			[tT])
-				clear; /bin/bash
+				subterm_f
 				echo "Presh any key to return"
 				read -r 1>&-;BACKTO="PORT_M";
   				clear; break;;
@@ -267,78 +285,78 @@ config_f() {
 				read -r 1>&-; BACKTO="CO_F"; break;;
 			II|ii|2|-II|-ii|-2)
 				# MANUAL FSTAB EDIT
-				vim "${CONFDIR}/system/fstab"
+				vim "${CCONFDIR}/system/fstab"
 				clear; echo -e "[\e[32m*\e[0m] Presh any key to return"
 				read -r 1>&-; BACKTO="CO_F"; break;;
 			III|iii|3|-III|-iii|-3)
 				# DEVICES FOR BOOT, SYSTEM, USERDATA: RELATED ONLY WITH THE HOSTS
-				vim "${CONFDIR}/system/devname.info"
+				vim "${CCONFDIR}/system/devname.info"
 				clear; echo -e "[\e[32m*\e[0m] Presh any key to return"
 				read -r 1>&-; BACKTO="CO_F"; break;;
 			IV|iv|4|-IV|-iv|-4)
 				# HOSTNAME
-				vim "${CONFDIR}/system/hostname"
+				vim "${CCONFDIR}/system/hostname"
 				clear; echo -e "[\e[32m*\e[0m] Presh any key to return"
 				read -r 1>&-; BACKTO="CO_F"; break;;
 			V|v|5|-V|-v|-5)
 				# NETWORKING
-				vim "${CONFDIR}/system/net"
+				vim "${CCONFDIR}/system/net"
 				clear; echo -e "[\e[32m*\e[0m] Presh any key to return"
 				read -r 1>&-; BACKTO="CO_F"; break;;
 			VI|vi|6|-VI|-vi|-6)
 				# LOCALES
-				vim "${CONFDIR}/system/locale.gen"
+				vim "${CCONFDIR}/system/locale.gen"
 				clear; echo -e "[\e[32m*\e[0m] Presh any key to return"
 				read -r 1>&-; BACKTO="CO_F"; break;;
 			VII|vii|7)
 				# CONSOLEFONTS
-				vim "${CONFDIR}/system/consolefont"
+				vim "${CCONFDIR}/system/consolefont"
 				clear; echo -e "[\e[32m*\e[0m] Presh any key to return"
 				read -r 1>&-; BACKTO="CO_F"; break;;
 			VIII|viii|8)
 				# SSHD CONFIGURATION FILE
-				vim "${CONFDIR}/system/sshd"
+				vim "${CCONFDIR}/system/sshd"
 				clear; echo -e "[\e[32m*\e[0m] Presh any key to return"
 				read -r 1>&-; BACKTO="CO_F"; break;;
 			IX|ix|9)
 				# SSH PUBLIC KEY: WILL BE INCLUDED ON THE HOSTS
-				vim "${CONFDIR}/system/ssh.pub"
+				vim "${CCONFDIR}/system/ssh.pub"
 				clear; echo -e "[\e[32m*\e[0m] Presh any key to return"
 				read -r 1>&-; BACKTO="CO_F"; break;;
 			X|x|10)
 				# SETS SYMLINKS, BIND MOUNTS, TMPFS AND OVERLAYS
-				vim "${CONFDIR}/system/system_links"
+				vim "${CCONFDIR}/system/system_links"
 				clear; echo -e "[\e[32m*\e[0m] Presh any key to return"
 				read -r 1>&-; BACKTO="CO_F"; break;;
 			XI|xi|11)
 				# SETS CUSTOM USER SCRIPTS ON BOOTUP
-				vim "${CONFDIR}/system/custom_scripts"
+				vim "${CCONFDIR}/system/custom_scripts"
 				clear; echo -e "[\e[32m*\e[0m] Presh any key to return"
 				read -r 1>&-; BACKTO="CO_F"; break;;
 			XII|xii|12)
 				# LIST FOR CUSTOM PACKAGES TO BE INSTALLED DURING THE PROCESS
-				vim "${CONFDIR}/system/custom_pacl"
+				vim "${CCONFDIR}/system/custom_pacl"
 				clear; echo -e "[\e[32m*\e[0m] Presh any key to return"
 				read -r 1>&-; BACKTO="CO_F"; break;;
 			XIII|xiii|13)
-				# KERNEL COMAND LINE
-				vim "${CONFDIR}/system/kernel-cmdl"
+				# EDIT DEFAULT GRUB
+				vim "${CCONFDIR}/system/grub"
 				clear; echo -e "[\e[32m*\e[0m] Presh any key to return"
 				read -r 1>&-; BACKTO="CO_F"; break;;
 			XIV|xiv|14)
 				# UPDATES RUNLEVEL ENTRIES
-				vim "${CONFDIR}/system/runlevels"
+				vim "${CCONFDIR}/system/runlevels"
 				clear; echo -e "[\e[32m*\e[0m] Presh any key to return"
 				read -r 1>&-; BACKTO="CO_F"; break;;
 			XV|xv|15)
 				# INJECT CUSTOM FILES
-				vim "${CONFDIR}/system/inject_files"
+				vim "${CCONFDIR}/system/inject_files"
 				clear; echo -e "[\e[32m*\e[0m] Presh any key to return"
 				read -r 1>&-; BACKTO="CO_F"; break;;
 			XVI|xvi|16)
 				BACKTO="BSM"; break;;
 			[tT])
-				clear; /bin/bash
+				subterm_f
 				echo "Presh any key to return"
 				read -r 1>&-;BACKTO="CO_F";
   				clear; break;;
@@ -368,7 +386,7 @@ selectdef_f() {
 			III|iii|3|-III|-iii|-3)
 				clear; BACKTO="BSM"; break;;
 			[tT])
-				clear; /bin/bash
+				subterm_f
 				echo "Presh any key to return"
 				read -r 1>&-;BACKTO="SELDEF";
   				clear; break;;
@@ -474,7 +492,9 @@ while true; do
 			# PULLS SELECT DEFAULT SYSTEM SUBMENU: SUBMENU OF BUILDERS MENU
 			selectdef_f;;
 		Q)
-			exit 0;;
+			# EXIT
+			sleep 1
+			break;;
 	esac
 done
 }
