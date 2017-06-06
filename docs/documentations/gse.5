@@ -1,0 +1,224 @@
+.TH "GSE" "5"
+.SH NAME
+GSE \- Gentoo Stateless Environment
+.SH "DESCRIPTION"
+.nf
+\fB\GSE\fR\ is a project that aims on creating a Gentoo system, by reading configuration files to customize the
+system to be built. GSE provides a guided menu that the user can use for configuring those files and 
+then initiate the building process. During the built process, two products are created, the system being one 
+and the other one being the kernel with the initramfs being the second. The separation of those is important, 
+since the kenrel and initramfs will be distributed alone, while the system will be fetched from the controller 
+functions inside the initramfs and installed on the SYSFS partition.
+.fi
+
+.PP
+.nf
+\fBThe Builder's\fR process is split in four main stages. \fBStage A\fR contains two parts, \fBStage B\fR contains six Parts
+and last \fBStage C\fR which contains two xparts
+.if
+
+.TP
+.nf
+\fBPart's of stage A:\fR
+Part A: Fundamentals
+Part B: Preparing the system for chrooting
+.fi
+
+.TP
+.nf
+\fBPart's of stage B:\fR
+Part C: Syncing Portage
+Part D: Rebulding the system {Optional Part}
+Part E: Configuring the System
+Part F: Installing Requested Packages
+Part G: Updating Runlevel Entries
+Part H: Building the Kernel
+Part I: Building the Initramfs.
+.fi
+
+.TP
+.nf
+\fBParts's of stage C:\fR
+Part J: Clean the system
+Part K: Archiving & Signing
+Part L: Mark for Distribution
+.fi
+
+.PP
+.nf
+.TP
+\fBDescription per part\fR
+Part A. Verifies the sources and creates a stage 3 system using catalyst 
+Part B. Creates the mount points, and files to be used for the scripting process
+Part C. Installs eix and updates portage
+Part D. Prompts for a world rebuild, if the system is not created from catalyst
+Part E. This part reads all the configuration files and applies changes to the system
+Part F. Essential to make the system further functional and requested user packages
+Part G. Reads the .config file, prompts for extra configuration and builds a modular kernel
+Part I. This part creates an initramfs with dracut, using custom modules to enable the controller 
+Part J: Removes all packages that are no longer required
+Part K: Exits chroot, further clean the syste, archive it and sign it
+Part L: Mark the products complete and ready to be distributed. From now, all clients that request
+a version check, will be notifed for this product and prompted to begin fetching
+.fi
+
+.PP
+.nf
+\fBThe controller\fR consists from a set of scripts, functions and files that lie inside the initramfs.
+The concept of it, derives from the need to controll and make changes to multiple systems that host the 
+images created from the builder. By names definition, the controller is responsible making dicisions
+before the system begins booting, that is, before the initramfs handles the control to the main system.
+
+.TP
+\fBController's functions\fR
+-Fetch configuration data from the server
+-Check local version with the server's version
+-Check the health integrity of SYSFS and BACKUPFS
+-Apply new configuration files to the SYSFS
+-Update runlevels
+-Create new drive interfaces
+-Create filesystems
+-Create and modify LABELS
+-Switch BOOTFS
+-Mount /etc and other directories as tmpfs
+-Decide which partition will be named SYSFS
+-Create,delete and modify sublovlumes
+-Even wipe the whole setup and start new
+.fi
+
+.SH "DESCRIPTION OF DIRECTORIES AND FILES"
+.TP
+\fBThe GSE directories and files\fR
+.nf
+├── bin
+│   └── gse
+├── config.d
+│   └── system
+│       ├── catalyst
+│       │   ├── catalyst.conf
+│       │   ├── catalystrc
+│       │   ├── stage1.spec
+│       │   ├── stage2.spec
+│       │   └── stage3.spec
+│       ├── consolefont
+│       ├── coptions
+│       ├── custom_pacl
+│       ├── custom_scripts
+│       ├── devname.info
+│       ├── fstab
+│       ├── fstab.info
+│       ├── grub
+│       ├── hostname
+│       ├── hosts
+│       ├── inject_files
+│       ├── kernel-conf
+│       ├── locale.gen
+│       ├── net
+│       ├── portage
+│       │   ├── localrepo
+│       │   │   ├── layout.conf
+│       │   │   └── localrepo.conf
+│       │   ├── make.conf
+│       │   ├── makeconf.backup
+│       │   ├── package.use
+│       │   │   ├── sysbuild
+│       │   │   └── sysbuild.backup
+│       │   └── profiles
+│       │       ├── child-gse
+│       │       │   ├── eapi
+│       │       │   └── parent
+│       │       └── parent-gse
+│       │           ├── eapi
+│       │           ├── make.defaults
+│       │           ├── package.use
+│       │           └── package.use.force
+│       ├── runlevels
+│       ├── sshd
+│       ├── ssh.pub
+│       └── system_links
+├── etc
+│   └── gentoo.conf
+├── local
+│   ├── loc_req
+│   ├── nogloc_req
+│   └── sinprog
+├── README.md
+├── scripts
+│   ├── chroot_scripts
+│   │   ├── chinit.conf
+│   │   ├── chprint_inf
+│   │   ├── chroot_init
+│   │   ├── chsinit_mon
+│   │   └── chsinprog
+│   ├── controller
+│   ├── functions
+│   │   ├── drv_interface
+│   │   ├── init_stage3_seq
+│   │   ├── lcreq
+│   │   ├── makeconf_ed
+│   │   ├── men_opt
+│   │   ├── print_inf
+│   │   └── sinit_mon
+│   └── sinit
+└── TODO
+
+.fi
+
+.PP
+.nf
+The \fBconfig.d\fR directory is probably the most important directory of this project, since there
+are stored all the configuration files, holding the instrucitons that the builder is using and
+all the configuration files that the controller is fetching when live, which then uses to make
+decisions.
+
+\fBSystem\fR, subdirectory holds the data used by the builder. Even the data that are used for
+building the controller lie under this subdirectory. The main menu configuration entries,
+are referring to system directory. One can manually import his make.conf and catalyst specs
+before initiating the builder but that is not recommended, since many functions use specific
+areas of those configuration files, therefore missing to import them, will make the process
+at best, or worst, give a system that seems fine but could utterly break user data when booted.
+
+\fBController\fR, subdirectory holds configuration files to be used by the the controller inside
+the intiramfs. Here one would change for example the cfstab entry, and then send a SIGHUP to the
+clients, asking them to reboot. When the clients reboot, the controller will fetch the data from
+this subdirectory and apply them locally. When done, all N clients will be forced to use the new
+fstab entries.
+
+For someone to modify the configuration files that lie here, implies that he wants to make changes
+to every machine related with the Server/s, and so, modification here must always be rare and planned
+with care. If you wish to modify the fstab entry of a particular client, then simply mask fstab from the 
+controller and then use mount -o rw,remount /, apply changes and reboot.
+
+\fBMasking\fR, is a way to insturct the controller what he should not consider modifying. Masking is one
+of the most important factors of the controller, as is the masking under /etc/portage on any
+Gentoo system. A setup that runs without masks, implies that everything connected to the server will
+oblige to it. The server has complete control on all N systems.
+
+To mask a configuration file, simply add #CF_MASK=ON on that file, from the client's side. 
+To mask a directory for the controller, simply put a .CD_MASK file in that directory. For example
+to make the controller ignore whatever lies inside the the /root/.ssh directory, simply do a
+touch /root/.ssh/.CD_MASK and your are done, while to make the controller ignore only a file, e.g.
+fstab, simply put #CF_MASK=ON. The #CF_MASK=0 must be the only entry ont hat line, and must lead the
+line.
+.fi
+.SH SUPPORTED ARCHITECTURES
+.nf
+.B x86_64
+.B ~x86
+.fi
+.TP
+.B Architectures to be included in the future
+.nf
+.B arm
+.B arm64
+.fi
+.SH NOTES
+.nf
+This project was created during the GSoC 2017 for Gentoo, meaning that the time for implementing it
+was three months, therefore you must expect to find bugs. If you do find, please report them at <email>
+.fi
+.SH "SEE ALSO"
+.nf
+man 1 gse
+man 1 controller
+.fi

@@ -1,0 +1,65 @@
+.TH "GSE" "1"
+.SH NAME
+GSE \- Gentoo Stateless Environment
+.SH SYNOPSIS
+.B gse 
+[\fBOPTIONS\fR]
+.SH "DESCRIPTION"
+.nf
+\fBGSE\fR is a set of scripts and configuration files that takes special advantage of catalyst,
+for creating a Gentoo system intented to function under stateless conditions, a modualr kernel
+and an initramfs which provide functions to further control and modify such a system.
+.fi
+.SH OPTIONS
+.TP
+.nf
+\fB\-\-menuXYZ...\fR \fB\-mXYZ...\fR
+X stands for the menu entry Y its submenu entry and same follows for the rest. 
+To bring configurations entry, which lie under 'System Menu' -> 'Configure built variables',
+one could simply type gse --m12 instead of gse and then guide himself through the menu entries.
+.fi
+.TP
+\fB\-\-fetch-new\fR \fB\-fn\fR
+.nf
+By default GSE will fetch snapshot and stag3 files if the local files are missing, if they do not
+pass local verifications, or if they fail any other health check test. By passing -fn, 
+gse is instructed to fetch new snapshots and stag3 tarballs.
+.fi
+.TP
+\fB\-\-start-new\fR \fB\-sn\fR
+When gse is asked to build a new system, it checks local files and decided from where it should resume, if
+it work had been done in the past. At the begining a prompt start new or continue from where tou left off
+appears and then at each Part X: (see man 5 gse for Stages, Parts and Masks) a prompt asks if you want to
+continue or run again that Part, in case configuration changes have been made. If one wants to force gse to
+force new builds, without any prompt (could be used if someone wants to enable the build, and simple go away),
+then -sn should be used.
+
+Warning: This option purges everything in the workdir.
+.fi
+.TP
+\fB\-\-help\fR \fB\-h\fR
+.nf
+Prints the help screen and exits
+.fi
+.TP
+\fB\-\-keep\fR \fB\-\-k\fR
+.nf
+This option does what the start-new option, however it saves all workdone /var/gse/work-<date>.
+If disk space is not an issue, then this option should be preferred rather than -sn
+.fi
+.TP
+\fB\-\-health-check\fR \fB\-\-hc\fR
+.nf
+This option simply checks the important scrips for modifications and marks them for restore if
+changes are found.
+.fi
+.TP
+\fB\-\-replace-new\fR \fB\-\-rpn\fR
+This options replaces all configuration data, and scripts. You don't want to use this, unless
+configuration data have been lost or altered beyond a restore point. The script files can be refreshed from
+the health-check entry.
+.fi
+.SH "SEE ALSO"
+.nf
+man 5 gse
+
