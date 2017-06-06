@@ -20,6 +20,10 @@ case "$1" in
 		sed -i -e 's/PARTB=0/PARTA=1/g' "${CLOCALLG}/sinprog";;
 	catalyst)
 		sed -i -e 's/CATALYST=0/CATALYST=1/g' "${CLOCALLG}/sinprog";;
+	precomp)
+		sed -i -e 's/PRECOMP=0/PRECOMP=1/g' "${CLOCALLG}/sinprog";;
+	localrb)
+		sed -i -e 's/LOCALRB=0/LOCALRB=1/g' "${CLOCALLG}/sinprog";;
 	dn)
 		;;
 esac

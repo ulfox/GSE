@@ -56,6 +56,17 @@ fi
 
 dep_c_f
 
+subshel_f() {
+	echo -e "\e[33mCalling bash subshell\e[0m"
+	sleep 2
+	echo 'echo -e "\e[33mInside Subshell\e[0m"' >> /root/.bashrc
+	echo 'echo -e "\e[33mExit to return back to parent\e[0m"' >> /root/.bashrc
+	(clear; exec /bin/bash;)
+	sed -i "/Inside Subshell/d" "/root/.bashrc"
+	sed -i "/Exit to return back to parent/d" "/root/.bashrc"
+	echo -e "\e[33mYou are back to parent\e[0m"
+}
+
 # CHECK FOR THE POSITIONAL PARAMETERS AND BAILOUT IF THEY ARE MISSING
 [[ -z "${CDISTDIR}" ]] && print_inf 4 && return 1
 echo "============================================================================"
@@ -209,9 +220,9 @@ case "$2" in
 			echo -e "\e[31mFAILED\e[0m" && return 1
 		fi
 		;;
-	localrb)
-		local_rbuild
-		sinit_mon catalyst;;
+	precomp)
+		precomp
+		sinit_mon precomp;;
 esac
 else
 	echo -e "\e[33mPART A: Has been completed\e[0m"
@@ -302,15 +313,12 @@ else
 echo "============================================================================"
 echo -e "\e[35mInitializing build from host process\e[0m"
 echo "============================================================================"
-mkdir -p "${CDISTDIR}/workdir"
-MKCORES=$(( $(grep -c ^processor /proc/cpuinfo) + 1 ))
-source "${CCONFDIR}/system/coptions"
-
-MAKEOPTS="-j${MKCORES}" FEATURES="${FEATURES} ${CHFEATURES}" CFLAGS="-O2 -pipe" ROOT="${CDISTDIR}/workdir" emerge -q sys-apps/baselayout \
-&& MAKEOPTS="-j${MKCORES}" FEATURES="${FEATURES} ${CHFEATURES}" CFLAGS="-O2 -pipe" ROOT="${CDISTDIR}/workdir" emerge -q @system \
-&& local_rbuild && print_inf 1 || { print_inf 2 ** exit 1; }
-export BWORKDIR="${CDISTDIR}/workdir"
+source local_rbuild \
+&& export BWORKDIR="${CDISTDIR}/workdir"
+exit
+unset ARRAYCBASE
 fi
+
 
 # PART B
 [[ "$(awk -F '=' '/PARTB/{ print $2 }' <"${CLOCALLG}/sinprog")" == 0 ]]
@@ -409,10 +417,15 @@ echo -e "[\e[32m*\e[0m] Copying requested files"
 if [[ -n $(cat ${CCONFDIR}/system/inject_files | sed '/^#/ d' | sed '/^\s*$/d') ]]; then
 
 while read -r INJFL;do
-	echo "Copying $($INJFL | awk -F ' ' '{ print $1 }') to $($INJFL | awk -F ' ' '{ print $2 }')"
-	rsync -aAXPhrv ${INJFL} >/dev/null 2>&1 && print_inf 1 || { print_inf 2 mapfile -t INJFLERR < <($INJFL | awk -F ' ' '{ print $1 }'); }
+	f1="$(echo $INJFL | awk -F ' ' '{ print $1 }')"
+	f2="${BWORKDIR}/(echo $INJFL | awk -F ' ' '{ print $2 }')"
+	echo "Copying $f1 to $f2"
+	rsync -aAXPhrv "$f1" "$f2" >/dev/null 2>&1 \
+	&& print_inf 1 || { print_inf 2 mapfile -t INJFLERR < <($INJFL | awk -F ' ' '{ print $1 }'); }
 done < <(cat "${CCONFDIR}/system/inject_files" | sed '/^#/ d' | sed '/^\s*$/d')
 unset INJFL
+
+if [[ -n "${INJFLERR}" ]]; then
 echo "Failed to copy the following packages: "
 echo "${INJFLERR[@]}"
 while true; do
@@ -427,13 +440,15 @@ while true; do
 				case $YN in
 					[yY])
 						echo "Proceeding"
-						INJFLESC=0;;
+						INJFLESC=0
+						break;;
 					[nN])
-						INJFLESC=1;;
+						INJFLESC=1
+						;;
 				esac
 			done;;
 		TERMINAL)
-			exec /bin/bash "$@"
+			subshel_f
 			INJFLESC=0;;
 		EXIT)
 			while true; do
@@ -443,12 +458,14 @@ while true; do
 						echo "Aborting..."
 						exit 0;;
 					[nN])
-						INJFLESC=1;;
+						INJFLESC=1
+						break;;
 				esac
 			done;;
 	esac
-	[[ "$INFESC" == 0 ]] && break
+	[[ "$INJFLESC" == 0 ]] && break
 done
+fi
 unset YN
 unset INJFLESC
 unset INJFLANS
