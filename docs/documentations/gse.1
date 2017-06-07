@@ -42,22 +42,55 @@ Warning: This option purges everything in the workdir.
 Prints the help screen and exits
 .fi
 .TP
-\fB\-\-keep\fR \fB\-\-k\fR
+\fB\-\-keep\fR \fB\-k\fR
 .nf
 This option does what the start-new option, however it saves all work done /var/gse/work-<date>.
 If disk space is not an issue, then this option should be preferred rather than -sn
 .fi
 .TP
-\fB\-\-health-check\fR \fB\-\-hc\fR
+\fB\-\-health-check\fR \fB\-hc\fR
 .nf
 This option simply checks the important scrips for modifications and marks them for restore if
 changes are found.
 .fi
 .TP
-\fB\-\-replace-new\fR \fB\-\-rpn\fR
+\fB\-\-replace-new\fR \fB\-rpn\fR
 This options replaces all configuration data, and scripts. You don't want to use this, unless
 configuration data have been lost or altered beyond a restore point. The script files can be refreshed from
 the health-check entry.
+.fi
+.TP
+\fB\-\-no-kernel\fR \fB\-nk\fR
+.nf
+This option forces gse to exclude the kernel fromt Stage B building sequence. This option implies
+--no-initramfs also. If you use no kernel, you must then provide your kernel moddir, and build
+and intiramfs as a separate step.
+.fi
+.TP
+\fB\-\-no-initramfs\fR \fB\-ni\fR
+.nf
+This option instructs gse to exclude the initramfs build from Stage B building sequence.
+.fi
+.TP
+\fB\-\-build-controller\fR [\fB\-\fR\fIkernel-mods\fR] \fB\-\-bc\fR [\fB\-\fR\fIkernel-mods\fR]
+.nf
+This option will instruct gse to build only the controller. To build the initramf outside of the 
+stage B you have to provide the gse with the directory containing the kernel modules. 
+Be warrned however, that the setup is based on a modular kernel, therefore be sure to include
+the entries that your clients will require to function and not to remove any of 
+{overlayFS, tmpfs, nfs, fuser} entries.
+.fi
+.TP
+\fB\-\-build-system\fR \fB\-\-bs\fR
+.nf
+This option instructs the gse to build only the system. Kernel, initramfs and the packages
+required for those, will be excluded, during Stage B.
+.fi
+.TP
+\fB\-\-build-minimal\fR \fB\-\-bm\fR
+.nf
+This option forces gse to exclude all extra packages that are found at chinit.conf, which is
+located at /scripts/chroot_scripts. This option implies --no-kernel --no-initramfs.
 .fi
 .SH "SEE ALSO"
 .nf
