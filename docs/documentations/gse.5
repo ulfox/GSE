@@ -54,113 +54,45 @@ Part C. Installs eix and updates portage
 Part D. Prompts for a world rebuild, if the system is not created from catalyst
 Part E. This part reads all the configuration files and applies changes to the system
 Part F. Essential to make the system further functional and requested user packages
-Part G. Reads the .config file, prompts for extra configuration and builds a modular kernel
+Part G. Reads the conf file containing runlevel instructions and executes a loop of rc-update commands
+Part H. Reads the .config file, prompts for extra configuration and builds a modular kernel
 Part I. This part creates an initramfs with dracut, using custom modules to enable the controller 
 Part J: Removes all packages that are no longer required
 Part K: Exits chroot, further clean the syste, archive it and sign it
 Part L: Mark the products complete and ready to be distributed. From now, all clients that request
 a version check, will be notifed for this product and prompted to begin fetching
 .fi
-
-.PP
-.nf
-\fBThe controller\fR consists from a set of scripts, functions and files that lie inside the initramfs.
-The concept of it, derives from the need to controll and make changes to multiple systems that host the 
-images created from the builder. By names definition, the controller is responsible making dicisions
-before the system begins booting, that is, before the initramfs handles the control to the main system.
-
+.SH "STRUCTURE OVERVIEW"
 .TP
-\fBController's functions\fR
--Fetch configuration data from the server
--Check local version with the server's version
--Check the health integrity of SYSFS and BACKUPFS
--Apply new configuration files to the SYSFS
--Update runlevels
--Create new drive interfaces
--Create filesystems
--Create and modify LABELS
--Switch BOOTFS
--Mount /etc and other directories as tmpfs
--Decide which partition will be named SYSFS
--Create,delete and modify subvolumes
--Even wipe the whole setup and start new
-.fi
-
-.SH "DESCRIPTION OF DIRECTORIES AND FILES"
-.TP
-\fBThe GSE directories and files\fR
+\fBThe GSE Directories\fR
 .nf
 ├── bin
-│   └── gse
 ├── config.d
+│   ├── controller
+│   │   ├── modules
+│   │   └── cconfdir
 │   └── system
 │       ├── catalyst
-│       │   ├── catalyst.conf
-│       │   ├── catalystrc
-│       │   ├── stage1.spec
-│       │   ├── stage2.spec
-│       │   └── stage3.spec
-│       ├── consolefont
-│       ├── coptions
-│       ├── custom_pacl
-│       ├── custom_scripts
-│       ├── devname.info
-│       ├── fstab
-│       ├── fstab.info
-│       ├── grub
-│       ├── hostname
-│       ├── hosts
-│       ├── inject_files
-│       ├── kernel-conf
-│       ├── locale.gen
-│       ├── net
-│       ├── portage
-│       │   ├── localrepo
-│       │   │   ├── layout.conf
-│       │   │   └── localrepo.conf
-│       │   ├── make.conf
-│       │   ├── makeconf.backup
-│       │   ├── package.use
-│       │   │   ├── sysbuild
-│       │   │   └── sysbuild.backup
-│       │   └── profiles
-│       │       ├── child-gse
-│       │       │   ├── eapi
-│       │       │   └── parent
-│       │       └── parent-gse
-│       │           ├── eapi
-│       │           ├── make.defaults
-│       │           ├── package.use
-│       │           └── package.use.force
-│       ├── runlevels
-│       ├── sshd
-│       ├── ssh.pub
-│       └── system_links
+│       └──portage
+│          ├── localrepo
+│          ├── package.use
+│          └── profiles
+│              ├── child-gse
+│              └── parent-gse
+├── docs
+│   ├──documentetions
+│   └──examples
 ├── etc
-│   └── gentoo.conf
+│   ├── gse
+│   └── gse-config.d
 ├── local
-│   ├── loc_req
-│   ├── nogloc_req
-│   └── sinprog
-├── README.md
-├── scripts
-│   ├── chroot_scripts
-│   │   ├── chinit.conf
-│   │   ├── chprint_inf
-│   │   ├── chroot_init
-│   │   ├── chsinit_mon
-│   │   └── chsinprog
-│   ├── controller
-│   ├── functions
-│   │   ├── drv_interface
-│   │   ├── init_stage3_seq
-│   │   ├── lcreq
-│   │   ├── makeconf_ed
-│   │   ├── men_opt
-│   │   ├── print_inf
-│   │   └── sinit_mon
-│   └── sinit
-└── TODO
+│   └── var
+│       └──log
+│	   └──gse
+└── scripts
+   ├── chroot_scripts
+   └── functions
+
 
 .fi
 
@@ -286,6 +218,42 @@ editing the fstab file. However this function is a major function, since it crea
 the builder will use during the initramfs setup, to provide the initial labels (BOOTFS, SYSFS, LAB...)
 and the partition sizes. Without those data, the controller wont know what interfaces to create, 
 what size each partition should be, what filesystem to be used and which is the SYSFS.
+.fi
+.SH "CONTROLLER"
+.nf
+\fBThe controller\fR consists from a set of scripts, functions and files that lie inside the initramfs.
+The concept of it, derives from the need to controll and make changes to multiple systems that host the
+images created from the builder. By names definition, the controller is responsible making dicisions
+before the system begins booting, that is, before the initramfs handles the control to the main system.
+
+.TP
+\fBController's functions\fR
+-Fetch configuration data from the server
+-Check local version with the server's version
+-Check the health integrity of SYSFS and BACKUPFS
+-Apply new configuration files to the SYSFS
+-Update runlevels
+-Create new drive interfaces
+-Create filesystems
+-Create and modify LABELS
+-Switch BOOTFS
+-Mount /etc and other directories as tmpfs
+-Decide which partition will be named SYSFS
+-Create,delete and modify subvolumes
+-Even wipe the whole setup and start new
+.fi
+.PP
+.nf
+The above features can be acceced and modifed, while not recommended from the controller modules.
+The modules are located at "$GSE/config.d/controller/modules" and are orginized by categories.
+.fi
+.PP
+.nf
+The controller is built inside the initramfs at the end of the chroot part. While that makes the
+reproduction of the controller a slower process, the reason to include be included at that part,
+is to shield off rebuilding the host's kernel. This feature will be transfered outside the chroot
+phase in the future, making it independent from the rest of the process. Meaning that Part H. and
+Part I. would be moved out of Stage B.
 .fi
 .SH "GSE PROFILE"
 .nf
