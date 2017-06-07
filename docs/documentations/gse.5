@@ -82,7 +82,7 @@ before the system begins booting, that is, before the initramfs handles the cont
 -Switch BOOTFS
 -Mount /etc and other directories as tmpfs
 -Decide which partition will be named SYSFS
--Create,delete and modify sublovlumes
+-Create,delete and modify subvolumes
 -Even wipe the whole setup and start new
 .fi
 
@@ -166,8 +166,9 @@ before the system begins booting, that is, before the initramfs handles the cont
 
 .PP
 .nf
+
 The \fBconfig.d\fR directory is probably the most important directory of this project, since there
-are stored all the configuration files, holding the instrucitons that the builder is using and
+are stored all the configuration files, holding the instructions that the builder is using and
 all the configuration files that the controller is fetching when live, which then uses to make
 decisions.
 
@@ -189,19 +190,135 @@ to every machine related with the Server/s, and so, modification here must alway
 with care. If you wish to modify the fstab entry of a particular client, then simply mask fstab from the 
 controller and then use mount -o rw,remount /, apply changes and reboot.
 
+\fBSystem/portage\fR, directory hosts the file to be used by the builder. Those files are edited can be
+edited from the main menu, portage submenu. The most important files are make.conf and sysbuild.
+Those files are copied over "${BWORKDIR}", where the chroot takes place and used by the internal scripts
+for building the packages and configuring the system.
+
+Keep in mind that the system aims to function under ro rootfs, which in turn implies that the USE flags
+should be minimal. The more extra addons are emerged, harder it is to control all the write permissions
+that could appear by various packages.
+
+\fBSystem/catalyst\fR, directory hosts the configuration files that catalyst requests during the building
+process. The files contain comments and can be accessed from the catalyst submenu or manually from the
+hosting directory. You can change them with your custom files, but don't forget to rename your sspec
+files with the same names, since the process will look for exactly those names during the run. 
+.fi
+.SH "SPECIAL FILES"
+.TP
+.nf
+\fB/bin/gse\fR This file is the main script of gse. The script in general, does not anything alone,
+since it holds only menu entries and exports variables. However this script provides a way to navigate
+through all the scripts and configuration files with ease. The categories are split in menus which hold
+extra entries. For an entry to belong to a submenu, it must have some kind of relations with the other
+entries, or be directly related by the submenus title.
+
+A simple tour in the menus, will make you notices 2 extra entries. The first one list at the top left
+corner of the menus box, and it either prints Gentoo system with purple and yellow or Gentoo system 
+not found with purple and red. While there are other functions to notify the user that the specific
+function is Gentoo exclusive, this entry is there to remind the user to be careful while using gse.
+
+At the end, this project uses scripts that require root privileges, therefore the last thing one wants
+is a function purging important data on his system, because global variables between the gse and his
+systems where the same. Of course there is a check at the beginning, but it's not a very safe one, 
+since it only checks if the variables to be exported are null or not.
+
+The other entry is located at the bottom left corner and prints Terminal in green. That entry exists
+because this project has many configuration files, and so, one could wish any time to take 
+matters at his own hand.
+.fi
+.TP
+.nf
+\fB/scripts/sinit\fR
+This is the main script. It is initiated only from the 'Initiate build', 'local' or 'Precompiled'
+menu entries. The first one, lies under the catalyst submenu, and is probably the most important
+one, since most of the script is built for catalyst and because is the only option worked and 
+tested enoutgh.
+
+The script sources configuration files and the exports variables which are used to download the
+latest stage3 tarball from the server, add the gpg gentoo pub key, verify has512sum and gpg checks.
+
+When the above steps are completed, it decided which method for building the system will be selected,
+and then sources the script related with it.
+
+When the sourced file returns 0, then the script proceeds with extracting the file to the distd.d dir.
+At this point Part A has been completed and Part B, begins. Part B simply prepares the extracted system
+to be chrooted. Before the end of Part B, all configuration files and scripts that are required for the
+chrooted parts are copied via rsync to $BWORKDIR and then, chroot happens.
+.fi
+.TP
+.nf
+\fB/scripts/functions/init_stage3_seq\fR
+This script is the one that is sourced from the sinit main script for the catalyst part.
+The script, simply follows the instructions of catalyst. Meaning that it initiates a stage1 to 3 build
+sequence. Before that, the script checks the indicated directory by the stage1.spec file, for the
+portage snapshot. 
+If found then it checks if the file's size is between normal boundaries, if so, then it proceeds with 
+the build sequence. However if not, then, the user is notified about it, and asked to select an option. 
+The important options are two, a) fetch new snapshot and b) built one from the current portdir. 
+
+The fetch new option, follow the same steps that the stage3 download function follows. Firsts
+downloads the latest snapshot, then verifies the has512sum and last does a gpg check. If return 0 is
+passed, then it proceeds with activating the stage{1,2,3} build sequence.
+
+The stage{1,2,3} sequence scans $storedir/${source_subpath} to check if the stage to be initiated has
+already been built. If so, then the user is notified and prompted to rebuild or simply continue.
+The same logic follows for the stage{2,3} builds.
+.fi
+.TP
+.nf
+\fB/scripts/chroot_init\fR
+Here all configurations are initiated. First the system updates the portage directory and installs eix,
+since it's an amazing tool to confirm Gentoo related subjects during the process. After the update is
+completed, a sub-part (Part Portage) is initiated. While a subpart, it is very vital for the rest of
+the configuration process, since it enables the locales and timezones. Apart from those, 
+it prompts the user to select a profile or use the experimental gse profile. And last, profile
+changes are applied. For more about the gse profile, see the gse section below.
+
+When the part_portage function returns 0, then conifuration files are copied over and essentials
+packages are emerged. Last the kernel and initramfs are built.
+.fi
+.TP
+.nf
+\fB/scripts/functions/drv_interface\fR
+This function at first glance, seems like an addon function because it provides an interface for
+editing the fstab file. However this function is a major function, since it creates the files that
+the builder will use during the initramfs setup, to provide the initial labels (BOOTFS, SYSFS, LAB...)
+and the partition sizes. Without those data, the controller wont know what interfaces to create, 
+what size each partition should be, what filesystem to be used and which is the SYSFS.
+.fi
+.SH "GSE PROFILE"
+.nf
+The GSE profile, is an experimental profile which aims to enable early functions, features and flags
+for the purpose of assisting computer labs on Research facilities and University labs. 
+The projects idea was born to aid such needs, and the profile is a way reflecting those.
+
+The profile enables global support for programming languages and global support for math functions.
+This profile will be split in other parts in the future, to support embedded systems, by enabling
+fewer flags and emerging as much as possible fewer packages. But for now it is simply tested.
+.fi
+.SH MASKING
 \fBMasking\fR, is a way to insturct the controller what he should not consider modifying. Masking is one
 of the most important factors of the controller, as is the masking under /etc/portage on any
 Gentoo system. A setup that runs without masks, implies that everything connected to the server will
-oblige to it. The server has complete control on all N systems.
+oblige to it. The server has complete control on system.
 
-To mask a configuration file, simply add #CF_MASK=ON on that file, from the client's side. 
+To mask a configuration file, simply add #CF_MASK=ON on that file, from the client's side.
 To mask a directory for the controller, simply put a .CD_MASK file in that directory. For example
 to make the controller ignore whatever lies inside the the /root/.ssh directory, simply do a
 touch /root/.ssh/.CD_MASK and your are done, while to make the controller ignore only a file, e.g.
-fstab, simply put #CF_MASK=ON. The #CF_MASK=0 must be the only entry ont hat line, and must lead the
-line.
+fstab, simply put #CF_MASK=ON. The #CF_MASK=0 must be the only entry ont hat line, and must lead it 
+.SH "CONTROLLER MODULES"
+The GSE project has created some modules. Those modules are targeted for dracut and should not
+be confused with kernel modules. The modules contain the list of essential packages that the 
+controller requires, to provide the intended services.
+.nf
+Dracut provied certain hook points during the run of the initramfs. The GSE modules, use those
+hooks to attach the appropriate scripts. 
+
+For more information about the controller see man 5 gse-controller and man 1 gse-controller.
 .fi
-.SH SUPPORTED ARCHITECTURES
+.SH "SUPPORTED ARCHITECTURES"
 .nf
 .B x86_64
 .B ~x86
