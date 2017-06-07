@@ -7,7 +7,7 @@ GSE \- Gentoo Stateless Environment
 .SH "DESCRIPTION"
 .nf
 \fBGSE\fR is a set of scripts and configuration files that takes special advantage of catalyst,
-for creating a Gentoo system intented to function under stateless conditions, a modualr kernel
+for creating a Gentoo system intended to function under stateless conditions, a modular kernel
 and an initramfs which provide functions to further control and modify such a system.
 .fi
 .SH OPTIONS
@@ -28,7 +28,7 @@ gse is instructed to fetch new snapshots and stag3 tarballs.
 .TP
 \fB\-\-start-new\fR \fB\-sn\fR
 When gse is asked to build a new system, it checks local files and decided from where it should resume, if
-it work had been done in the past. At the begining a prompt start new or continue from where tou left off
+it work had been done in the past. At the beginning a prompt start new or continue from where you left off
 appears and then at each Part X: (see man 5 gse for Stages, Parts and Masks) a prompt asks if you want to
 continue or run again that Part, in case configuration changes have been made. If one wants to force gse to
 force new builds, without any prompt (could be used if someone wants to enable the build, and simple go away),
@@ -44,7 +44,7 @@ Prints the help screen and exits
 .TP
 \fB\-\-keep\fR \fB\-\-k\fR
 .nf
-This option does what the start-new option, however it saves all workdone /var/gse/work-<date>.
+This option does what the start-new option, however it saves all work done /var/gse/work-<date>.
 If disk space is not an issue, then this option should be preferred rather than -sn
 .fi
 .TP
