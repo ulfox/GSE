@@ -512,7 +512,7 @@ else
 		--fetch-new|-fn)
 			fetch_new_f "$@"
 			;;
-		--start-new|-sn)
+		--force-new|-sn)
 			source "${CWORKDIR}/scripts/sinit" "seed" "catalyst" "s1" "s2" "s3"
 			;;
 		--help|-h)
@@ -536,12 +536,16 @@ else
 		--build-controller|-bc)
 			echo "Build controller"
 			;;
-		--build-system|-bs)
-			echo "Build system"
-			;;
 		--build-minimal|-bm)
 			echo "Build minimal"
 			;;
+		--enforce)
+			echo "enforce"
+			;;
+		--lawful-good)
+			echo "lawful-good"
+			;;
+
 	esac
 fi
 }
