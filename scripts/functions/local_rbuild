@@ -1,0 +1,36 @@
+#!/bin/bash
+
+mkdir -p "${CDISTDIR}/workdir"
+MKCORES=$(( $(grep -c ^processor /proc/cpuinfo) + 1 ))
+source "${CCONFDIR}/system/coptions"
+mkdir -p "${CDISTDIR}/workdir/usr/portage"
+mkdir -p "${CDISTDIR}/workdir/etc/portage"
+mkdir -p "${CDISTDIR}/workdir/etc/portage/repos.conf"
+
+rsync -aAXPrh --exclude="-*" --include={"bin","make.conf.catalyst","postsync.d","repo.postsync.d","savedconfig","package.mask"} \
+"/etc/portage/" "${CDISTDIR}/workdir/etc/portage/" >/dev/null 2>&1
+rsync -aAXPrh "/usr/portage/profiles/" "${CDISTDIR}/workdir/usr/portage/profiles" >/dev/null 2>&1
+
+cp "${CCONFDIR}/system/portage/makeconf.backup" "${CDISTDIR}/workdir/etc/portage/make.conf"
+cp "/usr/share/portage/config/repos.conf" "${CDISTDIR}/workdir/etc/portage/repos.conf/gentoo.conf"
+
+ln -s "${CDISTDIR}/workdir/usr/portage/profiles/default/linux/amd64/13.0" "${CDISTDIR}/workdir/etc/portage/make.profile"
+
+declare -a ARRAYCBASE
+
+ARRAYCBASE=("sys-apps/baselayout" "app-arch/bzip2" "app-arch/gzip" "app-arch/tar" "app-arch/xz-utils" "app-shells/bash:0" \
+"net-misc/iputils" "net-misc/rsync" "net-misc/wget" "sys-apps/coreutils" "sys-apps/diffutils" "sys-apps/file" ">=sys-apps/findutils-4.4" \
+"sys-apps/gawk" "sys-apps/grep" "sys-apps/kbd" "sys-apps/less" "sys-apps/openrc" "sys-process/procps" "sys-process/psmisc" "sys-apps/sed" \
+"sys-apps/which" "sys-devel/binutils" "sys-devel/gcc" "sys-devel/gnuconfig" "sys-devel/make" ">=sys-devel/patch-2.7" "sys-fs/e2fsprogs" \
+"sys-fs/e2fsprogs" "virtual/dev-manager" "virtual/editor" "virtual/libc" "virtual/man" "virtual/modutils" "virtual/os-headers" "virtual/package-manager" \
+"virtual/pager" "virtual/pager" "virtual/service-manager" "virtual/service-manager" "virtual/shadow" "virtual/ssh")
+echo -e "\e[34mBasic system\e[0m"
+
+for i in "${ARRAYCBASE[@]}"; do
+PORTAGE_CONFIGROOT="${CDISTDIR}/workdir" MAKEOPTS="-j${MKCORES}" FEATURES="${FEATURES} ${CHFEATURES}" \
+CFLAGS="-O2 -pipe" ROOT="${CDISTDIR}/workdir" emerge -q --deep --update "$i"
+done \
+&& echo -e "\e[35mUpdating @system set\e[0m" \
+&& MAKEOPTS="-j${MKCORES}" FEATURES="${FEATURES} ${CHFEATURES}" CFLAGS="-O2 -pipe" ROOT="${CDISTDIR}/workdir" emerge -q --deep --update @system \
+&& print_inf 1 || { print_inf 2 ** exit 1; }
+unset ARRAYCBASE
