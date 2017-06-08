@@ -1,504 +1,119 @@
 #!/bin/bash
 
-LC_COLLATE=C
-#LC_ALL="en_US.UTF-8"
-LC_CTYPE="en_US.UTF-8"
+# STAGE A
+# CHECK POSITIONAL PARAMETERS
+[[ -z "$@" ]] && print_inf 4 && return 1
 
-# MAIN BUILDER
-dep_c_f() {
-if [[ "${CREL}" == "Gentoo" ]]; then
-echo -e "\e[33mHost system:\e[0m \e[35m${CREL}\e[0m"
-echo -e "\e[33mBefore you begin, it is strongly recommended to make a\e[0m \e[35mruntime dependency\e[0m \e[33mcheck on the host machine\e[0m"
-echo -e "\e[33mThis check is a simple\e[0m \e[35meix\e[0m \e[33m--installed foo check, which will be very fast and also verify\e[0m"
-echo -e "\e[33mthat during the process, nothing unexpected will occur\e[0m"
-echo -e "\e[33mIf\e[0m \e[35meix\e[0m \e[33mis not installed, do no worry, it will get installed\e[0m"
-echo
-while true; do
-	read -rp "Check dependencies? Y/N: " YN
-	case "${YN:-n}" in
-		[yY])
-			echo -e "\e[34mChecking for dependencies\e[0m"
-			lcreq 1 || exit 1
-			break;;
-		[nN])
-			echo "If you have not run a dependency check before, please abort"
-			for i in {1..0}; do
-   				sleep 1
-   				printf "\r $i"
-			done
-			break;;
-	esac
-done
-unset YN
-else
-echo -e "\e[33mHost system:\e[0m \e[33m${CREL}\e[0m"
-echo -e "\e[33mBefore you begin, it is strongly recommended to make a\e[0m \e[35mruntime dependency\e[0m \e[33mcheck on the host machine\e[0m"
-echo -e "\e[33mIf the all runtime dependencies are located, the process will continue, otherwise this window will exit. and expect you to manually install them\e[0m"
-echo -e "\e[33mSince only Gentoo is officially upported, it is expected to manually install any missing dependencies\e[0m"
-while true; do
-	read -rp "Check dependencies? Y/N: " YN
-	case "${YN:-n}" in
-		[yY])
-			echo -e "\e[34mChecking for dependencies\e[0m"
-			lcreq 2 || exit 1
-			break;;
-		[nN])
-			echo "If you have not run a dependency check before, please abort"
-			for i in {1..0}; do
-   				sleep 1
-   				printf "\r $i"
-			done
-			break;;
-	esac
-done
-fi	
-}
-
-dep_c_f
-
-subshel_f() {
-	echo -e "\e[33mCalling bash subshell\e[0m"
-	sleep 2
-	echo 'echo -e "\e[33mInside Subshell\e[0m"' >> /root/.bashrc
-	echo 'echo -e "\e[33mExit to return back to parent\e[0m"' >> /root/.bashrc
-	(clear; exec /bin/bash;)
-	sed -i "/Inside Subshell/d" "/root/.bashrc"
-	sed -i "/Exit to return back to parent/d" "/root/.bashrc"
-	echo -e "\e[33mYou are back to parent\e[0m"
-}
-
-# CHECK FOR THE POSITIONAL PARAMETERS AND BAILOUT IF THEY ARE MISSING
-[[ -z "${CDISTDIR}" ]] && print_inf 4 && return 1
 echo "============================================================================"
 echo -e "[\e[32m*\e[0m] \e[34mInitializing\e[0m"
-sleep 0.5
-
-if [[ "$2" != "localrb" ]]; then
 # ALL ESSENTIAL VARIABLES FOR THE DOWNLOAD AND AUTHENTICATION PROCESS
-source "${CWORKDIR}/etc/gentoo.conf" >/dev/null 2>&1 && { echo -e "[\e[32m*\e[0m] \e[35mExporting variables\e[0m"
-echo "============================================================================"; } \
+source "${CWORKDIR}/etc/gentoo.conf" >/dev/null 2>&1 \
+&& echo -e "[\e[32m*\e[0m] \e[35mExporting variables\e[0m" \
+&& echo "============================================================================" \
 || { echo -e "[\e[31m*\e[0m] \e[35mExporting variables\e[0m"; echo -e "[\e[31mAborting\e[0m..."; sleep 2; return 1; }
-if ping -c 3 www.gentoo.org >/dev/null 2>&1; then
-NONETNEED=0
-export GENTOOKEY="$(lynx -dump ${SIGNING_KEY} |  grep "(4096-bit RSA)" | head -1 | awk -F '(' '{ print $1}')"
-export "GENTOOKEY"
-export GENTOOLATEST="$DIST/$(wget -q -O- "${DIST}/latest-stage3-$ARCH.txt" | tail -n 1 | awk -F ' ' '{ print $1 }')"
-export STAGE3TB=$(wget -q -O- "${DIST}/latest-stage3-$ARCH.txt" | tail -n 1 | awk -F ' ' '{ print $1 }' | awk -F '/' '{ print $2 }')
-export GENTOOLATESTASC="$DIST/$(wget -q -O- "${DIST}/latest-stage3-$ARCH.txt" | tail -n 1 | awk -F ' ' '{ print $1 }').DIGESTS.asc"
-else
-echo -e "[\e[31m*\e[0m] \e[34mConnection could not be established\e[0m"
-echo -e "[\e[31m*\e[0m] \e[35mSearching for local\e[0m"
-export STAGE3TB="stage3-${ARCH}-latest.tar.bz2"
-export GENTOOLATESTASC="${STAGE3}.DIGESTS.asc"
-export NONETNEED=1
-fi
-
-# PROMPT TO CONTINUE OR START ANEW
-if [[ "$(awk -F '=' '/KEY/{ print $2 }' <"${CLOCALLG}/sinprog")" == 1 ]]; then
-while true; do
-clear; echo -e "\e[32mDo you want to continue from last time?\e[0m"
-read -p "Answer Yes or START NEW: " YN
-echo 
-case "${YN:-n}" in
-	[Yy][eE][sS]|[yY])
-		break;;
-	"START NEW")
-		# CHECK IF THE PSEUDOS ARE MOUNTED, ATTEMPT TO UNMOUNT AND BAILOUT IF UNABLE TO
-		[[ -n $(grep 'dist.d/stage3' /proc/mounts | awk -F ' ' '{ print $1 }') ]] \
-		&& { umount -l "${CDISTDIR}/${STAGE3TB}"/* >/dev/null 2>&1 && sleep 2 \
-		&& umount -l "${CDISTDIR}/${STAGE3TB}"/* >/dev/null 2>&1 \
-		&& [[ -z $(grep 'dist.d/stage3' /proc/mounts | awk -F ' ' '{ print $1 }') ]] && exit 1; }
-
-		sinit_mon 5 && sed -i -e 's/1/0/g' "${CWORKDIR}/scripts/chroot_scripts/chsinprog"; break;;
-	* ) echo "Wrong answer";;
-esac
-done
-fi
-
-unset YN
-
-seed_f(){
-# PART A FUNDAMENTALS
-[[ "$(awk -F '=' '/PARTA/{ print $2 }' <"${CLOCALLG}/sinprog")" == 0 ]] \
-&& clear; echo "============================================================================"
-echo -e "\e[35mPART:A Fundamentals\e[0m"
-echo "============================================================================"
-
-if [[ "${NONETNEED}" != 1 ]]; then
-
-# FETCH THE KEYS FOR THE CRYPTOGRAPHIC AUTHENTICATION
-if [[ "$(awk -F '=' '/KEY/{ print $2 }' <"${CLOCALLG}/sinprog")" == 0 ]]; then
-
-[[ -z "${GENTOOKEY}" ]] && print_inf 4 && return 1
-
-gpg --keyserver hkps.pool.sks-keyservers.net --recv-keys >/dev/null 2>&1 ${GENTOOKEY} \
-&& echo -e "[\e[32m*\e[0m]\e[32m Fetching Key\e[0m" \
-|| { echo -e "[\e[31m*\e[0m]\e[31m Fetching Key\e[0m"; return 1; }
-sinit_mon 1
-fi
-
-# DOWNLOAD THE LATEST STAGE3 TARBALL TO ACT AS THE CATALYST'S SEED S3T
-if [[ "$(awk -F '=' '/WGETST3/{ print $2 }' <"${CLOCALLG}/sinprog")" == 0 ]]; then
-
-[[ -z "${GENTOOLATEST}" || -z "${GENTOOLATESTASC}" ]] && print_inf 4 && return 1
-
-mkdir -p "${CDISTDIR}/dists" \
-&& if [[ ! -e "${CDISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2" ]]; then
-echo -e "[\e[32m*\e[0m] Getting \e[34m${STAGE3TB}\e[0m"
-wget -c -O "${CDISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2" "${GENTOOLATEST}" \
-&& print_inf 1 || { print_inf 2; return 1; }
-elif [[ -e "${CDISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2" ]]; then
-echo -e "[\e[32m*\e[0m] Located \e[34m${STAGE3TB}\e[0m"
-fi \
-&& if [[ ! -e "${CDISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2.DIGESTS.asc" ]]; then
-wget -c -O "${CDISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2.DIGESTS.asc" "${GENTOOLATESTASC}" >/dev/null 2>&1 \
-&& echo -e "[\e[32m*\e[0m] Getting \e[34m${GENTOOLATEST}\e[0m" \
-|| echo -e "[\e[31m*\e[0m] \e[31mFAILD\e[0m: Getting \e[34m${GENTOOLATEST}\e[0m"
-fi \
-&& if [[ ! -e "${CDISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2.DIGESTS" ]]; then
-wget -c -O "${CDISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2.DIGESTS" "${GENTOOLATEST}.DIGESTS" >/dev/null 2>&1 \
-&& echo -e "[\e[32m*\e[0m] Getting \e[34m${GENTOOLATEST}.DIGESTS\e[0m" \
-|| echo -e "[\e[31m*\e[0m] \e[31mFAILD\e[0m: Getting $\e[34m${GENTOOLATEST}.DIGESTS\e[0m"
-fi \
-&& sha512sum "${CDISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2" > "${CDISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2.sha512"
-
-sinit_mon 2
-fi
-unset WGETST3
-
-# VERIFY THE AUTHENTICATION OF THE DOWNLOADED FILES
-if [[ "$(awk -F '=' '/VERIFICATION/{ print $2 }' <"${CLOCALLG}/sinprog")" == 0 ]]; then
-gpg --verify "${CDISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2.DIGESTS.asc" >/dev/null 2>&1 \
-&& echo -e "[\e[32m*\e[0m] Verifying \e[35mcryptographic signature\e[0m" \
-|| echo -e "[\e[31m*\e[0m] \e[31mFAILD\e[0m: Verifying \e[31mcryptographic signature\e[0m"
-
-[[ $(grep -A 1 -i sha512 "${CDISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2.DIGESTS.asc" | head -n 2 |grep stage3 | awk -F ' ' '{ print $1 }') \
-== $(sha512sum "${CDISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2" |  awk -F ' ' '{ print $1 }') ]] && echo -e "[\e[32m*\e[0m] Verifying \e[35msha512sums\e[0m" \
-|| echo -e "[\e[31m*\e[0m] \e[31mFAILD\e[0m: Verifying \e[31msha512sums\e[0m"
-sinit_mon 3
-fi
-elif [[ -e "${CDISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2" ]]; then
-	echo -e "[\e[33m*\e[0m] Using local stage"
-else 
-	echo -e "[\e[31m*\e[0m] \e[31mFAILD\e[0m: \e[31mCould not located local stage\e[0m"
-	return 1
-fi
-unset VERIFICATION
-}
-
-[[ "$1" == "seed" ]] && seed_f
-
-if [[ "$(awk -F '=' '/CATALYST/{ print $2 }' < "${CLOCALLG}/sinprog")" == 0 || "$(awk -F '=' '/LOCALRB/{ print $2 }' < "${CLOCALLG}/sinprog")" == 0 ]]; then
-
+		
+part_a_f() {
+# CALL CATALYST BUILD OR PRECOMPILED BUILD
 case "$2" in
 	catalyst)
-		# CATALYST
-		echo -e "\e[34mCallling Catalyst\e[0m"
-		sleep 0.5
-
-		if init_stage3_seq "$@"; then
-			sinit_mon catalyst
-			echo "The build was successful!"
-			echo -e "\e[35mDo you wish to gpg sign the stage3 tarball?\e[0m"
-			while true; do
-				read -rp "Answer: Y/N " YN
-				case "${YN:-n}" in
-					[yY][eE][sS]|[yY])
-						echo "Signing..."
-						gpg --sign "${CATDIR}/builds/${TARGETPATH}/stage3-amd64-${TARGETSTAMP}.tar.bz2" \
-						&& print_inf 1 || print_inf 2
-						echo "Returning back to parent..."
-						sleep 1
-						break;;
-					[nN][oO]|[nN])
-						echo "Returning back to parent..."
-						sleep 1
-						break;;
-				esac
-			done
-		else
-			echo -e "\e[31mFAILED\e[0m" && return 1
+		# PART A FUNDAMENTALS
+		fundamentals_f "${CDISTDIR}/workdir-catalyst"
+		if [[ -n $(echo "$@" | grep 'seed') ]]; then
+			fetch_new_f "$@" || { print_inf_f 2 && exit; }
 		fi
+		if [[ "$(awk -F '=' '/CATALYST/{ print $2 }' <"${CLOCALLG}/sinprog")" == 0 ]]; then
+			calling_catalyst_f "$@" || exit 1
+		else
+			repeat_sub_part_f "Catalyst" "configured" \
+			&& [[ "$?" == 0 ]] && { calling_catalyst_f "$@" || exit 1; } \
+			|| echo -e "\e[33mProceeding with extraction...\e[0m"
+		fi \
+		&& [[ "$?" == 0 || "$?" == 9 ]] \
+		&& if [[ "$(awk -F '=' '/EXTRACTION/{ print $2 }' <"${CLOCALLG}/sinprog")" == 0 ]]; then
+			catalyst_extr_tar_f || exit 1
+		else
+			repeat_sub_part_f "Extraction" "completed" \
+			&& [[ "$?" == 0 ]] && { catalyst_extr_tar_f || exit 1; } \
+			|| echo -e "\e[33mProceeding to Part: B...\e[0m"
+		fi \
+		&& [[ "$?" == 0 || "$?" == 9 ]] \
+		&& export BWORKDIR="${CDISTDIR}/workdir-catalyst" \
+		&& PARTBCOND="0"
+		unset CATDIR
+		unset TARGETNAME
+		unset TARGETPATH
+		unset TARGETSTAMP
 		;;
 	precomp)
-		precomp
-		sinit_mon precomp;;
-esac
-else
-	echo -e "\e[33mPART A: Has been completed\e[0m"
-fi
-
-# Extract the tarball
-if [[ "$(awk -F '=' '/EXTRACTION/{ print $2 }' < "${CLOCALLG}/sinprog")" == 0 ]]; then
-
-CATDIR=$(grep storedir "${CCONFDIR}/system/catalyst/catalyst.conf" \
-| sed '/^#/ d' | awk -F '=' '{ print $2 }' | sed  -e "s_\"__g")
-
-TARGETNAME="$(grep 'snapshot:' "${CCONFDIR}/system/catalyst/stage1.spec" \
-| sed '/^#/ d' | sed '/^\s*$/d' | awk -F ' ' '{ print $2 }' | sed  -e "s_\"__g")"
-
-TARGETPATH="$(grep 'source_subpath' "${CCONFDIR}/system/catalyst/stage3.spec" \
-| sed '/^#/ d' | awk -F ' ' '{ print $2 }' | sed  -e "s_\"__g" | awk -F '/' '{ print $1 }')"
-
-TARGETSTAMP="$(grep 'version_stamp' "${CCONFDIR}/system/catalyst/stage3.spec" \
-| sed '/^#/ d' | awk -F ' ' '{ print $2 }' | sed  -e "s_\"__g")"
-
-extract_tarball() {
-mkdir -p "$2"
-
-echo -e "\e[34mExtracting tarball\e[0m"
-tar xvjpf "$1" -C "$2" --xattrs --numeric-owner >/dev/null 2>&1 \
-&& echo -e "[\e[32m*\e[0m] Extracted" \
-|| echo -e "[\e[31m*\e[0m] AN ERROR OCCURRED" \
-&& [[ -n "$3" ]] \
-&& echo -e "\e[34mExtracting portage\e[0m" \
-&& tar xvjpf "$3" --xattrs --numeric-owner -C "$2/usr/" >/dev/null 2>&1 \
-&& echo -e "[\e[32m*\e[0m] Extracted" \
-|| echo -e "[\e[31m*\e[0m] AN ERROR OCCURRED"
-}
-
-check_dir() {
-if [[ -d "$2" ]]; then
-while true; do
-	echo -e "Seems that there already has been done some work at the \e[34mbuilderdir\e[0m"
-	echo "You could either continue from where you left, or backup/purge then start anew"
-	echo -e "Give one of: \e[32mCONTINUE\e[0m/\e[34mOLD\e[0m/\e[31mPURGE\e[0m "
-	read -rp "Input :: <= " ANS
-	case $ANS in
-		OLD)
-			echo "Backing up..."
-			mv "$2" "$2.old"
-			extract_tarball "$@"
-			break;;
-		PURGE)
-			echo "This may take some time"
-			echo "Purging..."
-			if [[ -n $(cat /proc/mounts | grep 'stage3-amd64-' | awk -F ' ' '{ print $1 }') ]]; then
-				umount -l "$2/dev" >/dev/null 2>&1
-				umount -l "$2/proc" >/dev/null 2>&1
-				umount -l "$2/sys" >/dev/null 2>&1
-				umount -l "$2"/* >/dev/null 2>&1
-				sleep 2
-			fi
-			rm -rf "$2"
-			extract_tarball "$@"
-			break;;
-		CONTINUE)
-			break;;
-	esac
-done
-else
-	extract_tarball "$@"
-fi
-}
-
-case "$2" in
-	catalyst)
-		check_dir "${CATDIR}/builds/${TARGETPATH}/stage3-amd64-${TARGETSTAMP}.tar.bz2" \
-		"${CDISTDIR}/stage3-amd64-${TARGETSTAMP}-${GSEVER}" \
-		"${CATDIR}/snapshots/portage-${TARGETNAME}.tar.bz2" \
-		&& export BWORKDIR="${CDISTDIR}/stage3-amd64-${TARGETSTAMP}-${GSEVER}"
-		;;
-	precomp)
-		check_dir "${CDISTDIR}/dists/${STAGE3TB}" "${CDISTDIR}/stage3-amd64-latest-${GSEVER}" \
-		&& export BWORKDIR="${CDISTDIR}/stage3-amd64-latest-${GSEVER}"
+		# PART A FUNDAMENTALS
+		fundamentals_f "${CDISTDIR}/workdir-precomp"
+		if [[ -n $(echo "$@" | grep 'seed') ]]; then
+			fetch_new_f "$@" || { print_inf_f 2 && exit; }
+		fi
+		if [[ "$(awk -F '=' '/PRECOMP/{ print $2 }' <"${CLOCALLG}/sinprog")" == 0 ]]; then
+			check_dir_f "${CDISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2" \
+			"${CDISTDIR}/workdir-precomp" || exit 1
+		else
+			repeat_sub_part_f "Precomp Extraction" "completed" && { check_dir_f \
+			"${CDISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2" \
+			"${CDISTDIR}/workdir-precomp" || exit 1; }
+		fi \
+		&& echo $? \
+		&& [[ "$?" == 0 || "$?" == 9 ]] \
+		&& export BWORKDIR="${CDISTDIR}/workdir-precomp" \
+		&& PARTBCOND="0" \
+		&& sinit_mon_f "PRECOMP"
 		;;
 esac
-unset EXTRACTION
+}
 
-sinit_mon 4
-fi
+if [[ "$(awk -F '=' '/PARTA/{ print $2 }' <"${CLOCALLG}/sinprog")" == 1 ]]; then
+	repeat_part_f "A" && part_a_f "$@"
 
+	[[ "$?" == 0 || "$?" == 9 ]] \
+	&& if [[ -n $(echo "$@" | grep 'catalyst') ]]; then
+		export BWORKDIR="${CDISTDIR}/workdir-catalyst" \
+		&& PARTBCOND="0"
+	elif [[ -n $(echo "$@" | grep 'precomp') ]]; then
+		export BWORKDIR="${CDISTDIR}/workdir-precomp" \
+		&& PARTBCOND="0"
+	fi \
+	|| { echo -e "\e[31mNo workdir defined. Wont proceed!\e[0m" \
+	&& echo "$@" && exit 1; }
 else
-echo "============================================================================"
-echo -e "\e[35mInitializing build from host process\e[0m"
-echo "============================================================================"
-source local_rbuild \
-&& export BWORKDIR="${CDISTDIR}/workdir"
-exit
-unset ARRAYCBASE
+	part_a_f "$@"
 fi
 
-
-# PART B
-[[ "$(awk -F '=' '/PARTB/{ print $2 }' <"${CLOCALLG}/sinprog")" == 0 ]]
+[[ "${PARTBCOND}" != 0 ]] && echo -e "\e[31mNo workdir defined. Wont proceed!\e[0m" \
+&& echo "$@" && exit 1
 echo
 echo "============================================================================"
 echo -e "\e[35mPART:B Preparing to enter the new system\e[0m"
 echo "============================================================================"
 
-# Root check function
-amiroot() {
-	if [[ "$1" != "0" ]]
-	then
-		echo -e "\e[31mThis operation requires root privileges\e[0m"
-		echo "Returning back..."
-		sleep 2
-		BACKTO="MM"
-		return 1
-	fi
-	return 0
-}
-
-amiroot "$UID" || exit 1
-sleep 0.5
-echo -e "[\e[32m*\e[0m] Requesting root privileges"
-
-pr_chroot_f() {
-
-cp -L /etc/resolv.conf "$1/etc/"
-
-if [[ "$2" != "localrb" ]]; then
-# CHECK IF PSEUDOS ARE MOUNTED
-if [[ -n $(cat /proc/mounts | grep 'stage3-amd64-' | awk -F ' ' '{ print $1 }') ]]; then
-echo "Pseudos possibly mounted at target directory"
-umount -l "$1/dev" >/dev/null 2>&1
-umount -l "$1/proc" >/dev/null 2>&1
-umount -l "$1/sys" >/dev/null 2>&1
-umount -l "$1"/* >/dev/null 2>&1
-sleep 2
-fi
-
-echo -e "\e[34mMounting pseudo\e[0m"
-[[ -z $(grep 'stage3-amd64-' /proc/mounts | awk -F ' ' '{ print $1 }') ]] \
-&& mount -t proc /proc "$1/proc" \
-&& echo -e "[\e[32m*\e[0m] Mounting proc" \
-|| { echo -e "[\e[31m*\e[0m] Mounting proc"; return 1; }
-
-else
-
-if [[ -n $(cat /proc/mounts | grep 'workdir' | awk -F ' ' '{ print $1 }') ]]; then
-echo "Pseudos possibly mounted at target directory"
-umount -l "$1/dev" >/dev/null 2>&1
-umount -l "$1/proc" >/dev/null 2>&1
-umount -l "$1/sys" >/dev/null 2>&1
-umount -l "$1"/* >/dev/null 2>&1
-sleep 2
-fi
-
-echo -e "\e[34mMounting pseudo\e[0m"
-[[ -z $(grep 'workdir' /proc/mounts | awk -F ' ' '{ print $1 }') ]] \
-&& mount -t proc /proc "$1/proc" \
-&& echo -e "[\e[32m*\e[0m] Mounting proc" \
-|| { echo -e "[\e[31m*\e[0m] Mounting proc"; return 1; }
-fi
-
-mount --rbind /dev "$1/dev" \
-&& mount --make-rslave "$1/dev" \
-&& echo -e "[\e[32m*\e[0m] Mounting dev" \
-|| { echo -e "[\e[321*\e[0m] Mounting dev"; return 1; }
-
-mount --rbind /sys "$1/sys" \
-&& mount --make-rslave "$1/sys" \
-&& echo -e "[\e[32m*\e[0m] Mounting sys" \
-|| { echo -e "[\e[321*\e[0m] Mounting sys"; return 1; }
-
-mkdir -p "$1/sinit.d"
-
-[[ ! -e "$1/sinit.d/chsinprog" ]] && rsync -aAXr "${CWORKDIR}/scripts/chroot_scripts/" "$1/sinit.d/" >/dev/null 2>&1 \
-|| rsync -aAXr --exclude="chsinprog" "${CWORKDIR}/scripts/chroot_scripts/" "$1/sinit.d/" >/dev/null 2>&1 \
-&& rsync -aAXr "${CCONFDIR}/system/portage/" "$1/sinit.d/" >/dev/null 2>&1 \
-&& rsync -aAXr --exclude="portage" "${CCONFDIR}/system/" "$1/sinit.d/" >/dev/null 2>&1 \
-&& echo -e "[\e[32m*\e[0m] Copying \e[34mbuilder's\e[0m files to new system" \
-|| { echo -e "[\e[31m*\e[0m] Copying \e[34mbuilder's\e[0m files to new system"; return 1; }
-
-# CREATE REPOS.CONF DIRECOTRY & AND COPY REPOS.CONF TO IT
-mkdir -p "$1/etc/portage/repos.conf"
-cp "$1/usr/share/portage/config/repos.conf" "$1/etc/portage/repos.conf/gentoo.conf"
-
-# Set local timezone if set
-if [[ -n $(cat /etc/timezone) ]]; then
-TIMEZONE=$(cat /etc/timezone)
-sed -i -e "s_TMZ_${TIMEZONE}_g" "$1/sinit.d/chinit.conf"
-unset TIMEZONE
-fi
-
-echo -e "[\e[32m*\e[0m] Copying requested files"
-if [[ -n $(cat ${CCONFDIR}/system/inject_files | sed '/^#/ d' | sed '/^\s*$/d') ]]; then
-
-while read -r INJFL;do
-	f1="$(echo $INJFL | awk -F ' ' '{ print $1 }')"
-	f2="${BWORKDIR}/(echo $INJFL | awk -F ' ' '{ print $2 }')"
-	echo "Copying $f1 to $f2"
-	rsync -aAXPhrv "$f1" "$f2" >/dev/null 2>&1 \
-	&& print_inf 1 || { print_inf 2 mapfile -t INJFLERR < <($INJFL | awk -F ' ' '{ print $1 }'); }
-done < <(cat "${CCONFDIR}/system/inject_files" | sed '/^#/ d' | sed '/^\s*$/d')
-unset INJFL
-
-if [[ -n "${INJFLERR}" ]]; then
-echo "Failed to copy the following packages: "
-echo "${INJFLERR[@]}"
-while true; do
-	echo "You can list the failed files again, continue, request terminal or exit"
-	read -rp "Please choose: LIST/CONTINUE/TERMINAL/EXIT" INJFLANS
-	case "$INJFLANS" in
-		LIST)
-			clear; echo "${INJFLERR[@]}";;
-		CONTINUE)
-			while true; do
-				read -p "Are you sure? Y/N " YN
-				case $YN in
-					[yY])
-						echo "Proceeding"
-						INJFLESC=0
-						break;;
-					[nN])
-						INJFLESC=1
-						;;
-				esac
-			done;;
-		TERMINAL)
-			subshel_f
-			INJFLESC=0;;
-		EXIT)
-			while true; do
-				read -p "Are you sure? Y/N " YN
-				case $YN in
-					[yY])
-						echo "Aborting..."
-						exit 0;;
-					[nN])
-						INJFLESC=1
-						break;;
-				esac
-			done;;
-	esac
-	[[ "$INJFLESC" == 0 ]] && break
-done
-fi
-unset YN
-unset INJFLESC
-unset INJFLANS
-unset INJFLERR
-else
-	echo -e "[\e[32m*\e[0m] List empty"
-fi
-
-echo -e "\e[34mChrooting at new system\e[0m"
-sleep 2
-chroot "$1" "sinit.d/chroot_init" "$@" || { echo -e "[\e[31m*\e[0m] Chrooting at new system"; return 1; }
-sinit_mon 6
-}
+amiroot "$UID" && echo -e "[\e[32m*\e[0m] Requesting root privileges" \
+|| { echo -e "[\e[31m*\e[0m] Requesting root privileges"; exit 1; }
 
 TARGETSTAMP="$(grep 'version_stamp' "${CCONFDIR}/system/catalyst/stage3.spec" \
-| sed '/^#/ d' | awk -F ' ' '{ print $2 }' | sed  -e "s_\"__g")"
-
-SUBBUILD=0
-GSEVER="${GSEVER}.${SUBBUILD}"
-pr_chroot_f "${BWORKDIR}" "${RREQ}" \
-&& while true; do
-if ! ls "${CDISTDIR}/stage3-amd64-${GSEVER}.tar.bz2" >/dev/null 2>&1; then
-echo -e "\e[34mArchiving...\e[0m"
-tar cvf "${CDISTDIR}/stage3-amd64-${GSEVER}.tar.bz2" -C "${BWORKDIR}" >/dev/null 2>&1 \
-&& { print_inf 1 && echo -e "\e[34mYou can find your system @ ${CDISTDIR}\e[0m"
-echo -e "\e[34mWith version extension: ${GSEVER}\e[0m"; } \
-|| { print_inf 2; exit 1; }
-break
+| sed '/^#/ d' | awk -F ' ' '{ print $2 }' | sed  -e "s_\"__g")"\
+&& if pr_chroot_f "${BWORKDIR}" "$@"; then
+	SUBBUILD=0
+	GSEVER="${GSEVER}.${SUBBUILD}"
+	while true; do
+		if ! ls "${CDISTDIR}/stage3-amd64-${GSEVER}.tar.bz2" >/dev/null 2>&1; then
+			echo -e "\e[34mArchiving...\e[0m"
+			tar cvf "${CDISTDIR}/stage3-amd64-${GSEVER}.tar.bz2" -C "${BWORKDIR}" >/dev/null 2>&1 \
+			&& { print_inf 1 && echo -e "\e[34mYou can find your system @ ${CDISTDIR}\e[0m"
+			echo -e "\e[34mWith version extension: ${GSEVER}\e[0m"; } \
+			|| { print_inf 2; exit 1; }
+			break
+		else
+			((++SUBBUILD))
+		fi
+	done
 else
-((++SUBBUILD))
+	exit 1
 fi
-done
-sinit_mon 7
 
 exit
 
