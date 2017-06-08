@@ -12,29 +12,39 @@ and an initramfs which provide functions to further control and modify such a sy
 .fi
 .SH OPTIONS
 .TP
-.nf
-\fB\-\-menuXYZ...\fR \fB\-mXYZ...\fR
-X stands for the menu entry Y its submenu entry and same follows for the rest. 
-To bring configurations entry, which lie under 'System Menu' -> 'Configure built variables',
-one could simply type gse --m12 instead of gse and then guide himself through the menu entries.
-.fi
-.TP
 \fB\-\-fetch-new\fR \fB\-fn\fR
 .nf
 By default GSE will fetch snapshot and stag3 files if the local files are missing, if they do not
 pass local verifications, or if they fail any other health check test. By passing -fn, 
-gse is instructed to fetch new snapshots and stag3 tarballs.
+gse is instructed to fetch new snapshots and stag3 tarballs, even if they are located locally.
 .fi
 .TP
-\fB\-\-start-new\fR \fB\-sn\fR
-When gse is asked to build a new system, it checks local files and decided from where it should resume, if
-it work had been done in the past. At the beginning a prompt start new or continue from where you left off
-appears and then at each Part X: (see man 5 gse for Stages, Parts and Masks) a prompt asks if you want to
-continue or run again that Part, in case configuration changes have been made. If one wants to force gse to
-force new builds, without any prompt (could be used if someone wants to enable the build, and simple go away),
-then -sn should be used.
+\fB\-\-force-new\fR
+When gse is asked to build a new system, it checks local files and decided from where it should resume.
+At the beginning a prompt start new or continue from where you left, appears and then at each Part X: 
+(see man 5 gse for Stages, Parts and Masks), a prompt asks if you want to continue or run again that Part,
+in the case it has been completed successfully. If one wants to force gse to make new builds, without any 
+prompt, then -sn should be used.
 
-Warning: This option purges everything in the workdir.
+Warning: This option uses force on every action and ignores any workdone. For more safe approach, see enforce.
+.fi
+.TP
+\fB\-\-lawful-good=partX\fR
+This option instructs gse to automatically say no to a completed part. For example, if there has been
+already a successful system build and one wishes to reconfigure all parts but one, say apply new changes,
+then he could simply start gse with --lawful-good=apply-new. This command can be used multiple times,
+each time with a new entry.
+
+Supported entries: seed, catalyst_snap, catalyst_st-{1,2,3}, extraction, update, portage, apply-new, 
+configure, install, kernel, initramfs, clean, all.
+
+To make gse passive for everything, simply do: gse --lawful-good=all. This option will simply archive
+the work done and sign it.
+.fi
+.TP
+\fB\-\-enforce=x\fR
+See --lawful-good, for examples. The only difference is that this option instructs gse to use force on the
+target part instead of being passive. Note that --enforce=all, implies --force-new.
 .fi
 .TP
 \fB\-\-help\fR \fB\-h\fR
@@ -64,7 +74,7 @@ the health-check entry.
 .nf
 This option forces gse to exclude the kernel fromt Stage B building sequence. This option implies
 --no-initramfs also. If you use no kernel, you must then provide your kernel moddir, and build
-and intiramfs as a separate step.
+and intiramfs as a separate step, by using --build-controller (see below).
 .fi
 .TP
 \fB\-\-no-initramfs\fR \fB\-ni\fR
@@ -81,16 +91,11 @@ the entries that your clients will require to function and not to remove any of
 {overlayFS, tmpfs, nfs, fuser} entries.
 .fi
 .TP
-\fB\-\-build-system\fR \fB\-\-bs\fR
-.nf
-This option instructs the gse to build only the system. Kernel, initramfs and the packages
-required for those, will be excluded, during Stage B.
-.fi
-.TP
 \fB\-\-build-minimal\fR \fB\-\-bm\fR
-.nf
 This option forces gse to exclude all extra packages that are found at chinit.conf, which is
-located at /scripts/chroot_scripts. This option implies --no-kernel --no-initramfs.
+located at /scripts/chroot_scripts. This option implies --no-kernel --no-initramfs. The GSE
+profile is also excluded from the system. Minimal system is ideal for creating a simple, small
+image with customized bootscripts and configuration files.
 .fi
 .SH "SEE ALSO"
 .nf
