@@ -9,9 +9,9 @@
 #																						      #
 ##																						     ##
 
-LC_COLLATE=C
+#LC_COLLATE=C
 #LC_ALL="en_US.UTF-8"
-LC_CTYPE="en_US.UTF-8"
+#LC_CTYPE="en_US.UTF-8"
 
 # DEFINITION OF CWORKDIR AND IT'S SUBDIRECTORIES
 export CWORKDIR="$(dirname ${PWD})"
@@ -23,9 +23,13 @@ export CREL="$(grep ^NAME /etc/*release | awk -F '=' '{ print $2 }')"
 # PATH DEFINITION FOR THE SCRIPTS WHICH WILL AID THE PROCESS
 export PATH=${PATH}:${CWORKDIR}/scripts/functions
 
+source "${CWORKDIR}/scripts/functions/sinit_functions" || { echo -e "\e[32mMissing scripts\e[0m" && exit 1; }
+source "${CWORKDIR}/scripts/functions/catalyst_functions" || { echo -e "\e[32mMissing scripts\e[0m" && exit 1; }
+
 STAT_VAR=''
 
-set -o
+#set -o
+
 
 # CHECK IF BASH IS THE DEFAULT {CURRENT} SHELL, ISSUE A WARNING OTHERIWSE
 shl_f() {
@@ -462,7 +466,7 @@ about_f() {
 
 # MAIN LOOP FUNCTION
 mainlp_f() {
-BACKTO="MM"
+BACKTO="$1"
 while true; do
 	case "${BACKTO:-MM}" in
 		MM)
@@ -500,4 +504,45 @@ done
 }
 
 # STARTS MAIN LOOP FUNCTION
-mainlp_f; unset BACKTO; exit 0
+post_par() {
+if [[ -z "$@" ]]; then
+mainlp_f "MM"
+else
+	case "$1" in
+		--fetch-new|-fn)
+			fetch_new_f "$@"
+			;;
+		--start-new|-sn)
+			source "${CWORKDIR}/scripts/sinit" "seed" "catalyst" "s1" "s2" "s3"
+			;;
+		--help|-h)
+			echo "Help"
+			;;
+		--keep|-k)
+			echo "Keep"
+			;;
+		--health-check|-hc)
+			echo "Health check"
+			;;
+		--replace-new|-rpn)
+			echo "Replace new"
+			;;
+		--no-kernel|-nk)
+			echo "No kernel"
+			;;
+		--no-initramfs|-ni)
+			echo "No initramfs"
+			;;
+		--build-controller|-bc)
+			echo "Build controller"
+			;;
+		--build-system|-bs)
+			echo "Build system"
+			;;
+		--build-minimal|-bm)
+			echo "Build minimal"
+			;;
+	esac
+fi
+}
+post_par "$@"
