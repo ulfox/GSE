@@ -12,6 +12,28 @@ subshel_f() {
 	echo -e "\e[33mYou are back to parent\e[0m"
 }
 
+die() {
+	echo "$@" 1>&2 ; exit 1
+}
+
+pass() {
+	echo echo -e "[\e[34mDone\e[0m]"
+}
+
+print_inf_f() {
+	clear
+	echo -e "[\e[31mFATAL\e[0m]"
+	echo -e "\e[31mIf this message is printed while using the Maim Menu\e[0m"
+	echo -e "\e[31mThat means essential files are altered or something bad is happening.\e[0m"
+	echo
+	echo -e "\e[31mPlease run a health-check from the ~Main Menu~ and a Version check first.\e[0m"
+	echo -e "\e[31mIf you see this again after the health/version check, please submit a bug report\e[0m"
+	echo -e "\e[31mand stop using the program, or data loss may occur.\e[0m"
+	echo
+	echo -e "\e[31mExiting...\e[0m"
+	exit 1
+}
+
 repeat_part_f() {
 while true; do
 	echo -e "\e[33mPart $1: Has been completed\e[0m"
@@ -58,7 +80,7 @@ help_f() {
 calling_catalyst_f(){
 	echo -e "\e[34mCalling catalyst\e[0m"
 	source "${CWORKDIR}/scripts/functions/init_stage3_seq" "$@" \
-	&& sinit_mon_f "CATALYST" || { print_inf_f 2 && exit; }
+	&& sinit_mon_f "CATALYST" || die "Calling catalyst failed"
 }
 
 catalyst_extr_tar_f() {
@@ -133,7 +155,7 @@ dep_c_f() {
 			case "${YN}" in
 				[yY])
 					echo -e "\e[34mChecking for dependencies\e[0m"
-					lcreq_f 1 || exit 1
+					lcreq_f 1 || die
 					sinit_mon_f "RDEP"
 					break;;
 				[nN])
@@ -157,7 +179,7 @@ dep_c_f() {
 			case "${YN:-n}" in
 				[yY])
 					echo -e "\e[34mChecking for dependencies\e[0m"
-					lcreq_f 2 || exit 1
+					lcreq_f 2 die
 					break;;
 				[nN])
 					echo "If you have not run a dependency check before, please abort"
@@ -187,8 +209,7 @@ check_pds_f(){
 	if [[ -n "$@" && -z "$(cat /proc/mounts | grep "workdir-$2")" ]]; then
 		rm -rf "$1"
 	else
-		print_inf_f 3
-		exit 1
+		print_inf_f
 	fi
 }
 
@@ -246,7 +267,7 @@ start_new_f() {
 }
 
 extract_tarball_f() {
-	[[ -z "$@" && -d "$2" ]] && print_inf 4 && return 1
+	[[ -z "$@" && -d "$2" ]] && die "Wrong Parameters"
 	mkdir -p "$2"
 
 	echo -e "\e[34mExtracting tarball\e[0m"
@@ -261,7 +282,7 @@ extract_tarball_f() {
 }
 
 check_dir_f() {
-	[[ -z "$@" && -d "$2" ]] && print_inf 4 && return 1
+	[[ -z "$@" && -d "$2" ]] && die "Wrong Parameters"
 	if [[ -n $(echo "$@" | grep '\--force-new') ]]; then
 		echo "This may take some time"
 		echo "Purging..."
@@ -317,14 +338,14 @@ export_dist_f() {
 }
 
 gentoo_key_f() {
-	[[ -z "${GENTOOKEY}" ]] && print_inf_f 4 && return 1
+	[[ -z "${GENTOOKEY}" ]] && die "Wrong Parameters" && return 1
 	gpg --keyserver hkps.pool.sks-keyservers.net --recv-keys >/dev/null 2>&1 ${GENTOOKEY} \
 	&& echo -e "[\e[32m*\e[0m]\e[32m Fetching Key\e[0m" \
 	|| { echo -e "[\e[31m*\e[0m]\e[31m Fetching Key\e[0m"; return 1; }
 }
 
 get_latest_f() {
-	[[ -z "${GENTOOLATEST}" || -z "${GENTOOLATESTASC}" ]] && print_inf_f 4 && return 1
+	[[ -z "${GENTOOLATEST}" || -z "${GENTOOLATESTASC}" ]] && die "Wrong Parameters" && return 1
 	mkdir -p "${CDISTDIR}/dists" \
 	&& echo -e "[\e[32m*\e[0m] Fetching \e[34m${STAGE3TB}\e[0m"
 	if [[ -n $(echo "$@" | grep '\--fetch-new') || -n $(echo "$@" | grep '\-fn') ]]; then
@@ -333,11 +354,11 @@ get_latest_f() {
 		rm -f "${CDISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2.DIGESTS" >/dev/null 2>&1
 		wget -c -O "${CDISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2" "${GENTOOLATEST}" >/dev/null 2>&1 \
 		&& echo "${STAGE3TB}" > "${CDISTDIR}/dists/latest.info" \
-		&& print_inf_f 1 || { print_inf_f 2; return 1; }
+		&& pass || die "FAILED"
 	else
 		wget -c -O "${CDISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2" "${GENTOOLATEST}" \
 		&& echo "${STAGE3TB}" > "${CDISTDIR}/dists/latest.info" \
-		&& print_inf_f 1 || { print_inf_f 2; return 1; }
+		&& pass || die "FAILED"
 	fi
 	wget -c -O "${CDISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2.DIGESTS.asc" "${GENTOOLATESTASC}" >/dev/null 2>&1 \
 	&& echo -e "[\e[32m*\e[0m] Fetching \e[34m${GENTOOLATEST}\e[0m" \
@@ -361,7 +382,7 @@ verify_download_f() {
 
 fetch_new_f() {
 	# CHECK FOR THE POSITIONAL PARAMETERS AND BAILOUT IF THEY ARE MISSING
-	[[ -z "$@" ]] && print_inf_f 4 && exit 1
+	[[ -z "$@" ]] && die "Wrong parameters"
 	if [[ -n $(echo "$@" | grep '\--force-new') ]]; then
 		echo -e "\e[33mSearching for tarball...\e[0m"
 		export_dist_f
@@ -405,35 +426,6 @@ fetch_new_f() {
 	fi
 }
 
-print_inf_f() {
-case $1 in
-	1)
-		echo -e "[\e[32m*\e[0m] \e[34mDone\e[0m";;
-	2)
-		echo -e "[\e[31m*\e[0m] \e[31mFAILED\e[0m";;
-	3)
-		clear
-		echo -e "[\e[31mFATAL\e[0m]"
-		echo -e "\e[31mIf this message is printed while using the Maim Menu\e[0m"
-		echo -e "\e[31mThat means essential files are altered or something bad is happening.\e[0m"
-		echo
-		echo -e "\e[31mPlease run a health-check from the ~Main Menu~ and a Version check first.\e[0m"
-		echo -e "\e[31mIf you see this again after the health/version check, please submit a bug report\e[0m"
-		echo -e "\e[31mand stop using the program, or data loss may occur.\e[0m"
-		echo
-		echo -e "\e[31mExiting...\e[0m"
-		sleep 5
-		exit 1;;
-	4)
-		echo -e "[\e[31m*\e[0m] [\e[31mERROR\e[0m: Wrong parameters"
-		exit 1;;
-	5)
-		echo -e "[\e[31m*\e[0m] Failed Fetching version";;
-	6)
-		echo -e "[\e[31m*\e[0m] FATAL";;
-esac
-}
-
 umnt_l_f() {
 	[[ -n "$(grep "dist.d/workdir-"$2 "/proc/mounts" | awk -F ' ' '{ print $2 }')" ]] \
 	&& while true; do
@@ -448,24 +440,24 @@ umnt_l_f() {
 }
 
 mount_dev_sys_f() {
-	[[ -z "$@" ]] && print_inf_f 3 && exit 1
+	[[ -z "$@" ]] && print_inf_f
 	mount --rbind /dev "$1/$2" \
 	&& mount --make-rslave "$1/$2" \
 	&& echo -e "[\e[32m*\e[0m] Mounting $2" \
-	|| { echo -e "[\e[31*\e[0m] Mounting $2"; return 1; }
+	|| { echo -e "[\e[31*\e[0m] Mounting $2"; die "Failed"; }
 }
 
 mount_proc_f() {
-	[[ -z "$@" ]] && print_inf_f 3 && exit 1
+	[[ -z "$@" ]] && print_inf_f 
 	mount -t proc /proc "$1/proc" \
 	&& echo -e "[\e[32m*\e[0m] Mounting proc" \
-	|| { echo -e "[\e[31m*\e[0m] Mounting proc"; return 1; }
+	|| { echo -e "[\e[31m*\e[0m] Mounting proc"; die "Failed"; }
 }
 
 pr_chroot_f() {
-	[[ -z "$@" ]] && print_inf_f 3 && exit 1
+	[[ -z "$@" ]] && print_inf_f
 
-	cp -L /etc/resolv.conf "$1/etc/" || exit 1
+	cp -L /etc/resolv.conf "$1/etc/" || die "Failed"
 
 	if [[ -n $(echo "$@" | grep 'catalyst') ]]; then
 		# CHECK IF PSEUDOS ARE MOUNTED
@@ -489,7 +481,7 @@ pr_chroot_f() {
 	fi \
 	&& mount_dev_sys_f "$1" "dev" \
 	&& mount_dev_sys_f "$1" "sys" \
-	|| { echo -e "[\e[31m*\e[0m] Something went wrong" && exit 1; }
+	|| { echo -e "[\e[31m*\e[0m] Something went wrong" && die "Failed"; }
 
 	mkdir -p "$1/sinit.d"
 
@@ -498,7 +490,7 @@ pr_chroot_f() {
 	&& rsync -aAXr "${CCONFDIR}/system/portage/" "$1/sinit.d/" >/dev/null 2>&1 \
 	&& rsync -aAXr --exclude="portage" "${CCONFDIR}/system/" "$1/sinit.d/" >/dev/null 2>&1 \
 	&& echo -e "[\e[32m*\e[0m] Copying \e[34mbuilder's\e[0m files to new system" \
-	|| { echo -e "[\e[31m*\e[0m] Copying \e[34mbuilder's\e[0m files to new system"; return 1; }
+	|| { echo -e "[\e[31m*\e[0m] Copying \e[34mbuilder's\e[0m files to new system"; die "Failed"; }
 
 	# CREATE REPOS.CONF DIRECOTRY & AND COPY REPOS.CONF TO IT
 	mkdir -p "$1/etc/portage/repos.conf"
@@ -519,7 +511,7 @@ pr_chroot_f() {
 			f2="${BWORKDIR}/(echo $INJFL | awk -F ' ' '{ print $2 }')"
 			echo "Copying $f1 to $f2"
 			rsync -aAXPhrv "$f1" "$f2" >/dev/null 2>&1 \
-			&& print_inf 1 || { print_inf 2 mapfile -t INJFLERR < <($INJFL | awk -F ' ' '{ print $1 }'); }
+			&& pass || { mapfile -t INJFLERR < <($INJFL | awk -F ' ' '{ print $1 }'); }
 		done < <(cat "${CCONFDIR}/system/inject_files" | sed '/^#/ d' | sed '/^\s*$/d')
 		unset INJFL
 
@@ -577,7 +569,7 @@ pr_chroot_f() {
 
 	echo -e "\e[34mChrooting at new system\e[0m"
 	sleep 2
-	chroot "$1" "sinit.d/chroot_init" "$@" || { echo -e "[\e[31m*\e[0m] Chrooting at new system"; return 1; } \
+	chroot "$1" "sinit.d/chroot_init" "$@" || { echo -e "[\e[31m*\e[0m] Chrooting configuration failed"; die; } \
 	&& sinit_mon_f "PARTB"
 }
 
@@ -586,7 +578,7 @@ lcreq_f() {
 	CRDPENDS=''
 	amiroot_sub_f() {
 	if [[ "$1" == "0" ]]; then
-			return 0
+		return 0
 	else
 		return 1
 	fi

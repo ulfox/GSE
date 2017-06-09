@@ -12,6 +12,22 @@ subshel_f() {
 	echo -e "\e[33mYou are back to parent\e[0m"
 }
 
+die() {
+	echo "$@" 1>&2 ; exit 1
+}
+
+pass() {
+	echo echo -e "[\e[34mDone\e[0m]"
+}
+
+write_fail() {
+	echo "FAILED" >> "${CHDIR}/emergeresume"	
+}
+
+delete_fail() {
+	sed -i "/FAILED/d" "${CHDIR}/emergeresume"
+}
+
 # ALL ERROR MESSAGES BUT FIRST
 chprint_inf_f() {
 	case $1 in
@@ -70,124 +86,26 @@ chsinit_mon_f() {
 	esac
 }
 
-repeat_part_f() {
-while true; do
-	echo -e "\e[33mPart $1: Has been completed\e[0m"
-	echo -e "\e[33mRun again? Y/N: \e[0m"
-	read -rp "Input :: <= " YN
-	case "${YN}" in
-		[yN])
-			clear; eval "$2"
-			break;;
-		[nN])
-			break;;
-	esac
-done
-}
-
-ex_sh_cont_f() {
-	while true; do
-		echo "Emerge could not complete that action"
-		echo "Do you wish to exit, check logs and fix it manually or continue"
-		echo -e "Answer: \e[31mEXIT\e[0m/\e[33mSHELL\e[0m/\e[34mCONTINUE\e[0m"
-		read -rp "Input :: <= " ANS
-		case "${ANS:-EXIT}" in
-			EXIT)
-				echo "Exiting..."
-				sleep 1
-				exit 1;;
-			SHELL)
-				while true; do
-					subshel_f
-					echo "Continue? Y/N: "
-					read -rp "Input :: <= " AANS
-					case "${AANS:-Y}" in
-						[yY])
-							break;;
-						[nN])
-							;;
-					esac
-				done
-				break;;
-			CONTINUE)
-				break;;
-		esac
-	done
-}
-
-emerge_resume_f() {
-	if [[ -n "$(grep "$2" <"${CHDIR}/emergeresume")" ]]; then
-		while true; do
-			echo -e "\e[33mA previous emerge action failed or stopped manually\e[0m"
-			echo -e "Do you wish to \e[35mresume\e[0m that action?"
-			echo -e "Answer Y/N: "
-			read -rp "Input :: <= " YN
-			case "${YN:-y}" in
-				[yY])
-					echo -e "\e[33mResuming\e[0m"
-					emerge -qr && chprint_inf 1 && sed -i "/$2/d" "${CHDIR}/emergeresume" \
-					|| { chprint_inf 2
-						while true; do
-						echo "Emerge could not complete that action"
-						echo "Do you wish to exit, check logs and fix it manually or continue"
-						echo -e "Answer: \e[31mEXIT\e[0m/\e[33mSHELL\e[0m/\e[34mCONTINUE\e[0m"
-						read -rp "Input :: <= " ANS
-						case "${ANS:-EXIT}" in
-							EXIT)
-								echo "Exiting..."
-								sleep 1
-								exit 1;;
-							SHELL)
-								while true; do
-									subshel_f
-									echo "Continue? Y/N: "
-									read -rp "Input :: <= " AANS
-									case "${AANS:-Y}" in
-										[yY])
-											break;;
-										[nN])
-											;;
-									esac
-								done
-								break;;
-							CONTINUE)
-								break;;
-						esac
-					done; }
-					echo -e "\e[32mContinuing\e[0m"
-					eval "$1" && sed -i "/$2/d" "${CHDIR}/emergeresume"
-					break;;
-				[nN])
-					eval "$1" && sed -i "/$2/d" "${CHDIR}/emergeresume"
-					break;;
-			esac
-		done
-	else
-		eval "$1" && sed -i "/$2/d" "${CHDIR}/emergeresume"
-	fi
-	unset YN
-	unset AANS
-	unset ANS
-}
-
 emerge_dep_clean_f() {
 	# DEPCLEAN BEFORE APPLYING NEW PROFILE CHANGES
 	echo -e "\e[34mOrphan depclean before continuing...\e[0m" \
 	&& emerge --depclean >/dev/null 2>&1 \
-	&& chprint_inf 1 \
-	|| { chprint_inf 2 \
-	&& echo "DEPC" >> "${CHDIR}/emergeresume" \
-	&& emerge_resume_f "emerge --depclean" "DEPC"; }
+	&& pass \
+	|| { chprint_inf_f 2 \
+	&& write_fail \
+	&& chroot_master_loop "LOOPEMERGE"; }
 }
 
 dist_ccashe_f() {
 	# ADD OR REMOVE DISTCC FROM THE SYSTEM
 	if [[ -n "$(echo ${CHFEATURES} | grep distcc)" ]]; then
 		if ! eix --installed sys-devel/distcc >/dev/null 2>&1; then
-			echo -e "Configuring [\e[32mdistcc\e[0m]" \
-			&& emerge -q sys-devel/distcc >/dev/null 2>&1 \
-			&& chprint_inf 1 || { chprint_inf 2 && return 1; }
-
+			echo -e "Configuring [\e[32mdistcc\e[0m]"
+			if emerge -q sys-devel/distcc >/dev/null 2>&1; then
+				pass
+			else
+				die # Call infinite loop check, or exit
+			fi
 			mkdir -p /etc/distcc \
 			&& cp "${CHDIR}/hosts" /etc/distcc/hosts \
 			&& echo -e "Configuring [\e[32mdistcc hosts\e[0m]" \
@@ -197,20 +115,21 @@ dist_ccashe_f() {
 		if eix --installed sys-devel/distcc >/dev/null 2>&1; then
 			echo -e "Removing [\e[32mdistcc\e[0m]" \
 			&& emerge --deselect sys-devel/distcc >/dev/null 2>&1 \
-			&& chprint_inf 1
+			&& pass
 		fi
 	fi
+	
 	if [[ -n "${CCCACHESIZE}" ]]; then
 		if ! eix --installed dev-util/ccache >/dev/null 2>&1; then
 			echo -e "Configuring [\e[32mccache\e[0m]" \
 			&& emerge -q dev-util/ccache >/dev/null 2>&1 \
-			&& chprint_inf 1 || { chprint_inf 2 && return 1; }
+			&& pass || die "Failed"
 		fi
 	else
 		if eix --installed dev-util/ccache >/dev/null 2>&1; then
 			echo -e "Removing [\e[33mccache\e[0m]" \
 			&& emerge --deselect sys-devel/distcc >/dev/null 2>&1 \
-			&& chprint_inf 1
+			&& pass
 		fi
 	fi
 }
@@ -252,7 +171,7 @@ port_prof_f() {
 part_portage_f() {
 	# MAKE.CONF, PACKAGE.USE, FEATURES AND CCACHE
 	if rm -f /etc/portage/make.conf; then
-		rm -r /etc/portage/package.use/sysbuild >/dev/null 2>&1 || exit 1
+		rm -r /etc/portage/package.use/sysbuild >/dev/null 2>&1
 		mkdir -p "/etc/portage/package.use" || exit 1
 		cp "${CHDIR}/make.conf" /etc/portage/make.conf || exit 1
 		echo -e "Configuring [\e[32mmake.conf\e[0m]"
@@ -277,10 +196,10 @@ part_portage_f() {
 		exit 1
 	fi
 
-	if [[ -n $(echo $@ | grep '\--force-new') ]]; then
+	if [[ -n $(echo "$@" | grep '\--force-new') ]]; then
 		echo -e "\e[34Enabling basic profile\e[0m]"
-		eselect profile set 1 && echo -e "\e[34mEnabled\e[0m" && BREAKVAR=0 \
-		|| { chprint_inf_f 2 && YN=n; };;
+		eselect profile set 1 && echo -e "\e[34mEnabled\e[0m" \
+		|| { chprint_inf_f 2 && YN=n; }
 	else
 		# SELECTING PROFILE
 		echo -e "Do you wish to enable \e[33mGSE\e[0m \e[34mprofile\e[0m ::: (\e[31mexperimental\e[0m)?"
@@ -288,7 +207,7 @@ part_portage_f() {
 		echo "Answer Y/N: "
 		read -rp "Input :: <= " YN
 		while true; do
-			case "${YN:-n}" in
+			case "${YN}" in
 				[yY])
 					GSE_PROF=$(eselect profile list | grep gse | awk -F '[' '{print $2}' | awk -F ']' '{print $1}') \
 					&& eselect profile set "${GSE_PROF}" && echo -e "\e[34mEnabled\e[0m" && BREAKVAR=0 \
@@ -298,8 +217,8 @@ part_portage_f() {
 					echo -e "Please select a \e[34mprofile\e[0m listed from above:"
 					echo -e "Answer is only related \e[34mprofile\e[0m numbers"
 					read -rp "Input :: <= " ANS
-						[[ -n "${ANS}" ]] && eselect profile set "${ANS}" && echo -e "\e[34mEnabled\e[0m" && BREAKVAR=0 \
-						|| { chprint_inf_f 2 && BREAKVAR=1; };;
+					[[ -n "${ANS}" ]] && eselect profile set "${ANS}" && echo -e "\e[34mEnabled\e[0m" && BREAKVAR=0 \
+					|| { chprint_inf_f 2 && BREAKVAR=1; };;
 			esac
 			if [[ "${BREAKVAR}" == 0 ]]; then
 				break 
@@ -319,10 +238,9 @@ apply_new_f() {
 	# APPLYING PROFILE CHANGES
 	echo -e "[\e[32m*\e[0m] \e[34mApplying new profile changes\e[0m"
 	emerge -q --update --deep --newuse --with-bdeps=y @world \
-	&& chprint_inf 1 \
-	|| { chprint_inf 2 && echo "UDN" >> "${CHDIR}/emergeresume" \
-	&& emerge_resume_f "emerge -q --update --deep --newuse --with-bdeps=y @world" "UDN"
-	exit 1; }
+	&& pass \
+	|| { chprint_inf_f 2 && write_fail \
+	&& chroot_master_loop "LOOPEMERGE"; }
 }
 
 emerge_rebuild_system_f() {
@@ -335,9 +253,9 @@ emerge_rebuild_system_f() {
 		read -rp "Input :: <= " YN
 		case "${YN:-n}" in
 			[yY][eE][sS]|[yY])
-				emerge -eq @world && chprint_inf 1 \
-				|| { echo "REBUILD" >> "${CHDIR}/emergeresume" \
-				&& emerge_resume_f "emerge -eq" "REBUILD"; }
+				emerge -eq @world && pass \
+				|| { chprint_inf_f 2 && write_fail \
+				&& chroot_master_loop "LOOPEMERGE"; }
 				chsinit_mon "REBUILD"; break;;
 			[nN][oO]|[nN])
 				echo "Exiting Rebuilding Part"
@@ -351,31 +269,31 @@ emerge_rebuild_system_f() {
 
 updating_portage_f(){
 	if emerge -q --deep --update portage >/dev/null 2>&1; then
-		chprint_inf_f 1
+		pass
 	else
-		chprint_inf_f 2 && exit 1
+		die "Failed"
 	fi
 }
 
 emerge_eix_f() {
 	if emerge -q app-portage/eix >/dev/null 2>&1; then
-		chprint_inf_f 1
+		pass
 	else
-		chprint_inf_f 2 && exit 1
+		die "Failed"
 	fi
 }
 
 update_eix_f() {
 	if eix-update >/dev/null 2>&1; then
-		chprint_inf_f 1 \
+		pass \
 		&& chsinit_mon_f "UPDATE"
 	else
-		chprint_inf_f 2 && exit 1
+		die "Failed"
 	fi
 }
 
 emerge_gentoolkit_f() {
- emerge -q app-portage/gentoolkit >/dev/null 2>&1
+	emerge -q app-portage/gentoolkit >/dev/null 2>&1
 }
 
 
@@ -388,10 +306,10 @@ upd_port_em_eix_f() {
 	cp /usr/share/portage/config/repos.conf /etc/portage/repos.conf/gentoo.conf
 
 	if [[ -n $(echo "$@" | grep 'catalyst') ]]; then
-		emerge --sync >/dev/nill 2>&1 && chprint_inf_f 1 || { chprint_inf_f 2; exit 1; }
+		emerge --sync >/dev/nill 2>&1 && pass || die "Failed"
 		env-update >/dev/null 2>&1
 	elif [[ -n $(echo "$@" | grep 'precomp') ]]; then
-		emerge--webrsync >/dev/nill 2>&1 && chprint_inf_f 1 || { chprint_inf_f 2; exit 1; }
+		emerge--webrsync >/dev/nill 2>&1 && pass || die "Failed"
 		env-update >/dev/null 2>&1
 	fi
 
@@ -412,7 +330,7 @@ upd_port_em_eix_f() {
 	if ! eix --installed app-portage/gentoolkit >/dev/null 2>&1; then
 		echo -e "\e[34mEmerging app-portage/gentoolkit\e[0m"
 		emerge_gentoolkit_f
-		echo -e "\e[34mRunning \e[34mGentoo's\e[0m Reverse Dependency rebuilder\e[0m"
+		echo -e "\e[34mRunning\e[0m \e[35mGentoo's\e[0m e[34mReverse Dependency rebuilder\e[0m"
 		revdep-rebuild
 	else
 		echo -e "\e[34mRunning \e[34mGentoo's\e[0m Reverse Dependency rebuilder\e[0m"
@@ -467,55 +385,83 @@ configure_locale_f() {
 }
 
 configure_fstab_f() {
-	cat "${CHDIR}/fstab" > /etc/fstab && echo -e "[\e[32m*\e[0m] Creating [\e[34mfstab\e[0m] entries" \
-	|| { echo -e "[\e[31m*\e[0m] Creating [\e[34mfstab\e[0m] entries" && return 1; } \
-	&& [[ -n $(cat "${CHDIR}/system_links" | sed '/^#/ d' | sed '/^\s*$/d') ]] \
-	&& { while read -r i; do
-		case $(echo "$i" | awk -F ' ' '{ print $1 }') in
-			tmpfs)
-				echo >> /etc/fstab
-				echo "# $(echo "$i" | awk -F ' ' '{ print $2 }')" >> /etc/fstab
-				echo "tmpfs $(echo "$i" | awk -F ' ' '{ print $2 }') tmpfs nodev,nosuid,size=$(echo "$i" | awk -F ' ' '{ print $3 }')" >> /etc/fstab
-				echo >> /etc/fstab
-				;;
-			symlink)
-				if [[ $(echo "$i" | awk -F ' ' '{ print $2 }') == 'f=n' ]]; then
-					echo "ln -s $(echo "$i" | awk -F ' ' '{ print $3 }') $(echo "$i" | awk -F ' ' '{ print $4 }')"
-				elif [[ $(echo "$i" | awk -F ' ' '{ print $2 }') == 'f=y' ]]; then
-					mkdir -p "$(echo "$i" | awk -F ' ' '{ print $3 }')"
-					echo "ln -s $(echo "$i" | awk -F ' ' '{ print $4 }') $(echo "$i" | awk -F ' ' '{ print $5 }')"
-				fi
-				;;
-			bindmount)
-				if [[ $(echo "$i" | awk -F ' ' '{ print $2 }') == 'f=n' ]]; then
-					echo >> /etc/fstab
-					echo "# bind mount: $(echo "$i" | awk -F ' ' '{ print $3 }')" >> /etc/fstab
-					echo "$(echo "$i" | awk -F ' ' '{ print $3 }') $(echo "$i" | awk -F ' ' '{ print $4 }') none rw,bind 0 0" >> /etc/fstab
-					echo >> /etc/fstab
-				elif [[ $(echo "$i" | awk -F ' ' '{ print $2 }') == 'f=y' ]]; then
-					echo >> /etc/fstab
-					echo "# bind mount: $(echo "$i" | awk -F ' ' '{ print $4 }')" >> /etc/fstab
-					mkdir -p "$(echo "$i" | awk -F ' ' '{ print $3 }')"
-					echo "$(echo "$i" | awk -F ' ' '{ print $4 }') $(echo "$i" | awk -F ' ' '{ print $5 }') none rw,bind 0 0" >> /etc/fstab
-					echo >> /etc/fstab
-				fi
-				;;
-			overlay)
-				echo >> /etc/fstab
-				echo "# overlay: $(echo "$i" | awk -F ' ' '{ print $2 }')" >> /etc/fstab
-				OVLFSLD=$(echo "$i" | awk -F ' ' '{ print $2 }')
-				OVLFSUD=$(echo "$i" | awk -F ' ' '{ print $3 }')
-				OVLFSWD=$(echo "$i" | awk -F ' ' '{ print $4 }')
-				echo "overlay /merged overlay noauto,lowerdir=${OVLFSLD},uperdir=${OVLFSUD},workdir=${OVLFSWD} 0 0" >> /etc/fstab
-				echo >> /etc/fstab
-				unset OVLFSLD
-				unset OVLFSUD
-				unset OVLFSWD
-				;;
-		esac
-	done < <(cat "${CHDIR}/system_links" | sed '/^#/ d' | sed '/^\s*$/d') && chprint_inf_f 1 || { chprint_inf_f 2; exit 1; } \
-	&& echo -e "[\e[32m*\e[0m] Creating \e[34msystem links\e[0m and requested \e[34mfstab\e[0m entries" \
-	|| echo -e "[\e[31m*\e[0m] Creating \e[34msystem links\e[0m and requested \e[34mfstab\e[0m entries"; }
+	if cat "${CHDIR}/fstab" > /etc/fstab; then
+		echo -e "[\e[32m*\e[0m] Creating [\e[34mfstab\e[0m] entries"
+		if [[ -n $(cat "${CHDIR}/system_links" | sed '/^#/ d' | sed '/^\s*$/d') ]]; then
+			BREAKVAR=0
+			 while read -r i; do
+				case $(echo "$i" | awk -F ' ' '{ print $1 }') in
+					tmpfs)
+						echo >> /etc/fstab || { BREAKVAR=1; break; }
+						echo "# $(echo "$i" | awk -F ' ' '{ print $2 }')" >> /etc/fstab || { BREAKVAR=1; break; }
+						echo "tmpfs $(echo "$i" | awk -F ' ' '{ print $2 }') tmpfs nodev,nosuid,size=$(echo "$i" \
+						| awk -F ' ' '{ print $3 }')" >> /etc/fstab || { BREAKVAR=1; break; }
+						echo >> /etc/fstab || { BREAKVAR=1; break; }
+						;;
+					symlink)
+						if [[ $(echo "$i" | awk -F ' ' '{ print $2 }') == 'f=n' ]]; then
+							echo "ln -s $(echo "$i" | awk -F ' ' '{ print $3 }') $(echo "$i" \
+							| awk -F ' ' '{ print $4 }')" || { BREAKVAR=1; break; }
+						elif [[ $(echo "$i" | awk -F ' ' '{ print $2 }') == 'f=y' ]]; then
+							mkdir -p "$(echo "$i" | awk -F ' ' '{ print $3 }')" || { BREAKVAR=1; break; }
+							echo "ln -s $(echo "$i" | awk -F ' ' '{ print $4 }') $(echo "$i" \
+							| awk -F ' ' '{ print $5 }')" || { BREAKVAR=1; break; }
+						fi
+						;;
+					bindmount)
+						if [[ $(echo "$i" | awk -F ' ' '{ print $2 }') == 'f=n' ]]; then
+							echo >> /etc/fstab || { BREAKVAR=1; break; }
+							echo "# bind mount: $(echo "$i" | awk -F ' ' '{ print $3 }')" >> /etc/fstab || { BREAKVAR=1; break; }
+							echo "$(echo "$i" | awk -F ' ' '{ print $3 }') $(echo "$i" \
+							| awk -F ' ' '{ print $4 }') none rw,bind 0 0" >> /etc/fstab || { BREAKVAR=1; break; }
+							echo >> /etc/fstab || { BREAKVAR=1; break; }
+						elif [[ $(echo "$i" | awk -F ' ' '{ print $2 }') == 'f=y' ]]; then
+							echo >> /etc/fstab || { BREAKVAR=1; break; }
+							echo "# bind mount: $(echo "$i" | awk -F ' ' '{ print $4 }')" >> /etc/fstab || { BREAKVAR=1; break; }
+							mkdir -p "$(echo "$i" | awk -F ' ' '{ print $3 }')" || { BREAKVAR=1; break; }
+							echo "$(echo "$i" | awk -F ' ' '{ print $4 }') $(echo "$i" \
+							| awk -F ' ' '{ print $5 }') none rw,bind 0 0" >> /etc/fstab || { BREAKVAR=1; break; }
+							echo >> /etc/fstab || { BREAKVAR=1; break; }
+						fi
+						;;
+					overlay)
+						echo >> /etc/fstab || { BREAKVAR=1; break; }
+						echo "# overlay: $(echo "$i" | awk -F ' ' '{ print $2 }')" >> /etc/fstab || { BREAKVAR=1; break; }
+						OVLFSLD=$(echo "$i" | awk -F ' ' '{ print $2 }')
+						OVLFSUD=$(echo "$i" | awk -F ' ' '{ print $3 }')
+						OVLFSWD=$(echo "$i" | awk -F ' ' '{ print $4 }')
+						echo "overlay /merged overlay noauto,lowerdir=${OVLFSLD},uperdir=${OVLFSUD},workdir=${OVLFSWD} 0 0" >> /etc/fstab \
+						|| { BREAKVAR=1; break; }
+						echo >> /etc/fstab || { BREAKVAR=1; break; }
+						unset OVLFSLD
+						unset OVLFSUD
+						unset OVLFSWD
+						;;
+				esac
+			done < <(cat "${CHDIR}/system_links" | sed '/^#/ d' | sed '/^\s*$/d') && pass || die "Failed"
+			if [[ "${BREAKVAR}" == 0 ]]; then
+				echo -e "[\e[32m*\e[0m] Creating \e[34msystem links\e[0m and requested \e[34mfstab\e[0m entries"
+			else
+				echo -e "[\e[31m*\e[0m] Creating \e[34msystem links\e[0m and requested \e[34mfstab\e[0m entries"
+				echo "###################################" >> issues.info
+				echo "Issue: System links $(date)" >> issues.info
+				echo "Command: Could not get issued command" >> issues.info
+				echo "Items --->" >> issues.info
+				cat "${CHDIR}/system_links" >> issues.info
+				echo "###################################" >> issues.info
+				ask_for_shell
+			fi
+		fi
+	else
+		echo -e "[\e[31m*\e[0m] Creating [\e[34mfstab\e[0m] entries"
+		echo "###################################" >> issues.info
+		echo "Issue: fstab $(date)" >> issues.info
+		echo "Command: cat ${CHDIR}/fstab > /etc/fstab" >> issues.info
+		echo "Items --->" >> issues.info
+		cat "${CHDIR}/fstab" >> issues.info
+		echo "###################################" >> issues.info
+		ask_for_shell
+	fi
 }
 
 configure_cp_function_f() {
@@ -524,6 +470,13 @@ configure_cp_function_f() {
 		echo -e "[\e[32m*\e[0m] Configuring [\e[34m$3\e[0m]"
 	else
 		echo -e "[\e[31m*\e[0m] Configuring [\e[34m$3\e[0m]"
+		echo "###################################" >> issues.info
+		echo "Issue: $3 $(date)" >> issues.info
+		echo "Command: ${CHDIR}/$1 /etc/conf.d/$2" >> issues.info
+		echo "Items --->" >> issues.info
+		cat /etc/conf.d/"$2" >> issues.info
+		echo "###################################" >> issues.info
+		ask_for_shell
 	fi
 }
 
@@ -569,6 +522,13 @@ configure_system_f() {
 		echo -e "\e[31m----------------------------------------------------------------------------\e[0m"
 		echo -e "[\e[31m*\e[0m] Adding ssh.pub key to [\e[34m/root/.ssh/authorized_keys\e[0m]"
 		echo -e "\e[31m----------------------------------------------------------------------------\e[0m"
+		echo "###################################" >> issues.info
+		echo "Issue: ssh.pub.key $(date)" >> issues.info
+		echo "Command: cat ${CHDIR}/ssh.pub | sed '/^#/ d' | sed '/^\s*$/d' > /root/.ssh/authorized_keys" >> issues.info
+		echo "Items --->" >> issues.info
+		cat /etc/conf.d/"$2" >> issues.info
+		echo "###################################" >> issues.info
+		ask_for_shell
 	fi
 	chsinit_mon_f "CONFIGURE"
 }
@@ -576,11 +536,16 @@ configure_system_f() {
 emerge_instp_f() {
 	echo -e "\e[34mEmerging\e[0m..."
 	if emerge -q --update --deep --with-bdeps=y ${INS_PARTF}; then
-		chprint_inf_f 1
+		pass
 	else
-		echo "INSPARTF" >> "${CHDIR}/emergeresume"
-		emerge_resume_f "emerge -q --update --deep --with-bdeps=y ${INS_PARTF}" "INSPARTF" \
-		|| { chprint_inf_f 2 && exit 1; }
+		chprint_inf_f 2 && write_fail
+		echo "###################################" >> issues.info
+		echo "Issue: emerge request packages $(date)" >> issues.info
+		echo "Command: emerge -q --update --deep --with-bdeps=y" >> issues.info
+		echo "Items --->" >> issues.info
+		echo "${INS_PARTF}" >> issues.info
+		echo "###################################" >> issues.info
+		chroot_master_loop "LOOPEMERGE"
 	fi
 }
 
@@ -588,11 +553,16 @@ emerge_custom_pacl_f() {
 	mapfile -t CMPL < <(cat "${CHDIR}/custom_pacl" | sed '/^#/ d' | sed '/^\s*$/d')
 
 	if emerge -q --deep --update "${CMPL[@]}"; then
-		chprint_inf_f 1
+		pass
 	else
-		echo "CMPL" >> "${CHDIR}/emergeresume"
-		emerge_resume_f "emerge -q --deep --update "${CMPL[@]}"" "CMPL" \
-		|| { chprint_inf_f 2 && exit 1; }
+		chprint_inf_f 2 && write_fail
+		echo "###################################" >> issues.info
+		echo "Issue: emerge request packages $(date)" >> issues.info
+		echo "Command: emerge -q --deep --update " >> issues.info
+		echo "Items --->" >> issues.info
+		echo "${CMPL[@]}" >> issues.info
+		echo "###################################" >> issues.info
+		chroot_master_loop "LOOPEMERGE"
 	fi
 }
 
@@ -629,23 +599,33 @@ kernel_conf_f() {
 		echo -e "Please keep in mind that main function of the controller are related with \e[34mkernel builtins\e[0m"
 		echo -e "Select an option Y/N: "
 		read -rp "Input :: <= " SELCT
-			case ${SELCT:-y} in
+			case ${SELCT} in
 				[Yy][eE][sS]|[yY])
 					if genkernel --install kernel --menuconfig --kernel-config="${CHDIR}/kernel-conf" \
 						--makeopts="-j${MKPS}" --btrfs --postclear --e2fsprogs; then
 						echo -e "The \e[34mkernel\e[0m built was \e[32msuccessful\e[0m"
 						chsinit_mon_f "KERNEL"
 					else
-						chprint_inf_f 2; exit 1
+						echo "###################################" >> issues.info
+						echo "Issue: Kernel $(date)" >> issues.info
+						echo "Command: genkernel --install kernel --menuconfig --kernel-config=${CHDIR}/kernel-conf \
+						--makeopts=-j${MKPS} --btrfs --postclear --e2fsprogs" >> issues.info
+						echo "###################################" >> issues.info
+						ask_for_shell
 					fi
 					break;;
 				[nN][oO]|[nN])
-					if genkernel --install kernel --menuconfig \
+					if genkernel --install kernel --kernel-config="${CHDIR}/kernel-conf" \
 						--makeopts="-j${MKPS}" --btrfs --postclear --e2fsprogs; then
 						echo -e "The \e[34mkernel\e[0m built was \e[32msuccessful\e[0m"
 						chsinit_mon_f "KERNEL"
 					else
-						chprint_inf_f 2; exit 1
+						echo "###################################" >> issues.info
+						echo "Issue: Kernel $(date)" >> issues.info
+						echo "Command: genkernel --install kernel --kernel-config=${CHDIR}/kernel-conf \
+						--makeopts=-j${MKPS} --btrfs --postclear --e2fsprogs" >> issues.info
+						echo "###################################" >> issues.info
+						ask_for_shell
 					fi
 					break;;
 				*) echo "Wrong option";;
@@ -664,7 +644,11 @@ initramfs_f() {
 		echo "The \e[34minitramfs\e[0m built was successful"
 		chsinit_mon_f "INITRAMFS"
 	else
-		chprint_inf_f 2; exit 1
+		echo "###################################" >> issues.info
+		echo "Issue: Initramfs $(date)" >> issues.info
+		echo "Command: dracut -f initramfs-controller-${ARCH}-${GSEVER}" >> issues.info
+		echo "###################################" >> issues.info
+		ask_for_shell
 	fi
 }
 
@@ -680,6 +664,149 @@ runlevel_f() {
 		"$(echo "$i" | awk -F ' ' '{ print $3 }')"
 		sleep 0.5
 	done < <(cat "${CHDIR}/runlevels" | sed '/^#/ d' | sed '/^\s*$/d'); } \
-	&& { echo -e "[\e[32m*\e[0m] Updated successfully"; sleep 2; } || chprint_inf_f 2
-	chsinit_mon_f "RUNLEVEL"
+	&& { echo -e "[\e[32m*\e[0m] Updated successfully" && chsinit_mon_f "RUNLEVEL"; } \
+	|| { echo "###################################" >> issues.info
+	echo "Issue: Runlevels $(date)" >> issue.info
+	echo "Command: rc-update \$(echo \$i | awk -F ' ' '{ print \$2 }') \$(echo \$i | awk -F ' ' '{ print \$1 }') \
+		\$(echo \$i | awk -F ' ' '{ print \$3 }')" >> issues.info
+	echo "Items --->" >> issues.info
+	cat "${CHDIR}/runlevels" >> issues.info
+	echo "###################################" >> issues.info
+	ask_for_shell; }
+}
+
+rep_resume_f() {
+	echo -e "\e[33mResuming\e[0m"
+	emerge -qr \
+	&& return 0 || return 1
+}
+
+loop_resume(){
+	if rep_resume_f; then
+		pass \
+		&& delete_fail \
+		&& return 0
+	else
+		return 1
+	fi
+}
+
+ask_for_shell() {
+	while true; do
+		chprint_inf_f 2
+		echo "Do you wish to call shell function and fix the issues manually?"
+		echo "An issues.info file will be created in the current directory"
+		echo "The above file will contain the instruction that gse attempted to execute"
+		echo "Answer Y/N "
+		read -rp "Input :: <= " YN
+		case "$YN" in
+			[yY])
+				chroot_master_loop "SHELL"
+				break;;
+			[nN])
+				break;;
+		esac
+	done		
+}
+
+emerge_master_loop() {
+	if [[ -n "$(grep "FAILED" <"${CHDIR}/emergeresume")" ]]; then
+		while true; do
+			echo -e "\e[33mA previous emerge action could not be completed or stopped manually\e[0m"
+			echo -e "Do you wish to \e[35mresume\e[0m that action?"
+			echo -e "Answer: \e[35mRESUME\e[0m/\e[33mSHELL\e[0m/\e[34mCONTINUE\e[0m/\e[31mEXIT\e[0m"
+			read -rp "Input :: <= " YN
+			case "${YN}" in
+				RESUME)
+					if loop_resume; then
+						LOOPVAR="PASS"
+					else
+						LOOPVAR="LOOPEMERGE"
+					fi
+					break;;
+				SHELL)
+					while true; do
+						subshel_f
+						echo "If you fixed the issue, say CONTINUE to attempt an emerge resume"
+						echo "You can answer SHELL to open shell again, or call die with EXIT"
+						echo "Answer: CONTINUE/SHELL/EXIT: "
+						read -rp "Input :: <= " AANS
+						case "${AANS:-n}" in
+							[yY])
+								break;;
+							[nN])
+								;;
+							EXIT)
+								die "Exit Requested";;
+						esac
+					done
+					if loop_resume; then
+						LOOPVAR="PASS"
+					else
+						LOOPVAR="LOOPEMERGE"
+					fi
+					break;;
+				CONTINUE)
+						LOOPVAR="PASS"
+						break;;
+				EXIT)
+					die "Exit Requested";;
+			esac
+		done
+	fi
+	unset YN
+	unset AANS
+	unset ANS
+}
+
+subshell_loop() {
+	while true; do
+		subshel_f
+		echo "If you fixed the issue, say CONTINUE proceed"
+		echo "You can answer SHELL to open shell again, or call die with EXIT"
+		echo "Resume? CONTINUE/SHELL/EXIT: "
+		read -rp "Input :: <= " AANS
+		case "${AANS:-n}" in
+			CONTINUE)
+				LOOPVAR="PASS"
+				break;;
+			SHELL)
+				LOOPVAR="SHELL"
+				;;
+			EXIT)
+				die "Exit Requested";;
+		esac
+	done
+}
+
+chroot_master_loop() {
+	[[ -z $(echo "$@") ]] && chprint_inf_f 3
+	LOOPVAR="$1"
+	while true; do
+		case "${LOOPVAR}" in
+			PASS)
+				break;;
+			LOOPEMERGE)
+				emerge_master_loop;;
+			SHELL)
+				subshell_loop;;
+				
+		esac
+	done
+}
+
+repeat_part_f() {
+while true; do
+	echo -e "\e[33mPart $1: Has been completed\e[0m"
+	echo -e "\e[33mRun again? Y/N: \e[0m"
+	read -rp "Input :: <= " YN
+	case "${YN}" in
+		[yN])
+			clear; return 0
+			break;;
+		[nN])
+			return 1
+			break;;
+	esac
+done
 }

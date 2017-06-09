@@ -6,9 +6,9 @@ LC_ALL="en_US.UTF-8"
 LC_CTYPE="en_US.UTF-8"
 
 # PP CHECK
-[[ -z "$@" ]] && print_inf_f 4 && exit 1
+[[ -z "$@" ]] && print_inf_f
 
-source "${CWORKDIR}/scripts/functions/catalyst_functions" || { echo -e "\e[32mMissing scripts\e[0m" && exit 1; }
+source "${CWORKDIR}/scripts/functions/catalyst_functions" || die "Missing scripts"
 
 # EXPORT THE DIRECTORIES DEFINED BY STAGE1.SPEC
 export_cat_dirs_f
@@ -181,11 +181,14 @@ unset BRKVAR
 }
 
 if [[ -n $(echo $@ | grep '\--force-new') ]]; then
+	echo -e "\e[33mSearching for portage snapshot...\e[0m"
 	echo -e "\e[31mForce new is active!\e[0m"
 	if [[ ! -e "${CATDIR}/snapshots/portage-${SNAPSHOTNAME}.tar.bz2" ]]; then
+		echo -e "\e[33mCould not locate snapshot\e[0m"
+		echo -e "\e[33mAttempting to fetch new...\e[0m"
 		get_latest_portage_f "$@" \
 		|| { echo -e "\e[34mCreating snapshot...\e[0m"
-		catalyst -s "${SNAPSHOTNAME}" && print_inf 1 || { print_inf 2 && exit 1; }; }
+		catalyst -s "${SNAPSHOTNAME}" && pass || die "FAILED"; }
 	fi
 else
 	check_portage_snap_f

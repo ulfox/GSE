@@ -15,36 +15,40 @@ source /etc/profile && export PS1="( 'Part C: Preparing to bootstrap' ) $PS1"
 export CHDIR="/sinit.d"
 export PATH=${PATH}:${CHDIR}
 source "${CHDIR}/chinit.conf" \
-&& source "${CHDIR}/cfunctions" && source "${CHDIR}/coptions"|| { chprint_inf_f 2; exit 1; }
+&& source "${CHDIR}/cfunctions" && source "${CHDIR}/coptions"|| die "Failed"
 [[ ! -e "${CHDIR}/emergeresume" ]] && echo "#####" >> "${CHDIR}/emergeresume" \
 || sed -i "/#####/d" "${CHDIR}/emergeresume"
 
 # PART C BEGINS
-if [[ -n $(echo $@ | grep '\--force-new') ]]; then
-	part_c_f "$@" || exit 1
+if [[ -n $(echo "$@" | grep '\--force-new') ]]; then
+	part_c_f "$@" || die
 else
 	if [[ "$(awk -F '=' '/UPDATE/{ print $2 }' <"${CHDIR}/chsinprog")" == 0 ]]; then
-		part_c_f "$@" || exit 1
+		part_c_f "$@" || die
 	else
-		repeat_part_f "Portage Update" "part_c_f $@"
+		if repeat_part_f "Portage Update"; then
+			part_c_f "$@" || die
+		fi
 	fi
 fi
 
 # PART PORTAGE, PROFILE AND FEATURES UPDATE
-if [[ -n $(echo $@ | grep '\--force-new') ]]; then
+if [[ -n $(echo "$@" | grep '\--force-new') ]]; then
 	part_portage_f "$@" && chsinit_mon_f "PORTAGE"
 else
 	if [[ "$(awk -F '=' '/UPDATE/{ print $2 }' <"${CHDIR}/chsinprog")" == 0 ]]; then
 		part_portage_f "$@" && chsinit_mon_f "PORTAGE"
 	else
-		repeat_part_f "Portage Configuration" "part_portage_f $@"
+		if repeat_part_f "Portage Configuration"; then
+			part_portage_f "$@" && chsinit_mon_f "PORTAGE"
+		fi
 	fi
 fi
 
 # APPLY NEW CHANGES
 apply_new_f "UDN"
 
-if [[ -n $(echo $@ | grep '\--force-new') ]]; then
+if [[ -n $(echo "$@" | grep '\--force-new') ]]; then
 	:
 else
 	if [[ -n $(echo "$@" | grep 'precomp') ]]; then
@@ -60,42 +64,48 @@ else
 fi
 
 # PART E BEGINS
-if [[ -n $(echo $@ | grep '\--force-new') ]]; then
+if [[ -n $(echo "$@" | grep '\--force-new') ]]; then
 	configure_system_f
 else
 	if [[ "$(awk -F '=' '/CONFIGURE/{ print $2 }' <"${CHDIR}/chsinprog")" == 0 ]]; then
 		configure_system_f
 	else
-		repeat_part_f "System Configuration" "configure_system_f"
+		if repeat_part_f "System Configuration"; then
+			configure_system_f
+		fi
 	fi
 fi
 
 # PART F BEGINS
-if [[ -n $(echo $@ | grep '\--force-new') ]]; then
+if [[ -n $(echo "$@" | grep '\--force-new') ]]; then
 	inst_req_f
 else
 	if [[ "$(awk -F '=' '/INSTALL/{ print $2 }' <"${CHDIR}/chsinprog")" == 0 ]]; then
 		inst_req_f
 	else
-		repeat_part_f "Installing Packages" "inst_req_f"
+		if repeat_part_f "Installing Packages"; then
+			inst_req_f
+		fi
 	fi
 	unset YN
 fi
 
 # PART G BEGINS
-if [[ -n $(echo $@ | grep '\--force-new') ]]; then
+if [[ -n $(echo "$@" | grep '\--force-new') ]]; then
 	runlevel_f
 else
 	if [[ "$(awk -F '=' '/RUNLEVEL/{ print $2 }' <"${CHDIR}/chsinprog")" == 0 ]]; then
 		runlevel_f
 	else
-		repeat_part_f "Runlevel Configuration" "runlevel_f"
+		if repeat_part_f "Runlevel Configuration"; then
+			runlevel_f
+		fi
 	fi
 	unset YN
 fi
 
 # PART H BEGINS
-if [[ -n $(echo $@ | grep '\--force-new') ]]; then
+if [[ -n $(echo "$@" | grep '\--force-new') ]]; then
 	echo -e "The \e[34mBuilding kernel\e[0m"
 	genkernel --install kernel --menuconfig --kernel-config="${CHDIR}/kernel-conf" \
 	--makeopts="-j${MKPS}" --btrfs --postclear --e2fsprogs
@@ -105,19 +115,23 @@ else
 	if [[ "$(awk -F '=' '/KERNEL/{ print $2 }' <"${CHDIR}/chsinprog")" == 0 ]]; then
 		kernel_conf_f
 	else
-		repeat_part_f "Kernel Configuration" "kernel_conf_f"
+		if repeat_part_f "Kernel Configuration"; then
+			kernel_conf_f
+		fi
 	fi
 	unset YN
 fi
 
 # PART I BEGINS
-if [[ -n $(echo $@ | grep '\--force-new') ]]; then
+if [[ -n $(echo "$@" | grep '\--force-new') ]]; then
 	initramfs_f
 else
 	if [[ "$(awk -F '=' '/INITRAMFS/{ print $2 }' <"${CHDIR}/chsinprog")" == 0 ]]; then
 		initramfs_f
 	else
-		repeat_part_f "Initramfs Configuration" "initramfs_f"
+		if repeat_part_f "Initramfs Configuration"; then
+			initramfs_f
+		fi
 	fi
 	unset YN
 fi
@@ -127,6 +141,7 @@ fi
 #eclean-dist -d
 #rm -rf /usr/src/linux-4.9.16-gentoo
 #rm -rf /usr/src/linux
+#rm -rf issues.info
 
 # Creating user-data dir-tree
 mkdir -p /user-data/persistent/{etc,var,logs,config.d,local,rmount}

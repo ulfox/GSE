@@ -136,7 +136,7 @@ fi
 	echo -e "[\e[32m*\e[0m] \e[34mFetchinglatest portage snapshot\e[0m" \
 	&& wget -O "${CATDIR}/portage-latest.tar.bz2" \
 	http://distfiles.gentoo.org/snapshots/portage-latest.tar.bz2 >/dev/null 2>&1 \
-	&& print_inf 1 && return 0 || { print_inf 2; return 1; } 
+	&& pass && return 0 || die "Failed" 
 }
 
 verify_portage_f() {
@@ -158,7 +158,7 @@ simple_fetch_f() {
 	echo -e "[\e[32m*\e[0m] \e[34mFetching latest portage snapshot\e[0m" \
 	&& wget -O "${CATDIR}/portage-latest.tar.bz2" \
 	http://distfiles.gentoo.org/snapshots/portage-latest.tar.bz2 >/dev/null 2>&1 \
-	&& print_inf 1 && return 0 || { print_inf 2; return 1; }
+	&& pass && return 0 || die "Failed"
 }
 
 get_latest_portage_f() {
@@ -171,7 +171,7 @@ get_latest_portage_f() {
 		simple_fetch_f
 	else
 		if [[ -n $(echo "$@" | grep '\--fetch-new') || -n $(echo "$@" | grep '\-fn') ]]; then
-			[[ -z "$@" ]] && print_inf 4 && exit 1
+			[[ -z "$@" ]] && die "Wrong parameters"
 			export_cat_dirs_f
 			rm -f "${CATDIR}/portage-latest.tar.bz2"
 			rm -f "${CATDIR}/portage-latest.tar.bz2.md5sum"
@@ -187,7 +187,7 @@ get_latest_portage_f() {
 					echo "Copying to ${CATDIR}/snapshots" \
 					&& cp "${CATDIR}/portage-latest.tar.bz2" "${CATDIR}/snapshots/portage-${SNAPSHOTNAME}.tar.bz2" \
 					&& cp "${CATDIR}/portage-latest.tar.bz2.md5sum" "${CATDIR}/snapshots/portage-${SNAPSHOTNAME}.tar.bz2.md5sum" \
-					&& print_inf 1 && return 0 || { print_inf 2; return 1; }
+					&& pass && return 0 || die "Failed"
 				else
 					echo -e "[\e[31m*\e[0m] \e[31mFAILD\e[0m: Snapshot \e[31mverified\e[0m"
 					fetch_portage_f \
@@ -195,10 +195,10 @@ get_latest_portage_f() {
 					&& echo "Copying to ${CATDIR}/snapshots" \
 					&& cp "${CATDIR}/portage-latest.tar.bz2" "${CATDIR}/snapshots/portage-${SNAPSHOTNAME}.tar.bz2" \
 					&& cp "${CATDIR}/portage-latest.tar.bz2.md5sum" "${CATDIR}/snapshots/portage-${SNAPSHOTNAME}.tar.bz2.md5sum" \
-					&& print_inf 1 && return 0 || { print_inf 2; return 1; }
+					&& pass && return 0 || die "Failed"
 				fi
 			else
-				print_inf 1 && return 0 || { print_inf 2; return 1; }
+				die "Failed"
 			fi
 		fi
 	fi
@@ -206,7 +206,7 @@ get_latest_portage_f() {
 
 # CHECK SNAPSHOT
 chk_snap_f() {
-[[ -z "$@" ]] && print_inf 4 && return 1
+[[ -z "$@" ]] && die "Wrong parameters"
 [[ $(du -sh "$1" | awk -F ' ' '{print $1}' | sed 's/[^0-9]*//g') -le 220 ]] \
 && [[ $(du -sh "$1" | awk -F ' ' '{print $1}' | sed 's/[^0-9]*//g') -ge 50 ]] \
 || return 1
@@ -248,7 +248,7 @@ unset ARRAYSNAP
 }
 
 stageX_f() {
-	[[ -z "$@" ]] && print_inf 4 && return 1
+	[[ -z "$@" ]] && die "Wrong parameters"
 	if [[ -e "$1" ]]; then
 		# STAGE 2
 		echo -e "\e[35mBuilding stage$2\e[0m"
@@ -257,7 +257,7 @@ stageX_f() {
 		> "${CATDIR}/.stage$2.spec"
 
 		catalyst -c "${CCONFDIR}/system/catalyst/catalyst.conf" -f "${CATDIR}/.stage$2.spec" \
-		&& print_inf 1 || { print_inf 2 && exit 1; }
+		&& pass || die "Failed"
 	else
 		echo -e "\e[31mCould not locate stage$2-${ARCH}-${TARGETSTAMP}.tar.bz2\e[0m"
 		return 1
@@ -265,10 +265,10 @@ stageX_f() {
 }
 
 check_then_call_stageX_f() {
-	[[ -z "$@" ]] && print_inf 4 && return 1
+	[[ -z "$@" ]] && die "Wrong parameters"
 	if [[ -n $(echo $@ | grep '\--force-new') ]]; then
 		echo -e "\e[31mForce new is active!\e[0m"
-		#stageX_f "$1" "$2"
+		stageX_f "$1" "$2"
 	else
 		if [[ -e "${CATDIR}/builds/${TARGETPATH}/stage$2-${ARCH}-${TARGETSTAMP}.tar.bz2" && -n $(echo "$@" | grep "s$2") ]]; then
 
