@@ -561,6 +561,9 @@ else
 		--lawful-good)
 			echo "lawful-good"
 			;;
+		--test)
+			source "${CWORKDIR}/scripts/sinit" "seed" "catalyst" "s1" "s2" "s3" "$@"
+			;;
 
 	esac
 fi
