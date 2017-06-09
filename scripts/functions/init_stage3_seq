@@ -8,6 +8,8 @@ LC_CTYPE="en_US.UTF-8"
 # PP CHECK
 [[ -z "$@" ]] && print_inf_f 4 && exit 1
 
+source "${CWORKDIR}/scripts/functions/catalyst_functions" || { echo -e "\e[32mMissing scripts\e[0m" && exit 1; }
+
 # EXPORT THE DIRECTORIES DEFINED BY STAGE1.SPEC
 export_cat_dirs_f
 
@@ -18,7 +20,7 @@ create_cata_dirs_f
 tar_path_name_f "1"
 
 if [[ ! -e "${CATDIR}/builds/${TARGETPATH}/${TARGETNAME}.tar.bz2" ]]; then
-cp "${CDISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2" "${CATDIR}/builds/${TARGETPATH}/${TARGETNAME}.tar.bz2"
+	cp "${CDISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2" "${CATDIR}/builds/${TARGETPATH}/${TARGETNAME}.tar.bz2"
 fi
 
 # CHECK IF SNAPSHOT EXISTS AND HAS NORMAL SIZE
@@ -30,20 +32,22 @@ while true; do
 	opt_f
 	echo -e "[\e[31m*\e[0m] Could not locate snapshots/portage-${SNAPSHOTNAME}.tar.bz2 @ ${CATDIR}/snapshots"
 	echo "Please select an option"
-	read -rp "Option: " ANS
+	read -rp "Input :: <= " ANS
 	case "$ANS" in
 		I|i|1)
-			get_latest_portage_f && BRKVAR=0 || BRKVAR=1
+			get_latest_portage_f "$@" && BRKVAR=0 || BRKVAR=1
 			;;
 		II|ii|2)
-			read -rp "Please enter the absolute path with the snapshot included: " PATHTOSNAP
+			echo "Please enter the absolute path with the snapshot included: "
+			read -rp "Input :: <= " PATHTOSNAP
 			if [[ -n "${PATHTOSNAP}" ]] && chk_snap_f "${PATHTOSNAP}"; then
 				cp "${PATHTOSNAP}" "${CATDIR}/snapshots/portage-${SNAPSHOTNAME}.tar.bz2" \
 				&& echo -e "\e[34mCopying snapshot to ${CATDIR}/snapshots\e[0m" && BRKVAR=0 || BTWRK=1				
 			else
 				echo -e "\e[31mThe file you entered is either a heavily modified snapshot or not a snapshot"
 				while true; do
-					read -rp "Do you wish to proceed? Y/N" YN
+					echo "Do you wish to proceed? Y/N"
+					read -rp "Input :: <= " YN
 					case "${YN:-n}" in
 						[yY][eE][sS]|[yY])
 							echo -e "\e[34mCopying file to ${CATDIR}/snapshots\e[0m"
@@ -69,7 +73,8 @@ while true; do
 			else
 				echo -e "[\e[31m*\e[0m] Snapshot located but it's size is out of normal boundaries"
 				while true; do
-					read -rp "Do you wish to continue? Y/N " YN
+					echo "Do you wish to continue? Y/N "
+					read -rp "Input :: <= " YN
 					case "${YN:-n}" in
 						[yY][eE][sS]|[yY])
 							echo -e "[\e[32m*\e[0m] Proceeding"
@@ -94,7 +99,8 @@ while true; do
 				else
 					echo -e "[\e[31m*\e[0m] Snapshot located but it's size is out of normal boundaries"
 					while true; do
-						read -rp "Do you wish to continue? Y/N " YN
+						echo "Do you wish to continue? Y/N "
+						read -rp "Input :: <= " YN
 						case "${YN:-n}" in
 							[yY][eE][sS]|[yY])
 								echo -e "[\e[32m*\e[0m] Proceeding"
@@ -117,21 +123,25 @@ while true; do
 			if [[ (($(ls -A "${CATPORTDIR}" | grep 'app-portage') != 'app-portage')) ]]; then
 				echo -e "[\e[32m*\e[0m] ${CATPORTDIR} does not look like a normal portage location"
 				while true; do
-					read -rp "Do you wish to continue? Y/N " YN
+					echo "Do you wish to continue? Y/N "
+					read -rp "Input :: <= " YN
 					case "${YN:-n}" in
 						[yY][eE][sS]|[yY])
 							build_port && echo -e "[\e[32m*\e[0m] Built" || echo -e "[\e[31m*\e[0m] Failed"
 							;;
 						[nN][oO]|[nN])
 							while true; do
-								read -rp "Do you wish to give a new portdir location? Y/N "
+								echo "Do you wish to give a new portdir location? Y/N "
+								read -rp "Input :: <= "
 								case $YN in
 									[yY][eE][sS]|[yY])
-										read -rp "Portdir's absolute path: " CATPORTDIR
+										echo "Portdir's absolute path: "
+										read -rp "Input :: <= " CATPORTDIR
 										if [[ (($(ls -A "${CATPORTDIR}" | grep 'app-portage') != 'app-portage')) ]]; then
 											echo "Neither this location looks to contain a normal portage directory"
 											while true; do
-												read -rp "Do you wish to proceed? Y/N "
+												echo "Do you wish to proceed? Y/N "
+												read -rp "Input :: <= "
 												case $YN in
 													[yY][eE][sS]|[yY])
 														export CATPORTDIR
@@ -171,11 +181,16 @@ unset BRKVAR
 }
 
 if [[ -n $(echo $@ | grep '\--force-new') ]]; then
-	echo -e "\e[34mCreating snapshot...\e[0m"
-	catalyst -s "${SNAPSHOTNAME}" && print_inf 1 || { print_inf 2 && exit 1; }
+	echo -e "\e[31mForce new is active!\e[0m"
+	if [[ ! -e "${CATDIR}/snapshots/portage-${SNAPSHOTNAME}.tar.bz2" ]]; then
+		get_latest_portage_f "$@" \
+		|| { echo -e "\e[34mCreating snapshot...\e[0m"
+		catalyst -s "${SNAPSHOTNAME}" && print_inf 1 || { print_inf 2 && exit 1; }; }
+	fi
 else
 	check_portage_snap_f
 fi
+
 # STAGE 1
 check_then_call_stageX_f "${CATDIR}/builds/${TARGETPATH}/${TARGETNAME}.tar.bz2" "1" "$@"
 unset TARGETNAME

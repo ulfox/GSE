@@ -73,7 +73,8 @@ chsinit_mon_f() {
 repeat_part_f() {
 while true; do
 	echo -e "\e[33mPart $1: Has been completed\e[0m"
-	read -rp "Run again? Y/N: " YN
+	echo -e "\e[33mRun again? Y/N: \e[0m"
+	read -rp "Input :: <= " YN
 	case "${YN}" in
 		[yN])
 			clear; eval "$2"
@@ -84,12 +85,43 @@ while true; do
 done
 }
 
+ex_sh_cont_f() {
+	while true; do
+		echo "Emerge could not complete that action"
+		echo "Do you wish to exit, check logs and fix it manually or continue"
+		echo -e "Answer: \e[31mEXIT\e[0m/\e[33mSHELL\e[0m/\e[34mCONTINUE\e[0m"
+		read -rp "Input :: <= " ANS
+		case "${ANS:-EXIT}" in
+			EXIT)
+				echo "Exiting..."
+				sleep 1
+				exit 1;;
+			SHELL)
+				while true; do
+					subshel_f
+					echo "Continue? Y/N: "
+					read -rp "Input :: <= " AANS
+					case "${AANS:-Y}" in
+						[yY])
+							break;;
+						[nN])
+							;;
+					esac
+				done
+				break;;
+			CONTINUE)
+				break;;
+		esac
+	done
+}
+
 emerge_resume_f() {
 	if [[ -n "$(grep "$2" <"${CHDIR}/emergeresume")" ]]; then
 		while true; do
 			echo -e "\e[33mA previous emerge action failed or stopped manually\e[0m"
-			echo -e "Do you wish to \e[34mresume\e[0m that action?"
-			read -rp "Answer Y/N: " YN
+			echo -e "Do you wish to \e[35mresume\e[0m that action?"
+			echo -e "Answer Y/N: "
+			read -rp "Input :: <= " YN
 			case "${YN:-y}" in
 				[yY])
 					echo -e "\e[33mResuming\e[0m"
@@ -108,7 +140,8 @@ emerge_resume_f() {
 							SHELL)
 								while true; do
 									subshel_f
-									read -rp "Continue? Y/N: " AANS
+									echo "Continue? Y/N: "
+									read -rp "Input :: <= " AANS
 									case "${AANS:-Y}" in
 										[yY])
 											break;;
@@ -147,92 +180,13 @@ emerge_dep_clean_f() {
 	&& emerge_resume_f "emerge --depclean" "DEPC"; }
 }
 
-port_prof_f() {
-	# GSE PROFILE DIRECTORIES AND FILES
-	mkdir -p /usr/local/portage/{metadata,profiles} \
-	&& chown -R portage:portage /usr/local/portage \
-	&& echo 'gse' > /usr/local/portage/profiles/repo_name \
-	&& cp "${CHDIR}/localrepo/layout.conf" "/usr/local/portage/metadata/layout.conf" \
-	&& cp "${CHDIR}/localrepo/localrepo.conf" "/etc/portage/repos.conf/localrepo.conf"
-
-	mkdir -p "/usr/local/portage/profiles/gse" \
-	&& mkdir -p "/usr/local/portage/profiles/default/linux/${ARCH}/13.0/gse" \
-	&& cp "${CHDIR}/profiles/parent-gse/eapi" \
-	"/usr/local/portage/profiles/gse/eapi" \
-	&& cp "${CHDIR}/profiles/parent-gse/make.defaults" \
-	"/usr/local/portage/profiles/gse/make.defaults" \
-	&& cp "${CHDIR}/profiles/parent-gse/package.use" \
-	"/usr/local/portage/profiles/gse/package.use" \
-	&& cp "${CHDIR}/profiles/parent-gse/package.use.force" \
-	"/usr/local/portage/profiles/gse/package.use.force" \
-	&& cp "${CHDIR}/profiles/child-gse/eapi" \
-	"/usr/local/portage/profiles/default/linux/${ARCH}/13.0/gse/eapi" \
-	&& cp "${CHDIR}/profiles/child-gse/parent" \
-	"/usr/local/portage/profiles/default/linux/${ARCH}/13.0/gse/parent" \
-	&& echo "# Local profile" > "/usr/local/portage/profiles/profiles.desc" \
-	&& echo "amd64           default/linux/amd64/13.0/gse                            exp" \
-	>> "/usr/local/portage/profiles/profiles.desc" \
-	&& echo -e "[\e[32m*\e[0m] Creating [\e[34mprofile\e[0m]" \
-	|| { echo -e "[\e[31m*\e[0m] Creating [\e[34profile\e[0m]"; return 1; }
-	# END OF GSE PROFILE
-}
-
-part_portage_f() {
-	# MAKE.CONF, PACKAGE.USE, FEATURES AND CCACHE
-	rm -f /etc/portage/make.conf \
-	&& rm -r /etc/portage/package.use/sysbuild >/dev/null 2>&1 \
-	&& mkdir -p "/etc/portage/package.use" \
-	&& cp "${CHDIR}/make.conf" /etc/portage/make.conf \
-	&& { echo -e "Configuring [\e[32mmake.conf\e[0m]" \
-	|| echo -e "\e[31mFaild\e[0m Configuring [\e[32mmake.conf\e[0m]"; } \
-	&& cp "${CHDIR}/package.use/sysbuild" "/etc/portage/package.use" \
-	&& { echo -e "Configuring [\e[32mpackage.use\e[0m]" \
-	|| echo -e "\e[31mFaild\e[0m Configuring [\e[32mpackage.use\e[0m]"; } \
-	&& echo "FEATURES=\"\${FEATURES} ${CHFEATURES}\"" >> /etc/portage/make.conf \
-	&& { echo -e "Configuring [\e[32mFEATURES\e[0m]" \
-	|| echo -e "\e[31mFaild\e[0m Configuring \e[32mFEATURES\e[0m"; } \
-	&& [[ -n "${CCCACHESIZE}" ]] && echo "CCACHE=\"${CCCACHESIZE}\"" >> /etc/portage/make.conf \
-	&& { echo -e "Configuring make.conf [\e[32mCCACHE=${CCCACHESIZE}\e[0m]" \
-	|| echo -e "\e[31mFaild\e[0m Failed configuring make.conf \e[32mCCACHE=${CCCACHESIZE}\e[0m"; } \
-	&& dist_ccashe_f \
-	&& emerge_resume_f "emerge_dep_clean_f" "DEPC" \
-	&& port_prof_f || return 1
-
-	# SELECTING PROFILE
-	echo -e "Do you wish to enable \e[33mGSE\e[0m \e[34mprofile\e[0m ::: (\e[31mexperimental\e[0m)?"
-	echo -e "Say no here, to select a basic \e[35mGentoo\e[0m \e[34mprofile\e[0m manually"
-	read -rp "Answer Y/N: " YN
-		while true; do
-		case "${YN:-n}" in
-			[yY])
-				GSE_PROF=$(eselect profile list | grep gse | awk -F '[' '{print $2}' | awk -F ']' '{print $1}') \
-				&& eselect profile set "${GSE_PROF}" && echo -e "\e[34mEnabled\e[0m" && BREAKVAR=0 \
-				|| { chprint_inf_f 2 && YN=n; };;
-			[nN])
-				eselect profile list
-				echo -e "Please select a \e[34mprofile\e[0m listed from above:"
-				echo -e "Answer is only related \e[34mprofile\e[0m numbers"
-				read -rp "Input :: <== " ANS
-					[[ -n "${ANS}" ]] && eselect profile set "${ANS}" && echo -e "\e[34mEnabled\e[0m" && BREAKVAR=0 \
-					|| { chprint_inf_f 2 && BREAKVAR=1; };;
-		esac
-	[[ "${BREAKVAR}" == 0 ]] && break \
-	|| { echo "Could not set a profile"
-	YN=n; }
-	done
-
-	unset YN
-	unset ANS
-	unset BREAKVAR
-}
-
 dist_ccashe_f() {
 	# ADD OR REMOVE DISTCC FROM THE SYSTEM
 	if [[ -n "$(echo ${CHFEATURES} | grep distcc)" ]]; then
-		if ! eix --installed sys-devel/distcc >/dev/null 2>&1 ]]; then
+		if ! eix --installed sys-devel/distcc >/dev/null 2>&1; then
 			echo -e "Configuring [\e[32mdistcc\e[0m]" \
 			&& emerge -q sys-devel/distcc >/dev/null 2>&1 \
-			&& chprint_inf 1 || chprint_inf 2
+			&& chprint_inf 1 || { chprint_inf 2 && return 1; }
 
 			mkdir -p /etc/distcc \
 			&& cp "${CHDIR}/hosts" /etc/distcc/hosts \
@@ -243,22 +197,122 @@ dist_ccashe_f() {
 		if eix --installed sys-devel/distcc >/dev/null 2>&1; then
 			echo -e "Removing [\e[32mdistcc\e[0m]" \
 			&& emerge --deselect sys-devel/distcc >/dev/null 2>&1 \
-			&& chprint_inf 1 || chprint_inf 2
+			&& chprint_inf 1
 		fi
 	fi
 	if [[ -n "${CCCACHESIZE}" ]]; then
 		if ! eix --installed dev-util/ccache >/dev/null 2>&1; then
 			echo -e "Configuring [\e[32mccache\e[0m]" \
 			&& emerge -q dev-util/ccache >/dev/null 2>&1 \
-			&& chprint_inf 1 || chprint_inf 2
+			&& chprint_inf 1 || { chprint_inf 2 && return 1; }
 		fi
 	else
 		if eix --installed dev-util/ccache >/dev/null 2>&1; then
 			echo -e "Removing [\e[33mccache\e[0m]" \
 			&& emerge --deselect sys-devel/distcc >/dev/null 2>&1 \
-			&& chprint_inf 1 || chprint_inf 2
+			&& chprint_inf 1
 		fi
 	fi
+}
+
+port_prof_f() {
+	# GSE PROFILE DIRECTORIES AND FILES
+	if mkdir -p /usr/local/portage/{metadata,profiles}; then
+		chown -R portage:portage /usr/local/portage || return 1
+		echo 'gse' > /usr/local/portage/profiles/repo_name || return 1
+		cp "${CHDIR}/localrepo/layout.conf" "/usr/local/portage/metadata/layout.conf" || return 1
+		cp "${CHDIR}/localrepo/localrepo.conf" "/etc/portage/repos.conf/localrepo.conf" || return 1
+		
+		mkdir -p "/usr/local/portage/profiles/gse" \
+		&& mkdir -p "/usr/local/portage/profiles/default/linux/${ARCH}/13.0/gse" \
+		&& cp "${CHDIR}/profiles/parent-gse/eapi" \
+		"/usr/local/portage/profiles/gse/eapi" \
+		&& cp "${CHDIR}/profiles/parent-gse/make.defaults" \
+		"/usr/local/portage/profiles/gse/make.defaults" \
+		&& cp "${CHDIR}/profiles/parent-gse/package.use" \
+		"/usr/local/portage/profiles/gse/package.use" \
+		&& cp "${CHDIR}/profiles/parent-gse/package.use.force" \
+		"/usr/local/portage/profiles/gse/package.use.force" \
+		&& cp "${CHDIR}/profiles/child-gse/eapi" \
+		"/usr/local/portage/profiles/default/linux/${ARCH}/13.0/gse/eapi" \
+		&& cp "${CHDIR}/profiles/child-gse/parent" \
+		"/usr/local/portage/profiles/default/linux/${ARCH}/13.0/gse/parent" \
+		&& echo "# Local profile" > "/usr/local/portage/profiles/profiles.desc" \
+		&& echo "amd64           default/linux/amd64/13.0/gse                            exp" \
+		>> "/usr/local/portage/profiles/profiles.desc" \
+		&& echo -e "[\e[32m*\e[0m] Creating [\e[34mprofile\e[0m]" \
+		|| { echo -e "[\e[31m*\e[0m] Creating [\e[34profile\e[0m]"; return 1; }
+	else
+		echo -e "[\e[31m*\e[0m] Creating [\e[34profile\e[0m]"
+		return 1
+	fi
+	# END OF GSE PROFILE
+}
+
+part_portage_f() {
+	# MAKE.CONF, PACKAGE.USE, FEATURES AND CCACHE
+	if rm -f /etc/portage/make.conf; then
+		rm -r /etc/portage/package.use/sysbuild >/dev/null 2>&1 || exit 1
+		mkdir -p "/etc/portage/package.use" || exit 1
+		cp "${CHDIR}/make.conf" /etc/portage/make.conf || exit 1
+		echo -e "Configuring [\e[32mmake.conf\e[0m]"
+		if cp "${CHDIR}/package.use/sysbuild" "/etc/portage/package.use"; then
+			echo -e "Configuring [\e[32mpackage.use\e[0m]"
+			echo "FEATURES=\"\${FEATURES} ${CHFEATURES}\"" >> /etc/portage/make.conf
+			echo -e "Configuring [\e[32mFEATURES\e[0m]"
+			if [[ -n "${CCCACHESIZE}" ]]; then
+				echo "CCACHE=\"${CCCACHESIZE}\"" >> /etc/portage/make.conf
+				echo -e "Configuring make.conf [\e[32mCCACHE=${CCCACHESIZE}\e[0m]"
+			fi
+
+			dist_ccashe_f || return 1
+			emerge_dep_clean_f "DEPC"
+			port_prof_f || return 1
+		else
+			echo -e "\e[31mFaild\e[0m Configuring [\e[32mpackage.use\e[0m]"
+			exit 1
+		fi
+	else
+		echo -e "\e[31mFaild\e[0m Configuring [\e[32mmake.conf\e[0m]"
+		exit 1
+	fi
+
+	if [[ -n $(echo $@ | grep '\--force-new') ]]; then
+		echo -e "\e[34Enabling basic profile\e[0m]"
+		eselect profile set 1 && echo -e "\e[34mEnabled\e[0m" && BREAKVAR=0 \
+		|| { chprint_inf_f 2 && YN=n; };;
+	else
+		# SELECTING PROFILE
+		echo -e "Do you wish to enable \e[33mGSE\e[0m \e[34mprofile\e[0m ::: (\e[31mexperimental\e[0m)?"
+		echo -e "Say no here, to select a basic \e[35mGentoo\e[0m \e[34mprofile\e[0m manually"
+		echo "Answer Y/N: "
+		read -rp "Input :: <= " YN
+		while true; do
+			case "${YN:-n}" in
+				[yY])
+					GSE_PROF=$(eselect profile list | grep gse | awk -F '[' '{print $2}' | awk -F ']' '{print $1}') \
+					&& eselect profile set "${GSE_PROF}" && echo -e "\e[34mEnabled\e[0m" && BREAKVAR=0 \
+					|| { chprint_inf_f 2 && YN=n; };;
+				[nN])
+					eselect profile list
+					echo -e "Please select a \e[34mprofile\e[0m listed from above:"
+					echo -e "Answer is only related \e[34mprofile\e[0m numbers"
+					read -rp "Input :: <= " ANS
+						[[ -n "${ANS}" ]] && eselect profile set "${ANS}" && echo -e "\e[34mEnabled\e[0m" && BREAKVAR=0 \
+						|| { chprint_inf_f 2 && BREAKVAR=1; };;
+			esac
+			if [[ "${BREAKVAR}" == 0 ]]; then
+				break 
+			else
+				echo "Could not set a profile"
+				YN=n
+			fi
+		done
+	fi
+
+	unset YN
+	unset ANS
+	unset BREAKVAR
 }
 
 apply_new_f() {
@@ -277,7 +331,8 @@ emerge_rebuild_system_f() {
 		echo "----------------------------------------------------------------------------"
 		echo "Do you wish to rebuild the system?"
 		echo "If catalyst built this system, simply say no"
-		read -rp "Answer Yes or No: " YN
+		echo "Answer Yes or No: "
+		read -rp "Input :: <= " YN
 		case "${YN:-n}" in
 			[yY][eE][sS]|[yY])
 				emerge -eq @world && chprint_inf 1 \
@@ -321,6 +376,11 @@ update_eix_f() {
 
 emerge_gentoolkit_f() {
  emerge -q app-portage/gentoolkit >/dev/null 2>&1
+}
+
+
+test_stage_f() {
+	echo -e "\e[31m$1\e[0m"
 }
 
 upd_port_em_eix_f() {
@@ -567,7 +627,8 @@ kernel_conf_f() {
 	while true; do
 		echo -e "Do you wish to configure the \e[34mkernel's\e[0m config file?"
 		echo -e "Please keep in mind that main function of the controller are related with \e[34mkernel builtins\e[0m"
-		read -rp "Select an option Y/N: " SELCT
+		echo -e "Select an option Y/N: "
+		read -rp "Input :: <= " SELCT
 			case ${SELCT:-y} in
 				[Yy][eE][sS]|[yY])
 					if genkernel --install kernel --menuconfig --kernel-config="${CHDIR}/kernel-conf" \

@@ -14,147 +14,113 @@ LC_CTYPE="en_US.UTF-8"
 source /etc/profile && export PS1="( 'Part C: Preparing to bootstrap' ) $PS1"
 export CHDIR="/sinit.d"
 export PATH=${PATH}:${CHDIR}
-source "${CHDIR}/chinit.conf" && source "${CHDIR}/coptions"|| { chprint_inf_f 2; exit 1; } \
+source "${CHDIR}/chinit.conf" \
 && source "${CHDIR}/cfunctions" && source "${CHDIR}/coptions"|| { chprint_inf_f 2; exit 1; }
 [[ ! -e "${CHDIR}/emergeresume" ]] && echo "#####" >> "${CHDIR}/emergeresume" \
 || sed -i "/#####/d" "${CHDIR}/emergeresume"
 
 # PART C BEGINS
-if [[ "$(awk -F '=' '/WEBRSYNC/{ print $2 }' <"${CHDIR}/chsinprog")" == 0 ]]; then
-	part_c_f "$@"
+if [[ -n $(echo $@ | grep '\--force-new') ]]; then
+	part_c_f "$@" || exit 1
 else
-	repeat_part_f "Portage Update" "part_c_f $@"
+	if [[ "$(awk -F '=' '/UPDATE/{ print $2 }' <"${CHDIR}/chsinprog")" == 0 ]]; then
+		part_c_f "$@" || exit 1
+	else
+		repeat_part_f "Portage Update" "part_c_f $@"
+	fi
 fi
 
 # PART PORTAGE, PROFILE AND FEATURES UPDATE
-part_portage_f
+if [[ -n $(echo $@ | grep '\--force-new') ]]; then
+	part_portage_f "$@" && chsinit_mon_f "PORTAGE"
+else
+	if [[ "$(awk -F '=' '/UPDATE/{ print $2 }' <"${CHDIR}/chsinprog")" == 0 ]]; then
+		part_portage_f "$@" && chsinit_mon_f "PORTAGE"
+	else
+		repeat_part_f "Portage Configuration" "part_portage_f $@"
+	fi
+fi
 
 # APPLY NEW CHANGES
 apply_new_f "UDN"
 
-# PART PORTAGE BEGINS
-if [[ "$(awk -F '=' '/PORTAGE/{ print $2 }' <"${CHDIR}/chsinprog")" == 0 ]]; then
-	part_portage_f "$@" && chsinit_mon_f "PORTAGE"
+if [[ -n $(echo $@ | grep '\--force-new') ]]; then
+	:
 else
-	repeat_part_f "Portage Configuration" "part_portage_f $@"
-fi
-
-if [[ -n $(echo "$@" | grep 'precomp') ]]; then
-	# Part D Begins
-	if [[ "$(awk -F '=' '/REBUILD/{ print $2 }' <"${CHDIR}/chsinprog")" == 0 ]]; then
-		echo -e "\e[35mPart D: Rebuilding system\e[0m"
-		env-update > /dev/null 2>&1 && source /etc/profile && export PS1="( 'Part D: Rebuilding system' ) $PS1"
-		export PATH=${PATH}:${CHDIR}
-		emerge_rebuild_system_f
-		chsinit_mon_f "REBUILD"
+	if [[ -n $(echo "$@" | grep 'precomp') ]]; then
+		# Part D Begins
+		if [[ "$(awk -F '=' '/REBUILD/{ print $2 }' <"${CHDIR}/chsinprog")" == 0 ]]; then
+			echo -e "\e[35mPart D: Rebuilding system\e[0m"
+			env-update > /dev/null 2>&1 && source /etc/profile && export PS1="( 'Part D: Rebuilding system' ) $PS1"
+			export PATH=${PATH}:${CHDIR}
+			emerge_rebuild_system_f
+			chsinit_mon_f "REBUILD"
+		fi
 	fi
 fi
 
 # PART E BEGINS
-if [[ "$(awk -F '=' '/CONFIGURE/{ print $2 }' <"${CHDIR}/chsinprog")" == 0 ]]; then
-configure_system_f
+if [[ -n $(echo $@ | grep '\--force-new') ]]; then
+	configure_system_f
 else
-repeat_part_f "System Configuration" "configure_system_f"
+	if [[ "$(awk -F '=' '/CONFIGURE/{ print $2 }' <"${CHDIR}/chsinprog")" == 0 ]]; then
+		configure_system_f
+	else
+		repeat_part_f "System Configuration" "configure_system_f"
+	fi
 fi
 
 # PART F BEGINS
-if [[ "$(awk -F '=' '/INSTALL/{ print $2 }' <"${CHDIR}/chsinprog")" == 0 ]]; then
-inst_req_f
+if [[ -n $(echo $@ | grep '\--force-new') ]]; then
+	inst_req_f
 else
-repeat_part_f "Installing Packages" "inst_req_f"
+	if [[ "$(awk -F '=' '/INSTALL/{ print $2 }' <"${CHDIR}/chsinprog")" == 0 ]]; then
+		inst_req_f
+	else
+		repeat_part_f "Installing Packages" "inst_req_f"
+	fi
+	unset YN
 fi
-unset YN
-
-runlevel_f() {
-echo
-echo "----------------------------------------------------------------------------"
-echo -e "\e[35mPart G: Updating Runlevel Entries\e[0m"
-echo "----------------------------------------------------------------------------"
-env-update > /dev/null 2>&1 && source /etc/profile && export PS1="( 'Part G: Updating Runlevel Entries' ) $PS1"
-export PATH=${PATH}:${CHDIR}
-{ while read -r i; do
-rc-update "$(echo "$i" | awk -F ' ' '{ print $2 }')" "$(echo $i | awk -F ' ' '{ print $1 }')" \
-"$(echo "$i" | awk -F ' ' '{ print $3 }')"
-sleep 0.5
-done < <(cat "${CHDIR}/runlevels" | sed '/^#/ d' | sed '/^\s*$/d'); } \
-&& { echo -e "[\e[32m*\e[0m] Updated successfully"; sleep 2; } || chprint_inf_f 2
-chsinit_mon_f "RUNLEVEL"
-}
 
 # PART G BEGINS
-if [[ "$(awk -F '=' '/RUNLEVEL/{ print $2 }' <"${CHDIR}/chsinprog")" == 0 ]]; then
-runlevel_f
+if [[ -n $(echo $@ | grep '\--force-new') ]]; then
+	runlevel_f
 else
-repeat_part_f "Runlevel Configuration" "runlevel_f"
+	if [[ "$(awk -F '=' '/RUNLEVEL/{ print $2 }' <"${CHDIR}/chsinprog")" == 0 ]]; then
+		runlevel_f
+	else
+		repeat_part_f "Runlevel Configuration" "runlevel_f"
+	fi
+	unset YN
 fi
-unset YN
-
-kernel_conf_f() {
-echo
-echo "----------------------------------------------------------------------------"
-echo -e "\e[35mPart H: Building the Kernel\e[0m"
-echo "----------------------------------------------------------------------------"
-env-update > /dev/null 2>&1 && source /etc/profile && export PS1="( 'Part H: Building the Kernel' ) $PS1"
-export PATH=${PATH}:${CHDIR}
-MKPS=$(grep MAKEOPTS "/etc/portage/make.conf" | sed '/^#/ d' | sed  -e "s_\"__g" | awk -F '-j' '{print $2}' | sed '/^\s*$/d')
-while true; do
-	echo -e "Do you wish to configure the \e[34mkernel's\e[0m config file?"
-	echo -e "Please keep in mind that main function of the controller are related with \e[34mkernel builtins\e[0m"
-	read -rp "Select an option Y/N: " SELCT
-		case ${SELCT:-y} in
-			[Yy][eE][sS]|[yY])
-				if genkernel --install kernel --menuconfig --kernel-config="${CHDIR}/kernel-conf" \
-					--makeopts="-j${MKPS}" --btrfs --postclear --e2fsprogs; then
-					echo -e "The \e[34mkernel\e[0m built was \e[32msuccessful\e[0m"
-					chsinit_mon_f "KERNEL"
-				else
-					chprint_inf_f 2; exit 1
-				fi
-				break;;
-			[nN][oO]|[nN])
-				if genkernel --install kernel --menuconfig \
-					--makeopts="-j${MKPS}" --btrfs --postclear --e2fsprogs; then
-					echo -e "The \e[34mkernel\e[0m built was \e[32msuccessful\e[0m"
-					chsinit_mon_f "KERNEL"
-				else
-					chprint_inf_f 2; exit 1
-				fi
-				break;;
-			*) echo "Wrong option";;
-		esac
-done
-}
 
 # PART H BEGINS
-if [[ "$(awk -F '=' '/KERNEL/{ print $2 }' <"${CHDIR}/chsinprog")" == 0 ]]; then
-kernel_conf_f
+if [[ -n $(echo $@ | grep '\--force-new') ]]; then
+	echo -e "The \e[34mBuilding kernel\e[0m"
+	genkernel --install kernel --menuconfig --kernel-config="${CHDIR}/kernel-conf" \
+	--makeopts="-j${MKPS}" --btrfs --postclear --e2fsprogs
+	echo -e "The \e[34mkernel\e[0m built was \e[32msuccessful\e[0m"
+	chsinit_mon_f "KERNEL"
 else
-repeat_part_f "Kernel Configuration" "kernel_conf_f"
+	if [[ "$(awk -F '=' '/KERNEL/{ print $2 }' <"${CHDIR}/chsinprog")" == 0 ]]; then
+		kernel_conf_f
+	else
+		repeat_part_f "Kernel Configuration" "kernel_conf_f"
+	fi
+	unset YN
 fi
-unset YN
-
-initramfs_f() {
-echo
-echo "----------------------------------------------------------------------------"
-echo -e "\e[35mPart I: Building the Initramfs\e[0m"
-echo "----------------------------------------------------------------------------"
-env-update > /dev/null 2>&1 && source /etc/profile && export PS1="( 'Part H: Building the Initramfs' ) $PS1"
-export PATH=${PATH}:${CHDIR}
-if dracut -f "initramfs-controller-${ARCH}-${GSEVER}"; then
-	echo "The \e[34minitramfs\e[0m built was successful"
-	chsinit_mon_f "INITRAMFS"
-else
-	chprint_inf_f 2; exit 1
-fi
-}
 
 # PART I BEGINS
-if [[ "$(awk -F '=' '/INITRAMFS/{ print $2 }' <"${CHDIR}/chsinprog")" == 0 ]]; then
-initramfs_f
+if [[ -n $(echo $@ | grep '\--force-new') ]]; then
+	initramfs_f
 else
-repeat_part_f "Initramfs Configuration" "initramfs_f"
+	if [[ "$(awk -F '=' '/INITRAMFS/{ print $2 }' <"${CHDIR}/chsinprog")" == 0 ]]; then
+		initramfs_f
+	else
+		repeat_part_f "Initramfs Configuration" "initramfs_f"
+	fi
+	unset YN
 fi
-unset YN
 
 #emerge --deselect gentoo-sources
 #rm -rf /var/tmp

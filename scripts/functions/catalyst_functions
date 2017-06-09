@@ -58,7 +58,8 @@ call_cata_f() {
 build_port() {
 	echo -e "\e[35mIt is strongly recommended to update your portdir first\e[0m"
 	while true; do
-		read -rp "Do you wish to update? Y/N " YN
+		echo "Do you wish to update? Y/N "
+		read -rp "Input :: <= " YN
 		case "${YN:-n}" in
 			[yY][eE][sS]|[yY])
 				echo -e "\e[32mUpdating...\e[0m"
@@ -72,7 +73,8 @@ build_port() {
 				} \
 				|| { echo -e "\e[31mUpdate failed, build without update?\e[0m"
 				while true; do
-					read -rp "Answer: YN " ANS
+					echo "Answer: YN "
+					read -rp "Input :: <= " ANS
 					case "${ANS:-n}" in
 						[yY])
 							echo -e "\e[34mProceeding\e[0m"
@@ -124,15 +126,14 @@ tar_path_name_f() {
 
 
 fetch_portage_f() {
-echo -e "[\e[31m*\e[0m] \e[31mFAILD\e[0m: Snapshot \e[31mverified\e[0m"
 if [[ -e "${CATDIR}/portage-latest.tar.bz2" ]]; then
 	echo -e "[\e[31m*\e[0m] Purging old snapshot" \
 	&& rm -f "${CATDIR}/portage-latest.tar.bz2"
-	# GETTING PORTAGE SNAPSHOT
 else
 	echo -e "[\e[31m*\e[0m] Local backup snapshot was not found!"
 fi
-	echo -e "[\e[32m*\e[0m] \e[34mGetting latest portage snapshot\e[0m" \
+	# FETCHING PORTAGE SNAPSHOT
+	echo -e "[\e[32m*\e[0m] \e[34mFetchinglatest portage snapshot\e[0m" \
 	&& wget -O "${CATDIR}/portage-latest.tar.bz2" \
 	http://distfiles.gentoo.org/snapshots/portage-latest.tar.bz2 >/dev/null 2>&1 \
 	&& print_inf 1 && return 0 || { print_inf 2; return 1; } 
@@ -145,26 +146,61 @@ verify_portage_f() {
 	|| { echo -e "[\e[31m*\e[0m] \e[31mFAILD\e[0m: Verifying \e[31mmd5sums\e[0m"; return 1; }
 }
 
-get_latest_portage_f() {
-	# PORTAGE MD5SUM
+port_md5sum_f() {
 	wget -O "${CATDIR}/portage-latest.tar.bz2.md5sum" \
 	http://distfiles.gentoo.org/snapshots/portage-latest.tar.bz2.md5sum >/dev/null 2>&1 \
-	&& echo -e "[\e[32m*\e[0m] \e[34mGetting md5sum\e[0m" \
-	|| { echo -e "[\e[31m*\e[0m] \e[31mFAILD\e[0m: \e[34mGetting md5sum\e[0m" \
+	&& echo -e "[\e[32m*\e[0m] \e[34mFetching md5sum\e[0m" \
+	|| { echo -e "[\e[31m*\e[0m] \e[31mFAILD\e[0m: \e[34mFetching md5sum\e[0m" \
 	&& return 1; }
-	
-	if verify_portage_f; then
-		echo "Copying to ${CATDIR}/snapshots" \
-		&& cp "${CATDIR}/portage-latest.tar.bz2" "${CATDIR}/snapshots/portage-${SNAPSHOTNAME}.tar.bz2" \
-		&& cp "${CATDIR}/portage-latest.tar.bz2.md5sum" "${CATDIR}/snapshots/portage-${SNAPSHOTNAME}.tar.bz2.md5sum" \
-		&& print_inf 1 && return 0 || { print_inf 2; return 1; }
+}
+
+simple_fetch_f() {
+	echo -e "[\e[32m*\e[0m] \e[34mFetching latest portage snapshot\e[0m" \
+	&& wget -O "${CATDIR}/portage-latest.tar.bz2" \
+	http://distfiles.gentoo.org/snapshots/portage-latest.tar.bz2 >/dev/null 2>&1 \
+	&& print_inf 1 && return 0 || { print_inf 2; return 1; }
+}
+
+get_latest_portage_f() {
+	if [[ -n $(echo "$@" | grep '\--force-new') ]]; then
+		echo -e "\e[33mForce new is active!\e[0m"
+		export_cat_dirs_f
+		rm -f "${CATDIR}/portage-latest.tar.bz2"
+		rm -f "${CATDIR}/portage-latest.tar.bz2.md5sum"
+		port_md5sum_f
+		simple_fetch_f
 	else
-		fetch_portage_f \
-		&& verify_portage_f \
-		&& echo "Copying to ${CATDIR}/snapshots" \
-		&& cp "${CATDIR}/portage-latest.tar.bz2" "${CATDIR}/snapshots/portage-${SNAPSHOTNAME}.tar.bz2" \
-		&& cp "${CATDIR}/portage-latest.tar.bz2.md5sum" "${CATDIR}/snapshots/portage-${SNAPSHOTNAME}.tar.bz2.md5sum" \
-		&& print_inf 1 && return 0 || { print_inf 2; return 1; }
+		if [[ -n $(echo "$@" | grep '\--fetch-new') || -n $(echo "$@" | grep '\-fn') ]]; then
+			[[ -z "$@" ]] && print_inf 4 && exit 1
+			export_cat_dirs_f
+			rm -f "${CATDIR}/portage-latest.tar.bz2"
+			rm -f "${CATDIR}/portage-latest.tar.bz2.md5sum"
+			echo -e "\e[33mSearching for portage snapshot...\e[0m"
+			# PORTAGE MD5SUM
+			port_md5sum_f
+			simple_fetch_f
+			verify_portage_f
+		else
+			# PORTAGE MD5SUM
+			if port_md5sum_f; then
+				if verify_portage_f; then
+					echo "Copying to ${CATDIR}/snapshots" \
+					&& cp "${CATDIR}/portage-latest.tar.bz2" "${CATDIR}/snapshots/portage-${SNAPSHOTNAME}.tar.bz2" \
+					&& cp "${CATDIR}/portage-latest.tar.bz2.md5sum" "${CATDIR}/snapshots/portage-${SNAPSHOTNAME}.tar.bz2.md5sum" \
+					&& print_inf 1 && return 0 || { print_inf 2; return 1; }
+				else
+					echo -e "[\e[31m*\e[0m] \e[31mFAILD\e[0m: Snapshot \e[31mverified\e[0m"
+					fetch_portage_f \
+					&& verify_portage_f \
+					&& echo "Copying to ${CATDIR}/snapshots" \
+					&& cp "${CATDIR}/portage-latest.tar.bz2" "${CATDIR}/snapshots/portage-${SNAPSHOTNAME}.tar.bz2" \
+					&& cp "${CATDIR}/portage-latest.tar.bz2.md5sum" "${CATDIR}/snapshots/portage-${SNAPSHOTNAME}.tar.bz2.md5sum" \
+					&& print_inf 1 && return 0 || { print_inf 2; return 1; }
+				fi
+			else
+				print_inf 1 && return 0 || { print_inf 2; return 1; }
+			fi
+		fi
 	fi
 }
 
@@ -186,7 +222,8 @@ for i in "${ARRAYSNAP[@]}"; do
 		if chk_snap_f "$i"; then
 			while true; do
 				echo "$i"
-				read -rp "Is this the snapshot? Y/N " YN
+				echo "Is this the snapshot? Y/N "
+				read -rp "Input :: <= " YN
 				case "${YN:-5}" in
 					[yY][eE][sS]|[yY])
 						echo -e "\e[34mCopying snapshot to ${CATDIR}/snapshots\e[0m"
@@ -230,13 +267,13 @@ stageX_f() {
 check_then_call_stageX_f() {
 	[[ -z "$@" ]] && print_inf 4 && return 1
 	if [[ -n $(echo $@ | grep '\--force-new') ]]; then
-		stageX_f "$1" "$2"
+		echo -e "\e[31mForce new is active!\e[0m"
+		#stageX_f "$1" "$2"
 	else
 		if [[ -e "${CATDIR}/builds/${TARGETPATH}/stage$2-${ARCH}-${TARGETSTAMP}.tar.bz2" && -n $(echo "$@" | grep "s$2") ]]; then
 
 			echo -e "\e[32mStage$2 located\e[0m"
-
-			while read -p "Do you wish to build new? Y/N " ANS; do
+			while read -p "Do you wish to build new? Y/N :: <= " ANS; do
 				case $ANS in
 					[yY])
 						stageX_f "$1" "$2"

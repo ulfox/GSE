@@ -15,7 +15,8 @@ subshel_f() {
 repeat_part_f() {
 while true; do
 	echo -e "\e[33mPart $1: Has been completed\e[0m"
-	read -rp "Run again? Y/N: " YN
+	echo "Run again? Y/N: "
+	read -rp "input :: <= " YN
 	case "${YN}" in
 		[yN])
 			return 0;;
@@ -25,6 +26,34 @@ while true; do
 done
 }
 
+popar_check_f() {
+c1="$(echo $@ | grep "\--cat")"
+f1="$(echo $@ | grep "\--fetch-new")"
+#f2="$(echo $@ | grep "\-precomp")"
+#if [[ $(echo $@ | grep --catalyst)]]
+
+}
+
+help_f() {
+	echo "Gentoo Stateless Environment, version: ${GSEVER}"
+	echo "Distributed under the GNU General Public License, V2"
+	echo "usage: gse [OPTIONS] / "
+	echo
+	echo "-fe, 	--fetch-new"
+	echo "-fcn,	--force-new"
+	echo "-lg,	--lawful-good"
+	echo "-ef, 	--enforce=x"
+	echo "-h, 	--help"
+	echo "-k, 	--keep"
+	echo "-hc, 	--health-check"
+	echo "-rpn,	--replace-new"
+	echo "-nk, 	--no-kernel"
+	echo "-ni, 	--no-initramfs"
+	echo "-bc, 	--build-controller"
+	echo "-bm, 	--build-minimal"
+
+	echo
+}
 
 calling_catalyst_f(){
 	echo -e "\e[34mCalling catalyst\e[0m"
@@ -43,21 +72,26 @@ catalyst_extr_tar_f() {
 	| sed '/^#/ d' | awk -F ' ' '{ print $2 }' | sed  -e "s_\"__g")" \
 	&& check_dir_f "${CATDIR}/builds/${TARGETPATH}/stage3-${ARCH}-${TARGETSTAMP}.tar.bz2" \
 	"${CDISTDIR}/workdir-catalyst" \
-	"${CATDIR}/snapshots/portage-${SNAPSHOTNAME}.tar.bz2" \
+	"${CATDIR}/snapshots/portage-${SNAPSHOTNAME}.tar.bz2" "$@" \
 	&& sinit_mon_f "EXTRACTION"
 }
 
 repeat_sub_part_f() {
-while true; do
-	echo -e "\e[33m$1: Has been $2\e[0m"
-	read -rp "Run again? Y/N: " YN
-	case "${YN}" in
-		[yN])
-			return 0;;
-		[nN])
-			return 9;;
-	esac
-done
+	while true; do
+		echo -e "\e[33m$1: Has been $2\e[0m"
+		if [[ -n $(echo "$@" | grep '\--force-new') ]]; then
+			:
+		else
+			echo "Run again? Y/N: "
+			read -rp "input :: <= " YN
+			case "${YN}" in
+				[yN])
+					return 0;;
+				[nN])
+					return 9;;
+			esac
+		fi
+	done
 }
 
 sinit_mon_f() {
@@ -94,8 +128,9 @@ dep_c_f() {
 		echo -e "\e[33mIf\e[0m \e[35meix\e[0m \e[33mis not installed, do no worry, it will get installed\e[0m"
 		echo
 		while true; do
-			read -rp "Check dependencies? Y/N: " YN
-			case "${YN:-n}" in
+			echo -e "\e[33mCheck dependencies? Y/N: \e[0m"
+			read -rp "Input :: <= " YN
+			case "${YN}" in
 				[yY])
 					echo -e "\e[34mChecking for dependencies\e[0m"
 					lcreq_f 1 || exit 1
@@ -117,7 +152,8 @@ dep_c_f() {
 		echo -e "\e[33mIf the all runtime dependencies are located, the process will continue, otherwise this window will exit. and expect you to manually install them\e[0m"
 		echo -e "\e[33mSince only Gentoo is officially upported, it is expected to manually install any missing dependencies\e[0m"
 		while true; do
-			read -rp "Check dependencies? Y/N: " YN
+			echo "Check dependencies? Y/N: "
+			read -rp "Input :: <= " YN
 			case "${YN:-n}" in
 				[yY])
 					echo -e "\e[34mChecking for dependencies\e[0m"
@@ -159,7 +195,11 @@ check_pds_f(){
 fundamentals_f() {
 	# CHECK FOR RUNTIME DEPENDENCIES
 	if [[ "$(awk -F '=' '/RDEP/{ print $2 }' <"${CLOCALLG}/sinprog")" == 0 ]]; then
-		dep_c_f
+		if [[ -n $(echo "$@" | grep '\--force-new') ]]; then
+			:
+		else
+			dep_c_f
+		fi
 	fi
 	
 	# CHECK IF THERE IS ANY WORK DONE
@@ -196,35 +236,13 @@ start_new_f() {
 				* ) echo "Wrong answer";;
 			esac
 		done
-elif [[ "$1" == "force_new" ]]; then
-	echo -e "\e[31mStart new parameter detected\e[0m"
-	echo -e "\e[34mIf you select yes, workdir will be purged\e[0m"
-	echo -e "\e[34mDo you wish to use this option\e[0m"
-	echo "Answer: Y/N "
-	while true; do
-		read -p "Give input :: <= " YN
-		case "${YN:-n}" in
-			[Yy][eE][sS]|[yY])
-				echo -e "\e[31mPurging...\e[0m" 
-				check_pds_f "$2" \
-				&& sinit_mon_f "RESET" && sed -i -e 's/1/0/g' "${CWORKDIR}/scripts/chroot_scripts/chsinprog"
-				break;;
-			[nN][oO]|[nN])
-				echo -e "\e[34mExiting...\e[0m"
-				exit 1;;
-			* ) echo "Wrong answer";;
-		esac
-	done
-fi
-unset YN
-}
-
-export_dist_f() {
-	export GENTOOKEY="$(lynx -dump ${SIGNING_KEY} |  grep "(4096-bit RSA)" | head -1 | awk -F '(' '{ print $1}')"
-	export "GENTOOKEY"
-	export GENTOOLATEST="$DIST/$(wget -q -O- "${DIST}/latest-stage3-$ARCH.txt" | tail -n 1 | awk -F ' ' '{ print $1 }')"
-	export STAGE3TB=$(wget -q -O- "${DIST}/latest-stage3-$ARCH.txt" | tail -n 1 | awk -F ' ' '{ print $1 }' | awk -F '/' '{ print $2 }')
-	export GENTOOLATESTASC="$DIST/$(wget -q -O- "${DIST}/latest-stage3-$ARCH.txt" | tail -n 1 | awk -F ' ' '{ print $1 }').DIGESTS.asc"
+	elif [[ "$1" == "force_new" ]]; then
+		echo -e "\e[31mForce new is active!\e[0m"
+		echo -e "\e[31mPurging workdir...\e[0m" 
+		check_pds_f "$2" \
+		&& sinit_mon_f "RESET" && sed -i -e 's/1/0/g' "${CWORKDIR}/scripts/chroot_scripts/chsinprog"
+	fi
+	unset YN
 }
 
 extract_tarball_f() {
@@ -244,30 +262,37 @@ extract_tarball_f() {
 
 check_dir_f() {
 	[[ -z "$@" && -d "$2" ]] && print_inf 4 && return 1
-	if [[ -d "$2" ]]; then
-		while true; do
-			echo -e "Seems that there already has been done some work at the \e[34mbuilderdir\e[0m"
-			echo "You could either continue from where you left, or backup/purge then start anew"
-			echo -e "Give one of: \e[32mCONTINUE\e[0m/\e[34mOLD\e[0m/\e[31mPURGE\e[0m "
-			read -rp "Input :: <= " ANS
-			case $ANS in
-				OLD)
-					echo "Backing up..."
-					mv "$2" "$2.old"
-					extract_tarball_f "$@"
-					break;;
-				PURGE)
-					echo "This may take some time"
-					echo "Purging..."
-					check_pds_f "$2"
-					extract_tarball_f "$@"
-					break;;
-				CONTINUE)
-					break;;
-			esac
-		done
-	else
+	if [[ -n $(echo "$@" | grep '\--force-new') ]]; then
+		echo "This may take some time"
+		echo "Purging..."
+		check_pds_f "$2"
 		extract_tarball_f "$@"
+	else
+		if [[ -d "$2" ]]; then
+			while true; do
+				echo -e "Seems that there already has been done some work at the \e[34mbuilderdir\e[0m"
+				echo "You could either continue from where you left, or backup/purge then start anew"
+				echo -e "Give one of: \e[32mCONTINUE\e[0m/\e[34mOLD\e[0m/\e[31mPURGE\e[0m "
+				read -rp "Input :: <= " ANS
+				case $ANS in
+					OLD)
+						echo "Backing up..."
+						mv "$2" "$2.old"
+						extract_tarball_f "$@"
+						break;;
+					PURGE)
+						echo "This may take some time"
+						echo "Purging..."
+						check_pds_f "$2"
+						extract_tarball_f "$@"
+						break;;
+					CONTINUE)
+						break;;
+				esac
+			done
+		else
+			extract_tarball_f "$@"
+		fi
 	fi
 }
 
@@ -283,6 +308,14 @@ amiroot() {
 	return 0
 }
 
+export_dist_f() {
+	export GENTOOKEY="$(lynx -dump ${SIGNING_KEY} |  grep "(4096-bit RSA)" | head -1 | awk -F '(' '{ print $1}')"
+	export "GENTOOKEY"
+	export GENTOOLATEST="$DIST/$(wget -q -O- "${DIST}/latest-stage3-$ARCH.txt" | tail -n 1 | awk -F ' ' '{ print $1 }')"
+	export STAGE3TB=$(wget -q -O- "${DIST}/latest-stage3-$ARCH.txt" | tail -n 1 | awk -F ' ' '{ print $1 }' | awk -F '/' '{ print $2 }')
+	export GENTOOLATESTASC="$DIST/$(wget -q -O- "${DIST}/latest-stage3-$ARCH.txt" | tail -n 1 | awk -F ' ' '{ print $1 }').DIGESTS.asc"
+}
+
 gentoo_key_f() {
 	[[ -z "${GENTOOKEY}" ]] && print_inf_f 4 && return 1
 	gpg --keyserver hkps.pool.sks-keyservers.net --recv-keys >/dev/null 2>&1 ${GENTOOKEY} \
@@ -293,18 +326,26 @@ gentoo_key_f() {
 get_latest_f() {
 	[[ -z "${GENTOOLATEST}" || -z "${GENTOOLATESTASC}" ]] && print_inf_f 4 && return 1
 	mkdir -p "${CDISTDIR}/dists" \
-	&& echo -e "[\e[32m*\e[0m] Getting \e[34m${STAGE3TB}\e[0m"
-	wget -c -O "${CDISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2" "${GENTOOLATEST}" \
-	&& echo "${STAGE3TB}" > "${CDISTDIR}/dists/latest.info" \
-	&& print_inf_f 1 || { print_inf_f 2; return 1; }
-
+	&& echo -e "[\e[32m*\e[0m] Fetching \e[34m${STAGE3TB}\e[0m"
+	if [[ -n $(echo "$@" | grep '\--fetch-new') || -n $(echo "$@" | grep '\-fn') ]]; then
+		rm -f "${CDISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2" >/dev/null 2>&1
+		rm -f "${CDISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2.DIGESTS.asc" >/dev/null 2>&1
+		rm -f "${CDISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2.DIGESTS" >/dev/null 2>&1
+		wget -c -O "${CDISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2" "${GENTOOLATEST}" >/dev/null 2>&1 \
+		&& echo "${STAGE3TB}" > "${CDISTDIR}/dists/latest.info" \
+		&& print_inf_f 1 || { print_inf_f 2; return 1; }
+	else
+		wget -c -O "${CDISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2" "${GENTOOLATEST}" \
+		&& echo "${STAGE3TB}" > "${CDISTDIR}/dists/latest.info" \
+		&& print_inf_f 1 || { print_inf_f 2; return 1; }
+	fi
 	wget -c -O "${CDISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2.DIGESTS.asc" "${GENTOOLATESTASC}" >/dev/null 2>&1 \
-	&& echo -e "[\e[32m*\e[0m] Getting \e[34m${GENTOOLATEST}\e[0m" \
-	|| { echo -e "[\e[31m*\e[0m] \e[31mFAILD\e[0m: Getting \e[34m${GENTOOLATEST}\e[0m"; exit 1; }
+	&& echo -e "[\e[32m*\e[0m] Fetching \e[34m${GENTOOLATEST}\e[0m" \
+	|| { echo -e "[\e[31m*\e[0m] \e[31mFAILD\e[0m: Fetching \e[34m${GENTOOLATEST}\e[0m"; exit 1; }
 
 	wget -c -O "${CDISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2.DIGESTS" "${GENTOOLATEST}.DIGESTS" >/dev/null 2>&1 \
-	&& echo -e "[\e[32m*\e[0m] Getting \e[34m${GENTOOLATEST}.DIGESTS\e[0m" \
-	|| { echo -e "[\e[31m*\e[0m] \e[31mFAILD\e[0m: Getting $\e[34m${GENTOOLATEST}.DIGESTS\e[0m"; exit 1; }
+	&& echo -e "[\e[32m*\e[0m] Fetching \e[34m${GENTOOLATEST}.DIGESTS\e[0m" \
+	|| { echo -e "[\e[31m*\e[0m] \e[31mFAILD\e[0m: Fetching $\e[34m${GENTOOLATEST}.DIGESTS\e[0m"; exit 1; }
 }
 
 verify_download_f() {
@@ -321,19 +362,8 @@ verify_download_f() {
 fetch_new_f() {
 	# CHECK FOR THE POSITIONAL PARAMETERS AND BAILOUT IF THEY ARE MISSING
 	[[ -z "$@" ]] && print_inf_f 4 && exit 1
-	echo -e "\e[34mSearching for tarball...\e[0m"
-	if [[ -n $(echo "$@" | grep '\--fetch-new') || -n $(echo "$@" | grep '\-fn') ]]; then
-		rm -f "${CDISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2" >/dev/null 2>&1
-		rm -f "${CDISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2.DIGESTS.asc" >/dev/null 2>&1
-		rm -f "${CDISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2.DIGESTS" >/dev/null 2>&1
-		export_dist_f
-		# FETCH THE KEYS FOR THE CRYPTOGRAPHIC AUTHENTICATION
-		gentoo_key_f
-		# GET LATEST STAGE3 TARBALL, .DIGEST && .DIGEST.asc
-		get_latest_f
-		# VERIFY THE AUTHENTICATION OF THE DOWNLOADED FILES
-		verify_download_f
-	else
+	if [[ -n $(echo "$@" | grep '\--force-new') ]]; then
+		echo -e "\e[33mSearching for tarball...\e[0m"
 		export_dist_f
 		# GET LATEST STAGE3 TARBALL, .DIGEST && .DIGEST.asc
 		local_stage3="$(cat "${CDISTDIR}/dists/latest.info")"
@@ -343,11 +373,36 @@ fetch_new_f() {
 			# FETCH THE KEYS FOR THE CRYPTOGRAPHIC AUTHENTICATION
 			gentoo_key_f
 			# GET LATEST STAGE3 TARBALL, .DIGEST && .DIGEST.asc
-			get_latest_f
+			get_latest_f "$@"
 			# VERIFY THE AUTHENTICATION OF THE DOWNLOADED FILES
 			verify_download_f
+		fi
+	else
+		echo -e "\e[33mSearching for tarball...\e[0m"
+		if [[ -n $(echo "$@" | grep '\--fetch-new') || -n $(echo "$@" | grep '\-fn') ]]; then
+			export_dist_f
+			# FETCH THE KEYS FOR THE CRYPTOGRAPHIC AUTHENTICATION
+			gentoo_key_f
+			# GET LATEST STAGE3 TARBALL, .DIGEST && .DIGEST.asc
+			get_latest_f "$@"
+			# VERIFY THE AUTHENTICATION OF THE DOWNLOADED FILES
+			verify_download_f
+		else
+			export_dist_f
+			# GET LATEST STAGE3 TARBALL, .DIGEST && .DIGEST.asc
+			local_stage3="$(cat "${CDISTDIR}/dists/latest.info")"
+			if [[ "${local_stage3}" == "${STAGE3TB}" ]]; then
+				echo -e "[\e[32m*\e[0m] Latest stage3 is already present locally"
+			else
+				# FETCH THE KEYS FOR THE CRYPTOGRAPHIC AUTHENTICATION
+				gentoo_key_f
+				# GET LATEST STAGE3 TARBALL, .DIGEST && .DIGEST.asc
+				get_latest_f "$@"
+				# VERIFY THE AUTHENTICATION OF THE DOWNLOADED FILES
+				verify_download_f
+			fi
+		fi
 	fi
-fi
 }
 
 print_inf_f() {
@@ -373,7 +428,7 @@ case $1 in
 		echo -e "[\e[31m*\e[0m] [\e[31mERROR\e[0m: Wrong parameters"
 		exit 1;;
 	5)
-		echo -e "[\e[31m*\e[0m] Failed getting version";;
+		echo -e "[\e[31m*\e[0m] Failed Fetching version";;
 	6)
 		echo -e "[\e[31m*\e[0m] FATAL";;
 esac
@@ -473,13 +528,15 @@ pr_chroot_f() {
 			echo "${INJFLERR[@]}"
 			while true; do
 				echo "You can list the failed files again, continue, request terminal or exit"
-				read -rp "Please choose: LIST/CONTINUE/TERMINAL/EXIT" INJFLANS
+				echo "Please choose: LIST/CONTINUE/TERMINAL/EXIT"
+				read -rp "Input :: <= " INJFLANS
 				case "$INJFLANS" in
 					LIST)
 						clear; echo "${INJFLERR[@]}";;
 					CONTINUE)
 						while true; do
-							read -p "Are you sure? Y/N " YN
+							echo "Are you sure? Y/N "
+							read -p "Input :: <= " YN
 							case $YN in
 								[yY])
 									echo "Proceeding"
@@ -495,7 +552,8 @@ pr_chroot_f() {
 						INJFLESC=0;;
 					EXIT)
 						while true; do
-							read -p "Are you sure? Y/N " YN
+							echo "Are you sure? Y/N "
+							read -p "Input :: <= " YN
 							case $YN in
 								[yY])
 									echo "Aborting..."
@@ -574,7 +632,8 @@ case "$1" in
 		[[ "${CRDPENDS}" == 1 ]] && while true; do
 		echo -e "\e[33mIf you think some of those dependencies are name missmatch or not important\e[0m"
 		echo -e "\e[33mYou can choose to continue at your own ristk\e[0m"
-		read -rp "Continue? Y/N: " ANS
+		echo -e "\e[33mContinue? Y/N: "
+		read -rp "Input :: <= " ANS
 		case "${ANS}" in
 			[yY])
 				break;;
