@@ -24,19 +24,19 @@ FS_OPTS=(BOOT SYS USERDATA)
 
 for i in "${FS_OPTS[@]}"; do
 		clear; fs_opt 1
-		read -p "Please select the fs type of $i partition: " SELCT
+		read -rp "Please select the fs type of $i partition: " SELCT
 		case ${SELCT:-5} in
 			I|i|1|-I|-i|-1)
-				eval $i=ext2;;
+				eval "$i"=ext2;;
 			II|ii|2|-II|-ii|-2)
-				eval $i=ext3;;
+				eval "$i"=ext3;;
 			III|iii|3|-III|-iii|-3)
-				eval $i=ext4;;
+				eval "$i"=ext4;;
 			IV|iv|4|-IV|-iv|-4)
-				eval $i=btrfs;;
+				eval "$i"=btrfs;;
 			V|v|5|-V|-v|-5)
-				eval $i=vfat;;
-			* ) clear; men_opt 7;;
+				eval "$i"=vfat;;
+			* ) clear; fs_opt 7;;
 		esac
 done
 
@@ -128,16 +128,16 @@ while true; do
 		clear; echo "Please give the device name of $i"
 		echo "Example: sda1"
 		echo "This device, on creation, will inherit the $i label"
-		read -p "$i device name: /dev/" DEVNAME
+		read -rp "$i device name: /dev/" DEVNAME
 		while true; do
 			echo "Your input was: /dev/${DEVNAME}"
-			read -p "Are you sure? " SELCT
+			read -rp "Are you sure? " SELCT
 			case ${SELCT:-1} in
 			[Yy][eE][sS]|[yY])
-				eval $i="/dev/$DEVNAME"; break;;
+				eval "$i"="/dev/$DEVNAME"; break;;
 			[nN][oO]|[nN])
 				echo "Give a new value: "
-				read -p "$i device name: /dev/" DEVNAME;;
+				read -rp "$i device name: /dev/" DEVNAME;;
 			*)
 				clear; echo "Wrong option";;
 			esac

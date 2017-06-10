@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # SUBSHELL
-subshel_f() {
+_subshell() {
 	echo -e "\e[33mCalling bash subshell\e[0m"
 	sleep 2
 	echo 'echo -e "\e[33mInside Subshell\e[0m"' >> /root/.bashrc
@@ -17,7 +17,7 @@ die() {
 }
 
 pass() {
-	echo echo -e "[\e[34mDone\e[0m]"
+	echo -e "[\e[34mDone\e[0m]"
 }
 
 write_fail() {
@@ -28,8 +28,12 @@ delete_fail() {
 	sed -i "/FAILED/d" "${CHDIR}/emergeresume"
 }
 
+inspector() {
+	echo -e "\e[33m$*\e[0m" 1>&2
+}
+
 # ALL ERROR MESSAGES BUT FIRST
-chprint_inf_f() {
+_print_info() {
 	case $1 in
 		1)
 			echo -e "[\e[32m*\e[0m] \e[34mDone\e[0m";;
@@ -58,7 +62,7 @@ chprint_inf_f() {
 }
 
 # PROCESS FLOW TWEAKER. DO NOT EDIT THIS.
-chsinit_mon_f() {
+_monitor_chroot_flow() {
 	case "$1" in
 		UPDATE)
 			sed -i -e 's/UPDATE=0/UPDATE=1/g' "${CHDIR}/chsinprog";;
@@ -86,50 +90,57 @@ chsinit_mon_f() {
 	esac
 }
 
-emerge_dep_clean_f() {
+_emerge_depclear() {
 	# DEPCLEAN BEFORE APPLYING NEW PROFILE CHANGES
-	echo -e "\e[34mOrphan depclean before continuing...\e[0m" \
-	&& emerge --depclean >/dev/null 2>&1 \
-	&& pass \
-	|| { chprint_inf_f 2 \
-	&& write_fail \
-	&& chroot_master_loop "LOOPEMERGE"; }
+	echo -e "\e[34mRunning depclean before proceeding...\e[0m"
+	if emerge --depclean >LAST_ACTION 2>&1; then
+		inspector "Depclean completed"
+	else
+		echo "emerge --depclean" >LAST_FAILED_COMMAND
+		combat_medic
+	fi
 }
 
 dist_ccashe_f() {
 	# ADD OR REMOVE DISTCC FROM THE SYSTEM
 	if [[ -n "$(echo ${CHFEATURES} | grep distcc)" ]]; then
-		if ! eix --installed sys-devel/distcc >/dev/null 2>&1; then
+		if ! eix --installed sys-devel/distcc >LAST_ACTION 2>&1; then
 			echo -e "Configuring [\e[32mdistcc\e[0m]"
-			if emerge -q sys-devel/distcc >/dev/null 2>&1; then
-				pass
+			if emerge -q sys-devel/distcc >LAST_ACTION 2>&1; then
+				echo -e "[\e[34mConfigured\e[0m]"
 			else
-				die # Call infinite loop check, or exit
+				echo "emerge -q sys-devel/distcc" >LAST_FAILED_COMMAND
+				combat_medic
 			fi
+
 			mkdir -p /etc/distcc \
 			&& cp "${CHDIR}/hosts" /etc/distcc/hosts \
 			&& echo -e "Configuring [\e[32mdistcc hosts\e[0m]" \
 			|| echo -e "Faild configuring [\e[33mdistcc hosts\e[0m]"
 		fi
 	else
-		if eix --installed sys-devel/distcc >/dev/null 2>&1; then
+		if eix --installed sys-devel/distcc >LAST_ACTION 2>&1; then
 			echo -e "Removing [\e[32mdistcc\e[0m]" \
-			&& emerge --deselect sys-devel/distcc >/dev/null 2>&1 \
-			&& pass
+			&& emerge --deselect sys-devel/distcc >LAST_ACTION 2>&1
+			echo -e "[\e[34mRemoved\e[0m]"
 		fi
 	fi
 	
 	if [[ -n "${CCCACHESIZE}" ]]; then
-		if ! eix --installed dev-util/ccache >/dev/null 2>&1; then
-			echo -e "Configuring [\e[32mccache\e[0m]" \
-			&& emerge -q dev-util/ccache >/dev/null 2>&1 \
-			&& pass || die "Failed"
+		if ! eix --installed dev-util/ccache >LAST_ACTION 2>&1; then
+			echo -e "Configuring [\e[32mccache\e[0m]"
+			if emerge -q dev-util/ccache >LAST_ACTION 2>&1; then
+				echo -e "[\e[34mConfigured\e[0m]"
+			else
+				echo "emerge -q dev-util/ccache" >LAST_FAILED_COMMAND
+				combat_medic
+			fi
 		fi
 	else
-		if eix --installed dev-util/ccache >/dev/null 2>&1; then
+		if eix --installed dev-util/ccache >LAST_ACTION 2>&1; then
 			echo -e "Removing [\e[33mccache\e[0m]" \
-			&& emerge --deselect sys-devel/distcc >/dev/null 2>&1 \
-			&& pass
+			&& emerge --deselect sys-devel/distcc >LAST_ACTION 2>&1
+			echo -e "[\e[34mRemoved\e[0m]"
 		fi
 	fi
 }
@@ -168,28 +179,30 @@ port_prof_f() {
 	# END OF GSE PROFILE
 }
 
-part_portage_f() {
+part_portage() {
 	# MAKE.CONF, PACKAGE.USE, FEATURES AND CCACHE
 	if rm -f /etc/portage/make.conf; then
-		rm -r /etc/portage/package.use/sysbuild >/dev/null 2>&1
+		rm -r /etc/portage/package.use/sysbuild >LAST_ACTION 2>&1
 		mkdir -p "/etc/portage/package.use" || exit 1
 		cp "${CHDIR}/make.conf" /etc/portage/make.conf || exit 1
-		echo -e "Configuring [\e[32mmake.conf\e[0m]"
+		echo -e "\e[34mConfigured\e[0m [\e[32mmake.conf\e[0m]"
 		if cp "${CHDIR}/package.use/sysbuild" "/etc/portage/package.use"; then
-			echo -e "Configuring [\e[32mpackage.use\e[0m]"
+			echo -e "\e[34mConfigured\e[0m [\e[32mpackage.use\e[0m]"
 			echo "FEATURES=\"\${FEATURES} ${CHFEATURES}\"" >> /etc/portage/make.conf
-			echo -e "Configuring [\e[32mFEATURES\e[0m]"
+			echo -e "\e[34mConfigured\e[0m [\e[32mFEATURES\e[0m]"
 			if [[ -n "${CCCACHESIZE}" ]]; then
 				echo "CCACHE=\"${CCCACHESIZE}\"" >> /etc/portage/make.conf
-				echo -e "Configuring make.conf [\e[32mCCACHE=${CCCACHESIZE}\e[0m]"
+				echo -e "\e[34mConfigured\e[0m [\e[32mCCACHE=${CCCACHESIZE}\e[0m]"
+			else
+				ask_for_shell "Could not configure CCACHE"
 			fi
 
 			dist_ccashe_f || return 1
-			emerge_dep_clean_f "DEPC"
+			_emerge_depclear
 			port_prof_f || return 1
 		else
 			echo -e "\e[31mFaild\e[0m Configuring [\e[32mpackage.use\e[0m]"
-			exit 1
+			ask_for_shell "Could not configure package.use files"
 		fi
 	else
 		echo -e "\e[31mFaild\e[0m Configuring [\e[32mmake.conf\e[0m]"
@@ -197,9 +210,9 @@ part_portage_f() {
 	fi
 
 	if [[ -n $(echo "$@" | grep '\--force-new') ]]; then
-		echo -e "\e[34Enabling basic profile\e[0m]"
-		eselect profile set 1 && echo -e "\e[34mEnabled\e[0m" \
-		|| { chprint_inf_f 2 && YN=n; }
+		echo -e "\e[34mEnabling basic profile\e[0m]"
+		eselect profile set 1 && echo -e "\e[34mEnabled\e[0m"  \
+		|| ask_for_shell "Could not enable basic profile"
 	else
 		# SELECTING PROFILE
 		echo -e "Do you wish to enable \e[33mGSE\e[0m \e[34mprofile\e[0m ::: (\e[31mexperimental\e[0m)?"
@@ -211,14 +224,14 @@ part_portage_f() {
 				[yY])
 					GSE_PROF=$(eselect profile list | grep gse | awk -F '[' '{print $2}' | awk -F ']' '{print $1}') \
 					&& eselect profile set "${GSE_PROF}" && echo -e "\e[34mEnabled\e[0m" && BREAKVAR=0 \
-					|| { chprint_inf_f 2 && YN=n; };;
+					|| { _print_info 2 && YN=n; };;
 				[nN])
 					eselect profile list
 					echo -e "Please select a \e[34mprofile\e[0m listed from above:"
 					echo -e "Answer is only related \e[34mprofile\e[0m numbers"
 					read -rp "Input :: <= " ANS
 					[[ -n "${ANS}" ]] && eselect profile set "${ANS}" && echo -e "\e[34mEnabled\e[0m" && BREAKVAR=0 \
-					|| { chprint_inf_f 2 && BREAKVAR=1; };;
+					|| { _print_info 2 && BREAKVAR=1; };;
 			esac
 			if [[ "${BREAKVAR}" == 0 ]]; then
 				break 
@@ -228,22 +241,24 @@ part_portage_f() {
 			fi
 		done
 	fi
-
+	_apply_new "$@"
 	unset YN
 	unset ANS
 	unset BREAKVAR
 }
 
-apply_new_f() {
+_apply_new() {
 	# APPLYING PROFILE CHANGES
 	echo -e "[\e[32m*\e[0m] \e[34mApplying new profile changes\e[0m"
-	emerge -q --update --deep --newuse --with-bdeps=y @world \
-	&& pass \
-	|| { chprint_inf_f 2 && write_fail \
-	&& chroot_master_loop "LOOPEMERGE"; }
+	if emerge -q --update --deep --newuse --with-bdeps=y @world; then
+		inspector "Changes successfully applied"
+	else
+		echo "emerge -q --update --deep --newuse --with-bdeps=y @world" > LAST_FAILED_COMMAND
+		combat_medic
+	fi
 }
 
-emerge_rebuild_system_f() {
+build_the_world() {
 	# EMERGIN WORLD
 	while true; do
 		echo "----------------------------------------------------------------------------"
@@ -253,10 +268,13 @@ emerge_rebuild_system_f() {
 		read -rp "Input :: <= " YN
 		case "${YN:-n}" in
 			[yY][eE][sS]|[yY])
-				emerge -eq @world && pass \
-				|| { chprint_inf_f 2 && write_fail \
-				&& chroot_master_loop "LOOPEMERGE"; }
-				chsinit_mon "REBUILD"; break;;
+				if emerge -eq @world; then
+					inspector "World rebuild has been completed"
+					chsinit_mon "REBUILD"; break
+				else
+					echo "emerge -eq @world" > LAST_FAILED_COMMAND
+					combat_medic
+				fi;;
 			[nN][oO]|[nN])
 				echo "Exiting Rebuilding Part"
 				sleep 1
@@ -267,86 +285,101 @@ emerge_rebuild_system_f() {
 }
 
 
-updating_portage_f(){
-	if emerge -q --deep --update portage >/dev/null 2>&1; then
-		pass
+_update_portage(){
+	if emerge -q --deep --update portage >LAST_ACTION 2>&1; then
+		inspector "Portage update was successful"
 	else
-		die "Failed"
+		echo "emerge -q --deep --update portage" > LAST_FAILED_COMMAND
+		combat_medic
 	fi
 }
 
-emerge_eix_f() {
-	if emerge -q app-portage/eix >/dev/null 2>&1; then
-		pass
+_emerge_eix() {
+	if emerge -q app-portage/eix >LAST_ACTION 2>&1; then
+		inspector "Emerge of eix was successful"
 	else
-		die "Failed"
+		echo "emerge -q app-portage/eix" > LAST_FAILED_COMMAND
+		combat_medic
 	fi
 }
 
-update_eix_f() {
-	if eix-update >/dev/null 2>&1; then
-		pass \
-		&& chsinit_mon_f "UPDATE"
+_update_eix() {
+	if eix-update >LAST_ACTION 2>&1; then
+		inspector "Update of eix was successful"
+		_monitor_chroot_flow "UPDATE"
 	else
-		die "Failed"
+		echo "eix-update" > LAST_FAILED_COMMAND
+		ask_for_shell "Updating eix failed"
 	fi
 }
 
-emerge_gentoolkit_f() {
-	emerge -q app-portage/gentoolkit >/dev/null 2>&1
+_emerge_gentoolkit() {
+	if emerge -q app-portage/gentoolkit >LAST_ACTION 2>&1; then
+		inspector "Emerge of gentoolkit was successful"
+	else
+		echo "emerge -q app-portage/gentoolkit" > LAST_FAILED_COMMAND
+		combat_medic
+	fi
 }
-
 
 test_stage_f() {
 	echo -e "\e[31m$1\e[0m"
 }
 
-upd_port_em_eix_f() {
+_portage_subpart() {
 	mkdir -p "/etc/portage/repos.conf"
 	cp /usr/share/portage/config/repos.conf /etc/portage/repos.conf/gentoo.conf
 
 	if [[ -n $(echo "$@" | grep 'catalyst') ]]; then
-		emerge --sync >/dev/nill 2>&1 && pass || die "Failed"
-		env-update >/dev/null 2>&1
+		emerge --sync >LAST_ACTION 2>&1 && pass || { echo "emerge --sync" > LAST_FAILED_COMMAND; combat_medic; }
+		env-update >LAST_ACTION 2>&1
 	elif [[ -n $(echo "$@" | grep 'precomp') ]]; then
-		emerge--webrsync >/dev/nill 2>&1 && pass || die "Failed"
-		env-update >/dev/null 2>&1
+		emerge-webrsync >LAST_ACTION 2>&1 && pass || { echo "emerge--webrsync" > LAST_FAILED_COMMAND; combat_medic; }
+		env-update >LAST_ACTION 2>&1
 	fi
 
 	echo -e "\e[34mUpdating Portage\e[0m"
-	updating_portage_f
+	_update_portage
 	echo -e "\e[34mSearching for eix\e[0m"
 	if [[ -z $(command -v eix) ]]; then
 		echo -e "\e[33mCould not locate eix\e[0m"
 		echo -e "\e[34mEmerging eix\e[0m"
-		emerge_eix_f
+		_emerge_eix
 		echo -e "\e[34mUpdating eix database\e[0m"
-		update_eix_f
+		_update_eix
 	else
 		echo -e "\e[33meix located\e[0m"
 		echo -e "\e[34mUpdating eix database\e[0m"
-		update_eix_f		
+		_update_eix		
 	fi
-	if ! eix --installed app-portage/gentoolkit >/dev/null 2>&1; then
+	if ! eix --installed app-portage/gentoolkit >LAST_ACTION 2>&1; then
 		echo -e "\e[34mEmerging app-portage/gentoolkit\e[0m"
-		emerge_gentoolkit_f
-		echo -e "\e[34mRunning\e[0m \e[35mGentoo's\e[0m e[34mReverse Dependency rebuilder\e[0m"
-		revdep-rebuild
+		_emerge_gentoolkit
+		echo -e "\e[34mRunning\e[0m \e[35mGentoo's\e[0m \e[34mReverse Dependency rebuilder\e[0m"
+		if revdep-rebuild; then
+			inspector "Reverse Dependency Completed"
+		else
+			combat_medic
+		fi
 	else
-		echo -e "\e[34mRunning \e[34mGentoo's\e[0m Reverse Dependency rebuilder\e[0m"
-		revdep-rebuild
+		echo -e "\e[34mRunning\e[0m \e[35mGentoo's\e[0m \e[34mReverse Dependency rebuilder\e[0m"
+		if revdep-rebuild; then
+			inspector "Reverse Dependency Completed"
+		else
+			combat_medic
+		fi
 	fi
 }
 
-part_c_f() {
+_part_c() {
 	echo "============================================================================"
 	echo -e "\e[35mPart C: Syncing Portage\e[0m"
 	echo "============================================================================"
 	echo -e "\e[34mUpdating the database\e[0m"
-	upd_port_em_eix_f "$@"
+	_portage_subpart "$@"
 }
 
-configure_timezone_f() {
+_configure_timezone() {
 	if [[ "${TIMEZONE}" != TMZ ]]; then
 		echo "----------------------------------------------------------------------------"
 		echo "${TIMEZONE}" > /etc/timezone && echo -e "[\e[32m*\e[0m] Configuring \e[34mTimezone\e[0m"
@@ -355,14 +388,14 @@ configure_timezone_f() {
 		echo "UTC" > /etc/timezone && echo -e "[\e[32m*\e[0m] \e[34mConfiguring Timezone\e[0m"
 	fi
 
-	if emerge --config sys-libs/timezone-data | grep "invalid" >/dev/null 2>&1; then
+	if emerge --config sys-libs/timezone-data | grep "invalid" >LAST_ACTION 2>&1; then
 		echo "UTC" >/etc/timezone; emerge --config sys-libs/timezone-data \
 		&& echo -e "[\e[32m*\e[0m] Resetting to UTC" \
-		|| echo -e "[\e[31m*\e[0m] Resetting to UTC"
+		|| { echo -e "[\e[31m*\e[0m] Resetting to UTC"; combat_medic; }
 	fi
 }
 
-configure_locale_f() {
+_configure_locale() {
 	if [[ -z $(cat "${CHDIR}/locale.gen" | sed '/^#/ d' | sed '/^\s*$/d') ]]; then
 		sed -i '/en_US.UTF-8/d' /etc/locale.gen
 		echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen && echo -e "[\e[32m*\e[0m] Configuring [\e[34mlocale\e[0m]" \
@@ -384,7 +417,7 @@ configure_locale_f() {
 	unset SETLOC
 }
 
-configure_fstab_f() {
+_configure_fstab() {
 	if cat "${CHDIR}/fstab" > /etc/fstab; then
 		echo -e "[\e[32m*\e[0m] Creating [\e[34mfstab\e[0m] entries"
 		if [[ -n $(cat "${CHDIR}/system_links" | sed '/^#/ d' | sed '/^\s*$/d') ]]; then
@@ -449,7 +482,7 @@ configure_fstab_f() {
 				echo "Items --->" >> issues.info
 				cat "${CHDIR}/system_links" >> issues.info
 				echo "###################################" >> issues.info
-				ask_for_shell
+				ask_for_shell "Failed configuring system links"
 			fi
 		fi
 	else
@@ -460,11 +493,11 @@ configure_fstab_f() {
 		echo "Items --->" >> issues.info
 		cat "${CHDIR}/fstab" >> issues.info
 		echo "###################################" >> issues.info
-		ask_for_shell
+		ask_for_shell "Failed creating fstab entries"
 	fi
 }
 
-configure_cp_function_f() {
+_copy_function() {
 	[[ -n $(cat "${CHDIR}/$1" | sed '/^#/ d' | sed '/^\s*$/d') ]] \
 	&& if cp "${CHDIR}/$1" /etc/conf.d/"$2"; then
 		echo -e "[\e[32m*\e[0m] Configuring [\e[34m$3\e[0m]"
@@ -476,7 +509,7 @@ configure_cp_function_f() {
 		echo "Items --->" >> issues.info
 		cat /etc/conf.d/"$2" >> issues.info
 		echo "###################################" >> issues.info
-		ask_for_shell
+		ask_for_shell "Failed configuring $3"
 	fi
 }
 
@@ -488,29 +521,29 @@ configure_system_f() {
 	export PATH=${PATH}:${CHDIR}
 
 	# TIMEZONE CONFIGURATION
-	configure_timezone_f
+	_configure_timezone
 
 	# LOCALE CONFIGURATION
-	configure_locale_f
+	_configure_locale
 
 	# GENERATING FSTAB
-	configure_fstab_f
+	_configure_fstab
 
 	# CONFIGURE HOSTNAME
-	configure_cp_function_f "hostname" "hostname" "hostname"
+	_copy_function "hostname" "hostname" "hostname"
 
 	# CONFIGURE /ETC/CONF.D/NET
-	configure_cp_function_f "net" "net" "/etc/conf.d/net"
+	_copy_function "net" "net" "/etc/conf.d/net"
 
 	# CONFIGURE /ETC/DEFAULT/GRUB
-	configure_cp_function_f  "grub" "grub" "/etc/default/grub"
+	_copy_function  "grub" "grub" "/etc/default/grub"
 
 	### CUSTOM SCRIPTS ENTRIES WILL BE INCLUDED HERE
 
 	### INSCRIPT ENTRIES WILL BE INCLUDED HERE
 
 	# CONFIGURE SSHD
-	configure_cp_function_f "sshd" "sshd" "/etc/ssh/sshd_config"
+	_copy_function "sshd" "sshd" "/etc/ssh/sshd_config"
 
 	# CONFIGURE SSH.PUB
 	[[ -n $(cat "${CHDIR}/ssh.pub" | sed '/^#/ d' | sed '/^\s*$/d') ]] && mkdir -p /root/.ssh \
@@ -528,45 +561,46 @@ configure_system_f() {
 		echo "Items --->" >> issues.info
 		cat /etc/conf.d/"$2" >> issues.info
 		echo "###################################" >> issues.info
-		ask_for_shell
+		ask_for_shell "Failed configuring ssh.pub key"
 	fi
-	chsinit_mon_f "CONFIGURE"
+	_monitor_chroot_flow "CONFIGURE"
 }
 
-emerge_instp_f() {
+_emerge_default() {
 	echo -e "\e[34mEmerging\e[0m..."
 	if emerge -q --update --deep --with-bdeps=y ${INS_PARTF}; then
-		pass
+		inspector "Emerged"
 	else
-		chprint_inf_f 2 && write_fail
+		echo "emerge -q --update --deep --with-bdeps=y ${INS_PARTF}" > LAST_FAILED_COMMAND
 		echo "###################################" >> issues.info
 		echo "Issue: emerge request packages $(date)" >> issues.info
 		echo "Command: emerge -q --update --deep --with-bdeps=y" >> issues.info
 		echo "Items --->" >> issues.info
 		echo "${INS_PARTF}" >> issues.info
 		echo "###################################" >> issues.info
-		chroot_master_loop "LOOPEMERGE"
+		combat_medic
 	fi
 }
 
-emerge_custom_pacl_f() {
+_emerge_custom_requested() {
 	mapfile -t CMPL < <(cat "${CHDIR}/custom_pacl" | sed '/^#/ d' | sed '/^\s*$/d')
 
 	if emerge -q --deep --update "${CMPL[@]}"; then
-		pass
+		inspector "Emerged"
 	else
-		chprint_inf_f 2 && write_fail
+		echo "emerge -q --deep --update ${CMPL[@]}" > LAST_FAILED_COMMAND
 		echo "###################################" >> issues.info
 		echo "Issue: emerge request packages $(date)" >> issues.info
 		echo "Command: emerge -q --deep --update " >> issues.info
 		echo "Items --->" >> issues.info
 		echo "${CMPL[@]}" >> issues.info
 		echo "###################################" >> issues.info
-		chroot_master_loop "LOOPEMERGE"
+		combat_medic
 	fi
 }
 
-inst_req_f() {
+# EMERGE REQUESTED PACKAGES FUNCTION
+emerge_requested() {
 	echo
 	echo "----------------------------------------------------------------------------"
 	echo -e "\e[35mPart F: Installing required packages\e[0m"
@@ -575,18 +609,19 @@ inst_req_f() {
 	export PATH=${PATH}:${CHDIR}
 
 	# EMERGE CHINIT.CONF DEFINED PACKAGES
-	emerge_instp_f
+	_emerge_default
 
 	# EMERGE REQUESTED PACKAGES
-	emerge_custom_pacl_f
+	_emerge_custom_requested
 
 	# DEPCLEAN
-	emerge_dep_clean_f
+	_emerge_depclear
 
-	chsinit_mon_f "INSTALL"
+	_monitor_chroot_flow "INSTALL"
 }
 
-kernel_conf_f() {
+# KERNEL BUILDER FUNCTION
+_kernel_build() {
 	echo
 	echo "----------------------------------------------------------------------------"
 	echo -e "\e[35mPart H: Building the Kernel\e[0m"
@@ -594,6 +629,17 @@ kernel_conf_f() {
 	env-update > /dev/null 2>&1 && source /etc/profile && export PS1="( 'Part H: Building the Kernel' ) $PS1"
 	export PATH=${PATH}:${CHDIR}
 	MKPS=$(grep MAKEOPTS "/etc/portage/make.conf" | sed '/^#/ d' | sed  -e "s_\"__g" | awk -F '-j' '{print $2}' | sed '/^\s*$/d')
+	if [[ -n $(echo "$@" | grep '\--force-new') ]]; then
+		echo -e "The \e[34mBuilding kernel\e[0m"
+		if genkernel --install kernel --kernel-config="${CHDIR}/kernel-conf" \
+			--makeopts="-j${MKPS}" --btrfs --postclear --e2fsprogs; then
+			echo -e "The \e[34mkernel\e[0m built was \e[32msuccessful\e[0m"
+			_monitor_chroot_flow "KERNEL"
+			return 0
+		else
+			ask_for_shell "Failed Building the kernel"
+		fi
+	fi
 	while true; do
 		echo -e "Do you wish to configure the \e[34mkernel's\e[0m config file?"
 		echo -e "Please keep in mind that main function of the controller are related with \e[34mkernel builtins\e[0m"
@@ -604,28 +650,28 @@ kernel_conf_f() {
 					if genkernel --install kernel --menuconfig --kernel-config="${CHDIR}/kernel-conf" \
 						--makeopts="-j${MKPS}" --btrfs --postclear --e2fsprogs; then
 						echo -e "The \e[34mkernel\e[0m built was \e[32msuccessful\e[0m"
-						chsinit_mon_f "KERNEL"
+						_monitor_chroot_flow "KERNEL"
 					else
 						echo "###################################" >> issues.info
 						echo "Issue: Kernel $(date)" >> issues.info
 						echo "Command: genkernel --install kernel --menuconfig --kernel-config=${CHDIR}/kernel-conf \
 						--makeopts=-j${MKPS} --btrfs --postclear --e2fsprogs" >> issues.info
 						echo "###################################" >> issues.info
-						ask_for_shell
+						ask_for_shell "Failed building the kernel"
 					fi
 					break;;
 				[nN][oO]|[nN])
 					if genkernel --install kernel --kernel-config="${CHDIR}/kernel-conf" \
 						--makeopts="-j${MKPS}" --btrfs --postclear --e2fsprogs; then
 						echo -e "The \e[34mkernel\e[0m built was \e[32msuccessful\e[0m"
-						chsinit_mon_f "KERNEL"
+						_monitor_chroot_flow "KERNEL"
 					else
 						echo "###################################" >> issues.info
 						echo "Issue: Kernel $(date)" >> issues.info
 						echo "Command: genkernel --install kernel --kernel-config=${CHDIR}/kernel-conf \
 						--makeopts=-j${MKPS} --btrfs --postclear --e2fsprogs" >> issues.info
 						echo "###################################" >> issues.info
-						ask_for_shell
+						ask_for_shell "Failed building the kernel"
 					fi
 					break;;
 				*) echo "Wrong option";;
@@ -633,7 +679,8 @@ kernel_conf_f() {
 	done
 }
 
-initramfs_f() {
+# INITRAMFS BUILDER FUNCTION
+_initramfs_builder() {
 	echo
 	echo "----------------------------------------------------------------------------"
 	echo -e "\e[35mPart I: Building the Initramfs\e[0m"
@@ -641,18 +688,19 @@ initramfs_f() {
 	env-update > /dev/null 2>&1 && source /etc/profile && export PS1="( 'Part H: Building the Initramfs' ) $PS1"
 	export PATH=${PATH}:${CHDIR}
 	if dracut -f "initramfs-controller-${ARCH}-${GSEVER}"; then
-		echo "The \e[34minitramfs\e[0m built was successful"
-		chsinit_mon_f "INITRAMFS"
+		echo -e "The \e[34minitramfs\e[0m built was successful"
+		_monitor_chroot_flow "INITRAMFS"
 	else
 		echo "###################################" >> issues.info
 		echo "Issue: Initramfs $(date)" >> issues.info
 		echo "Command: dracut -f initramfs-controller-${ARCH}-${GSEVER}" >> issues.info
 		echo "###################################" >> issues.info
-		ask_for_shell
+		ask_for_shell "Failed building initramfs"
 	fi
 }
 
-runlevel_f() {
+# RUNLEVEL UPDATE FUNCTION
+_runlevel_configuration() {
 	echo
 	echo "----------------------------------------------------------------------------"
 	echo -e "\e[35mPart G: Updating Runlevel Entries\e[0m"
@@ -664,7 +712,7 @@ runlevel_f() {
 		"$(echo "$i" | awk -F ' ' '{ print $3 }')"
 		sleep 0.5
 	done < <(cat "${CHDIR}/runlevels" | sed '/^#/ d' | sed '/^\s*$/d'); } \
-	&& { echo -e "[\e[32m*\e[0m] Updated successfully" && chsinit_mon_f "RUNLEVEL"; } \
+	&& { echo -e "[\e[32m*\e[0m] Updated successfully" && _monitor_chroot_flow "RUNLEVEL"; } \
 	|| { echo "###################################" >> issues.info
 	echo "Issue: Runlevels $(date)" >> issue.info
 	echo "Command: rc-update \$(echo \$i | awk -F ' ' '{ print \$2 }') \$(echo \$i | awk -F ' ' '{ print \$1 }') \
@@ -672,18 +720,26 @@ runlevel_f() {
 	echo "Items --->" >> issues.info
 	cat "${CHDIR}/runlevels" >> issues.info
 	echo "###################################" >> issues.info
-	ask_for_shell; }
+	ask_for_shell "Failed updating runlevels"; }
 }
 
-rep_resume_f() {
+# SIMPLE EMERGE RESUME
+_emerge_resume() {
 	echo -e "\e[33mResuming\e[0m"
 	emerge -qr \
 	&& return 0 || return 1
 }
 
-loop_resume(){
-	if rep_resume_f; then
-		pass \
+# RECALL LAST FAILED ACTION
+recal_action() {
+	echo -e "\e[33mRecalling last process...\e[0m"
+	eval "$(cat LAST_FAILED_COMMAND)"
+}
+
+# CALL FOR EVALUATION LAST FAILD ACTION
+_recal_action() {
+	if recal_action; then
+		inspector "Recalling action has been completed" \
 		&& delete_fail \
 		&& return 0
 	else
@@ -691,9 +747,23 @@ loop_resume(){
 	fi
 }
 
+# CALL FOR EVALUATION EMERGE RESUME
+_resume(){
+	if _emerge_resume; then
+		inspector "Resume action was successful" \
+		&& delete_fail \
+		&& return 0
+	else
+		echo "emerge -qr" > LAST_FAILED_COMMAND
+		return 1
+	fi
+}
+
+# BRINGS SHELL
 ask_for_shell() {
 	while true; do
-		chprint_inf_f 2
+		_print_info 2
+		echo "$@"
 		echo "Do you wish to call shell function and fix the issues manually?"
 		echo "An issues.info file will be created in the current directory"
 		echo "The above file will contain the instruction that gse attempted to execute"
@@ -709,6 +779,7 @@ ask_for_shell() {
 	done		
 }
 
+# EMERGE MASTER LOOP FUNCTION. IT OFFERS A RESUME, SHELL & EXIT OPTION.
 emerge_master_loop() {
 	if [[ -n "$(grep "FAILED" <"${CHDIR}/emergeresume")" ]]; then
 		while true; do
@@ -718,32 +789,48 @@ emerge_master_loop() {
 			read -rp "Input :: <= " YN
 			case "${YN}" in
 				RESUME)
-					if loop_resume; then
-						LOOPVAR="PASS"
+					if [[ -n "$(grep resume "/var/cache/edb/mtimedb")" ]]; then
+						if _resume; then
+							LOOPVAR="PASS"
+						else
+							LOOPVAR="LOOPEMERGE"
+						fi
 					else
-						LOOPVAR="LOOPEMERGE"
+						if _recal_action; then
+							LOOPVAR="PASS"
+						else
+							LOOPVAR="LOOPEMERGE"
+						fi	
 					fi
 					break;;
 				SHELL)
 					while true; do
-						subshel_f
-						echo "If you fixed the issue, say CONTINUE to attempt an emerge resume"
+						_subshell
+						echo "If you fixed the issue, say RESUME to attempt an emerge resume"
 						echo "You can answer SHELL to open shell again, or call die with EXIT"
-						echo "Answer: CONTINUE/SHELL/EXIT: "
+						echo -e "Answer: \e[35mRESUME\e[0m/\e[33mSHELL\e[0m/\e[31mEXIT\e[0m"
 						read -rp "Input :: <= " AANS
 						case "${AANS:-n}" in
-							[yY])
+							RESUME)
 								break;;
-							[nN])
+							SHELL)
 								;;
 							EXIT)
 								die "Exit Requested";;
 						esac
 					done
-					if loop_resume; then
-						LOOPVAR="PASS"
+					if [[ -n "$(grep resume "/var/cache/edb/mtimedb")" ]]; then
+						if _resume; then
+							LOOPVAR="PASS"
+						else
+							LOOPVAR="LOOPEMERGE"
+						fi
 					else
-						LOOPVAR="LOOPEMERGE"
+						if _recal_action; then
+							LOOPVAR="PASS"
+						else
+							LOOPVAR="LOOPEMERGE"
+						fi	
 					fi
 					break;;
 				CONTINUE)
@@ -759,16 +846,24 @@ emerge_master_loop() {
 	unset ANS
 }
 
+# CALL CHROOT MASTER LOOP FUNCTION WITH EMERGE MASTER LOOP FUNCTION AS TARGET
+combat_medic() {
+	_print_info 2
+	write_fail
+	chroot_master_loop "LOOPEMERGE"
+}
+
+# SUBSHELL LOOP FUNCTION, IT OFFERS
 subshell_loop() {
 	while true; do
-		subshel_f
+		_subshell
 		echo "If you fixed the issue, say CONTINUE proceed"
 		echo "You can answer SHELL to open shell again, or call die with EXIT"
-		echo "Resume? CONTINUE/SHELL/EXIT: "
+		echo "Answer? CONTINUE/SHELL/EXIT: "
 		read -rp "Input :: <= " AANS
 		case "${AANS:-n}" in
 			CONTINUE)
-				LOOPVAR="PASS"
+				LOOPVAR="EXITSHELL"
 				break;;
 			SHELL)
 				LOOPVAR="SHELL"
@@ -779,30 +874,35 @@ subshell_loop() {
 	done
 }
 
+# CHROOT MASTER LOOP FUNCTION. CONTROLLS SUBSHELL LOOP AND EMERGE MASTER LOOP
 chroot_master_loop() {
-	[[ -z $(echo "$@") ]] && chprint_inf_f 3
+	[[ -z $(echo "$@") ]] && _print_info 3
 	LOOPVAR="$1"
 	while true; do
 		case "${LOOPVAR}" in
 			PASS)
+				delete_fail
 				break;;
 			LOOPEMERGE)
 				emerge_master_loop;;
 			SHELL)
 				subshell_loop;;
+			EXITSHELL)
+				break;;
 				
 		esac
 	done
 }
 
-repeat_part_f() {
+# REPEAT PART X.
+repeat_part() {
 while true; do
 	echo -e "\e[33mPart $1: Has been completed\e[0m"
 	echo -e "\e[33mRun again? Y/N: \e[0m"
 	read -rp "Input :: <= " YN
 	case "${YN}" in
 		[yN])
-			clear; return 0
+			return 0
 			break;;
 		[nN])
 			return 1

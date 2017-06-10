@@ -17,28 +17,49 @@ part_a_f() {
 case "$2" in
 	catalyst)
 		# PART A FUNDAMENTALS
-		fundamentals_f "${CDISTDIR}/workdir-catalyst" "$@"
-		if [[ -n $(echo "$@" | grep 'seed') ]]; then
-			fetch_new_f "$@" || { print_inf_f 2 && exit; }
+		if [[ -n $(echo "$@" | grep '\--lawful-good') && -n $(echo "$@" | grep 'gfund') ]]; then
+			:
+		else
+			fundamentals_f "${CDISTDIR}/workdir-catalyst" "$@"
 		fi
+
+		if [[ -n $(echo "$@" | grep 'seed') ]]; then
+			fetch_new_f "$@" || die "FAILED"
+		fi
+		
 		if [[ "$(awk -F '=' '/CATALYST/{ print $2 }' <"${CLOCALLG}/sinprog")" == 0 ]]; then
-			calling_catalyst_f "$@" || exit 1
+			calling_catalyst_f "$@" || die
 		else
-			repeat_sub_part_f "Catalyst" "configured" \
-			&& [[ "$?" == 0 ]] && { calling_catalyst_f "$@" || exit 1; } \
-			|| echo -e "\e[33mProceeding with extraction...\e[0m"
-		fi \
-		&& [[ "$?" == 0 || "$?" == 9 ]] \
-		&& if [[ "$(awk -F '=' '/EXTRACTION/{ print $2 }' <"${CLOCALLG}/sinprog")" == 0 ]]; then
-			catalyst_extr_tar_f "$@" || exit 1
+			if [[ -n $(echo "$@" | grep '\--lawful-good') && -n $(echo "$@" | grep 'gcat') ]]; then
+				:
+			else
+				if repeat_sub_part_f "Catalyst" "configured"; then
+					calling_catalyst_f "$@" || die
+				else	
+					echo -e "\e[33mProceeding with extraction...\e[0m"
+				fi
+			fi
+		fi
+
+		
+		if [[ "$(awk -F '=' '/EXTRACTION/{ print $2 }' <"${CLOCALLG}/sinprog")" == 0 ]]; then
+			catalyst_extr_tar_f "$@" && RPSRVAR=0 || die
 		else
-			repeat_sub_part_f "Extraction" "completed" \
-			&& [[ "$?" == 0 ]] && { catalyst_extr_tar_f "$@" || exit 1; } \
-			|| echo -e "\e[33mProceeding to Part: B...\e[0m"
-		fi \
-		&& [[ "$?" == 0 || "$?" == 9 ]] \
-		&& export BWORKDIR="${CDISTDIR}/workdir-catalyst" \
-		&& PARTBCOND="0"
+			if [[ -n $(echo "$@" | grep '\--lawful-good') && -n $(echo "$@" | grep 'gextr') ]]; then
+				:
+			else
+				if repeat_sub_part_f "Extraction" "completed"; then
+					catalyst_extr_tar_f "$@" && RPSRVAR=0 || die
+				else
+					echo -e "\e[33mProceeding to Part: B...\e[0m"
+				fi
+			fi
+		fi
+
+		if [[ "$RPSRVAR" == 0 || "$RPSRVAR" == 9 ]]; then
+			export BWORKDIR="${CDISTDIR}/workdir-catalyst" \
+			&& PARTBCOND="0"
+		fi
 		unset CATDIR
 		unset TARGETNAME
 		unset TARGETPATH
@@ -48,42 +69,58 @@ case "$2" in
 		# PART A FUNDAMENTALS
 		fundamentals_f "${CDISTDIR}/workdir-precomp" "$@"
 		if [[ -n $(echo "$@" | grep 'seed') ]]; then
-			fetch_new_f "$@" || { print_inf_f 2 && exit; }
+			fetch_new_f "$@" || die "Failed"
 		fi
 		if [[ "$(awk -F '=' '/PRECOMP/{ print $2 }' <"${CLOCALLG}/sinprog")" == 0 ]]; then
 			check_dir_f "${CDISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2" \
-			"${CDISTDIR}/workdir-precomp" "$@" || exit 1
+			"${CDISTDIR}/workdir-precomp" "$@" && RPSRVAR=0 || die
 		else
-			repeat_sub_part_f "Precomp Extraction" "completed" && { check_dir_f \
-			"${CDISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2" \
-			"${CDISTDIR}/workdir-precomp" "$@" || exit 1; }
-		fi \
-		&& [[ "$?" == 0 || "$?" == 9 ]] \
-		&& export BWORKDIR="${CDISTDIR}/workdir-precomp" \
-		&& PARTBCOND="0" \
-		&& sinit_mon_f "PRECOMP"
-		;;
+			if [[ -n $(echo "$@" | grep '\--lawful-good') && -n $(echo "$@" | grep 'gprec') ]]; then
+				:
+			else
+				if repeat_sub_part_f "Precomp Extraction" "completed"; then
+					check_dir_f
+					"${CDISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2" \
+					"${CDISTDIR}/workdir-precomp" "$@" && RPSRVAR=0
+				else
+					die
+				fi
+			fi
+		fi
+
+		if [[ "$RPSRVAR" == 0 || "$RPSRVAR" == 9 ]]; then
+			export BWORKDIR="${CDISTDIR}/workdir-precomp" \
+			&& PARTBCOND="0" \
+			&& sinit_mon_f "PRECOMP"
+		fi;;
 esac
 }
 
+echo $@
 if [[ -n $(echo "$@" | grep '\--force-new') ]]; then
 	part_a_f "$@"
 else
-	if [[ "$(awk -F '=' '/PARTA/{ print $2 }' <"${CLOCALLG}/sinprog")" == 1 ]]; then
-		repeat_part_f "A" && part_a_f "$@"
-
-		[[ "$?" == 0 || "$?" == 9 ]] \
-		&& if [[ -n $(echo "$@" | grep 'catalyst') ]]; then
-			export BWORKDIR="${CDISTDIR}/workdir-catalyst" \
-			&& PARTBCOND="0"
-		elif [[ -n $(echo "$@" | grep 'precomp') ]]; then
-			export BWORKDIR="${CDISTDIR}/workdir-precomp" \
-			&& PARTBCOND="0"
-		fi \
-		|| { echo -e "\e[31mNo workdir defined. Wont proceed!\e[0m" \
-		&& echo "$@" && exit 1; }
+	if [[ -n $(echo "$@" | grep '\--lawful-good') && -n $(echo "$@" | grep 'gparta') ]]; then
+		:
 	else
-		part_a_f "$@"
+		if [[ "$(awk -F '=' '/PARTA/{ print $2 }' <"${CLOCALLG}/sinprog")" == 1 ]]; then
+			repeat_part_f "A" && part_a_f "$@"
+			
+			if [[ "$RPPVAR" == 9 ]]; then
+				if [[ -n $(echo "$@" | grep 'catalyst') ]]; then
+					export BWORKDIR="${CDISTDIR}/workdir-catalyst" \
+					&& PARTBCOND="0"
+				elif [[ -n $(echo "$@" | grep 'precomp') ]]; then
+					export BWORKDIR="${CDISTDIR}/workdir-precomp" \
+					&& PARTBCOND="0"
+				fi
+			else
+				echo -e "\e[31mNo workdir defined. Wont proceed!\e[0m"
+				die "$@"
+			fi
+		else
+			part_a_f "$@"
+		fi
 	fi
 fi
 
@@ -108,7 +145,7 @@ TARGETSTAMP="$(grep 'version_stamp' "${CCONFDIR}/system/catalyst/stage3.spec" \
 			tar cvf "${CDISTDIR}/stage3-amd64-${GSEVER}.tar.bz2" -C "${BWORKDIR}" >/dev/null 2>&1 \
 			&& { print_inf 1 && echo -e "\e[34mYou can find your system @ ${CDISTDIR}\e[0m"
 			echo -e "\e[34mWith version extension: ${GSEVER}\e[0m"; } \
-			|| { print_inf 2; exit 1; }
+			|| die "Failed"
 			break
 		else
 			((++SUBBUILD))

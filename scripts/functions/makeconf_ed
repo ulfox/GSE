@@ -6,14 +6,14 @@
 clear; while true; do
 echo "You can automatically generate the make.conf based on the machine or configure it following the guider"
 echo "Configure manually with the guider? "
-read -p "Select an option: " SELCT
+read -rp "Select an option: " SELCT
 case ${SELCT:-9} in
 [Yy][eE][sS]|[yY])
 break ;;
 [nN][oO]|[nN])
 echo "Starting automatic configuration..."
 sleep 1
-print_inf 1
+pass
 cat >"${CCONFDIR}/system/portage/make.conf" <<\EOF
 # These settings were set by the catalyst build script that automatically
 # built this stage.
@@ -37,9 +37,9 @@ PKGDIR="${PORTDIR}/packages"
 EOF
 echo "FEATURES=\"cgroup clean-logs merge-sync parallel-fetch userfetch\"">>"${CCONFDIR}/system/portage/make.conf"
 MKCORES=$(( $(grep -c ^processor /proc/cpuinfo) + 1 ))
-echo "MAKEOPTS="\"-j${MKCORES}\""">>"${CCONFDIR}/system/portage/make.conf"
+echo "MAKEOPTS=\"-j${MKCORES}\"">>"${CCONFDIR}/system/portage/make.conf"
 echo "# EMERGE DEFAULT OPTS">>"${CCONFDIR}/system/portage/make.conf"
-echo "EMERGE_DEFAULT_OPTS="\"--load-average ${CORES}\""">>"${CCONFDIR}/system/portage/make.conf"
+echo "EMERGE_DEFAULT_OPTS=\"--load-average ${CORES}\"">>"${CCONFDIR}/system/portage/make.conf"
 echo "# MIRRORS">>"${CCONFDIR}/system/portage/make.conf"
 unset MKCORES
 echo "Determining optimal servers..."
@@ -85,10 +85,10 @@ http://mirrors.rit.edu/gentoo/ ftp://mirror.iawnet.sandia.gov/pub/gentoo/ http:/
 http://mirror.lug.udel.edu/pub/gentoo/ ftp://cosmos.illinois.edu/pub/gentoo/ http://cosmos.illinois.edu/pub/gentoo/ http://gentoo.cs.uni.edu/ \
 rsync://gentoo.cs.uni.edu/gentoo-distfiles http://mirror.usu.edu/mirrors/gentoo/ \
 | awk -F ' ' '{ print $2 }' 2>/dev/null)" \
-&& print_inf 1 || { print_inf 2 echo "There was a problem automatically generating the servers."
+&& pass || { inspector "There was a problem automatically generating the servers."
 echo "Please use manually: mirrorselect -i -o >> {CCONFDIR}/system/portage/make.conf"; }
 
-echo "GENTOO_MIRRORS=\""${GENMIRR}"\"" >>"${CCONFDIR}/system/portage/make.conf"
+echo "GENTOO_MIRRORS=\"${GENMIRR}\"" >>"${CCONFDIR}/system/portage/make.conf"
 unset GENMIRR
 unset CORE
 exit 0;;
@@ -146,7 +146,7 @@ echo "FEATURES=\"cgroup clean-logs merge-sync parallel-fetch userfetch\"" >> "${
 optim() {
 	while true; do
 		opt_men 1
-		read -p "Select an option: " SELCT
+		read -rp "Select an option: " SELCT
 		case ${SELCT:-9} in
 			1) 
 				sed -i -e 's/ENTRY1/CFLAGS="-O -pipe"/g' "${CCONFDIR}/system/portage/make.conf"; break ;;
@@ -177,7 +177,7 @@ cpuflagsx86() {
 	cpufx86=''
 	for i in "${incld[@]}"; do
 		while true; do
-			read -p "Include CPU_FLAGS_X86: $i?: " SELCT
+			read -rp "Include CPU_FLAGS_X86: $i?: " SELCT
 			case ${SELCT:-n} in
 				[Yy][eE][sS]|[yY])
 					cpufx86="${cpufx86} $i"; break ;;
@@ -196,20 +196,20 @@ cpuflagsx86() {
 
 makeopts() {
 	while true; do
-		read -p "Do you want to include MAKEOPTS?: " SELCT
+		read -rp "Do you want to include MAKEOPTS?: " SELCT
 		case ${SELCT:-1} in
 			[Yy][eE][sS]|[yY])
 				echo "Enter the number of cores for the target system?"
-				read -p "Cores: " CRS
+				read -rp "Cores: " CRS
 				while true; do
 					echo "Your input was: ${CRS}"
-					read -p "Are you sure? " SELCT
+					read -rp "Are you sure? " SELCT
 					case ${SELCT:-1} in
 					[Yy][eE][sS]|[yY])
 						sed -i -e "s/ENTRY4/MAKEOPTS=\"-j${CRS}\"/g" "${CCONFDIR}/system/portage/make.conf"; break ;;
 					[nN][oO]|[nN])
 						echo "Give a new value: "
-						read -p "Cores: " CRS;;
+						read -rp "Cores: " CRS;;
 					*)
 						clear; echo "Wrong option";;
 					esac
@@ -226,12 +226,12 @@ makeopts() {
 
 usef() {
 	while true; do
-		read -p "Do you want to import USE FLAGS?: " SELCT
+		read -rp "Do you want to import USE FLAGS?: " SELCT
 		case ${SELCT:-y} in
 			[Yy][eE][sS]|[yY])
 				vim "${CCONFDIR}/system/portage/usef"
 				USEFLAGS=$(cat "${CCONFDIR}/system/portage/usef")
-				sed -i -e "s/ENTRY3/"${USEFLAGS}"/g" "${CCONFDIR}/system/portage/make.conf"
+				sed -i -e "s/ENTRY3/${USEFLAGS}/g" "${CCONFDIR}/system/portage/make.conf"
 				unset USEFLAGS
 				break;;
 			[nN][oO]|[nN])
@@ -245,12 +245,12 @@ usef() {
 
 defemopt() {
 	while true; do
-		read -p "Do you want to include EMERGE_DEFAULT_OPTS?: " SELCT
+		read -rp "Do you want to include EMERGE_DEFAULT_OPTS?: " SELCT
 		case ${SELCT:-y} in
 			[Yy][eE][sS]|[yY])
 				vim "${CCONFDIR}/system/portage/emdefopt"
 				EMDOPT=$(cat "${CCONFDIR}/system/portage/emdefopt")
-				sed -i -e "s/ENTRY5/"${EMDOPT}"/g" "${CCONFDIR}/system/portage/make.conf"
+				sed -i -e "s/ENTRY5/${EMDOPT}/g" "${CCONFDIR}/system/portage/make.conf"
 				unset EMDOPT
 				break;;
 			[nN][oO]|[nN])
@@ -283,7 +283,7 @@ defemopt
 
 while true; do
 	echo "Enter server selection menu? "
-	read -p "Y/N?: " SELCT
+	read -rp "Y/N?: " SELCT
 	case ${SELCT:-y} in
 		[Yy][eE][sS]|[yY])
 			mirrorselect -i -o >> "${CCONFDIR}/system/portage/make.conf"; break;;
@@ -296,7 +296,7 @@ done
 
 while true; do
 	echo "Do you wish to make some manual changes? "
-	read -p "Y/N?: " SELCT
+	read -rp "Y/N?: " SELCT
 	case ${SELCT:-y} in
 		[Yy][eE][sS]|[yY])
 			vim "${CCONFDIR}/system/portage/make.conf"; break;;

@@ -11,13 +11,13 @@ LC_CTYPE="en_US.UTF-8"
 source "${CWORKDIR}/scripts/functions/catalyst_functions" || die "Missing scripts"
 
 # EXPORT THE DIRECTORIES DEFINED BY STAGE1.SPEC
-export_cat_dirs_f
+_export_catalyst_workdirs
 
 # CREATE DIRECTORIES FOR CATALYST
-create_cata_dirs_f
+_create_catalyst_workdirs
 
 # CHECK IF STAGE3 TARBALL IS PRESENT AT THE INDICATED DIRECTORY
-tar_path_name_f "1"
+_target_paths "1"
 
 if [[ ! -e "${CATDIR}/builds/${TARGETPATH}/${TARGETNAME}.tar.bz2" ]]; then
 	cp "${CDISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2" "${CATDIR}/builds/${TARGETPATH}/${TARGETNAME}.tar.bz2"
@@ -25,22 +25,22 @@ fi
 
 # CHECK IF SNAPSHOT EXISTS AND HAS NORMAL SIZE
 check_portage_snap_f() {
-if [[ ! -e "${CATDIR}/snapshots/portage-${SNAPSHOTNAME}.tar.bz2" ]] || ! chk_snap_f "${CATDIR}/snapshots/portage-${SNAPSHOTNAME}.tar.bz2"; then
+if [[ ! -e "${CATDIR}/snapshots/portage-${SNAPSHOTNAME}.tar.bz2" ]] || ! _snapshot_checkup "${CATDIR}/snapshots/portage-${SNAPSHOTNAME}.tar.bz2"; then
 # REMOVE THE SNAPSHOT IF IT EXISTS BUT SEEMS HEAVILY MODIFIED
 rm -f "${CATDIR}/snapshots/portage-${SNAPSHOTNAME}.tar.bz2" >/dev/null 2>&1
 while true; do
-	opt_f
+	_copt
 	echo -e "[\e[31m*\e[0m] Could not locate snapshots/portage-${SNAPSHOTNAME}.tar.bz2 @ ${CATDIR}/snapshots"
 	echo "Please select an option"
 	read -rp "Input :: <= " ANS
 	case "$ANS" in
 		I|i|1)
-			get_latest_portage_f "$@" && BRKVAR=0 || BRKVAR=1
+			_get_latest_snapshot "$@" && BRKVAR=0 || BRKVAR=1
 			;;
 		II|ii|2)
 			echo "Please enter the absolute path with the snapshot included: "
 			read -rp "Input :: <= " PATHTOSNAP
-			if [[ -n "${PATHTOSNAP}" ]] && chk_snap_f "${PATHTOSNAP}"; then
+			if [[ -n "${PATHTOSNAP}" ]] && _snapshot_checkup "${PATHTOSNAP}"; then
 				cp "${PATHTOSNAP}" "${CATDIR}/snapshots/portage-${SNAPSHOTNAME}.tar.bz2" \
 				&& echo -e "\e[34mCopying snapshot to ${CATDIR}/snapshots\e[0m" && BRKVAR=0 || BTWRK=1				
 			else
@@ -65,9 +65,9 @@ while true; do
 			break;;
 		III|iii|3)
 			echo -e "\e[32mSearching\e[0m..."
-			search_snap_f && echo -e "\e[32mChecking\e[0m..." || { echo -e "\e[31mCould not locate the snapshot\e[0m"; BRKVAR=1; }
+			_search_snapshot && echo -e "\e[32mChecking\e[0m..." || { echo -e "\e[31mCould not locate the snapshot\e[0m"; BRKVAR=1; }
 			echo -e "[\e[32m*\e[0m]  Located the snapshot"
-			if chk_snap_f "${CATDIR}/snapshots/portage-${SNAPSHOTNAME}.tar.bz2"; then
+			if _snapshot_checkup "${CATDIR}/snapshots/portage-${SNAPSHOTNAME}.tar.bz2"; then
 				echo -e "[\e[32m*\e[0m]  Snapshot seems normal"
 				BRKVAR=0
 			else
@@ -90,10 +90,10 @@ while true; do
 			;;
 		IV|iv|4)
 			echo "\e[35mOpening new shell, please copy your snapshot to ${CATDIR}/snapshots with name: portage-${SNAPSHOTNAME}.tar.bz2\e[0m"
-			subterm_f
+			_csubshell
 			if [[ -e "${CATDIR}/snapshots/portage-${SNAPSHOTNAME}.tar.bz2" ]]; then
 				echo -e "\e[32mChecking\e[0m..."
-				if chk_snap_f "${CATDIR}/snapshots/portage-${SNAPSHOTNAME}.tar.bz2"; then
+				if _snapshot_checkup "${CATDIR}/snapshots/portage-${SNAPSHOTNAME}.tar.bz2"; then
 					echo -e "[\e[32m*\e[0m]  Snapshot seems normal"
 					BRKVAR=0
 				else
@@ -127,7 +127,7 @@ while true; do
 					read -rp "Input :: <= " YN
 					case "${YN:-n}" in
 						[yY][eE][sS]|[yY])
-							build_port && echo -e "[\e[32m*\e[0m] Built" || echo -e "[\e[31m*\e[0m] Failed"
+							_snapshot_builder && echo -e "[\e[32m*\e[0m] Built" || echo -e "[\e[31m*\e[0m] Failed"
 							;;
 						[nN][oO]|[nN])
 							while true; do
@@ -145,7 +145,7 @@ while true; do
 												case $YN in
 													[yY][eE][sS]|[yY])
 														export CATPORTDIR
-														build_port && echo -e "[\e[32m*\e[0m] Built" || echo -e "[\e[31m*\e[0m] Failed"
+														_snapshot_builder && echo -e "[\e[32m*\e[0m] Built" || echo -e "[\e[31m*\e[0m] Failed"
 														;;
 													[nN][oO]|[nN])
 														echo -e "[\e[31m*\e[0m] Returning back to options"
@@ -154,7 +154,7 @@ while true; do
 												esac
 											done
 										else
-											build_port && echo -e "[\e[32m*\e[0m] Built" || echo -e "[\e[31m*\e[0m] Failed"
+											_snapshot_builder && echo -e "[\e[32m*\e[0m] Built" || echo -e "[\e[31m*\e[0m] Failed"
 										fi
 										break;;
 									[nN][oO]|[nN])
@@ -167,7 +167,7 @@ while true; do
 					esac
 				done
 			else
-				build_port && echo -e "[\e[32m*\e[0m] Built" || echo -e "[\e[31m*\e[0m] Failed"
+				_snapshot_builder && echo -e "[\e[32m*\e[0m] Built" || echo -e "[\e[31m*\e[0m] Failed"
 			fi
 			;;
 	esac
@@ -186,7 +186,7 @@ if [[ -n $(echo $@ | grep '\--force-new') ]]; then
 	if [[ ! -e "${CATDIR}/snapshots/portage-${SNAPSHOTNAME}.tar.bz2" ]]; then
 		echo -e "\e[33mCould not locate snapshot\e[0m"
 		echo -e "\e[33mAttempting to fetch new...\e[0m"
-		get_latest_portage_f "$@" \
+		_get_latest_snapshot "$@" \
 		|| { echo -e "\e[34mCreating snapshot...\e[0m"
 		catalyst -s "${SNAPSHOTNAME}" && pass || die "FAILED"; }
 	fi
@@ -195,23 +195,23 @@ else
 fi
 
 # STAGE 1
-check_then_call_stageX_f "${CATDIR}/builds/${TARGETPATH}/${TARGETNAME}.tar.bz2" "1" "$@"
+_call_stagex_f "${CATDIR}/builds/${TARGETPATH}/${TARGETNAME}.tar.bz2" "1" "$@"
 unset TARGETNAME
 unset TARGETPATH
 unset TARGETSTAMP
 unset SNAPSHOTNAME
-tar_path_name_f "2"
+_target_paths "2"
 
 # STAGE 2
-check_then_call_stageX_f "${CATDIR}/builds/${TARGETPATH}/stage1-${ARCH}-${TARGETSTAMP}.tar.bz2" "2" "$@"
+_call_stagex_f "${CATDIR}/builds/${TARGETPATH}/stage1-${ARCH}-${TARGETSTAMP}.tar.bz2" "2" "$@"
 unset TARGETNAME
 unset TARGETPATH
 unset TARGETSTAMP
 unset SNAPSHOTNAME
-tar_path_name_f "3"
+_target_paths "3"
 
 # STAGE 3
-check_then_call_stageX_f "${CATDIR}/builds/${TARGETPATH}/stage2-${ARCH}-${TARGETSTAMP}.tar.bz2" "3" "$@"
+_call_stagex_f "${CATDIR}/builds/${TARGETPATH}/stage2-${ARCH}-${TARGETSTAMP}.tar.bz2" "3" "$@"
 unset ANS
 unset TARGETNAME
 unset TARGETPATH
