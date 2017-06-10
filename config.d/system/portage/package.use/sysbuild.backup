@@ -11,3 +11,26 @@ sys-fs/squashfuse lz4 lzma lzo zlib
 sys-fs/btrfs-progs convert static static-libs
 sys-apps/openrc ncurses netifrc static-libs unicode
 sys-fs/dosfstools udev
+
+# required by net-misc/rsync-3.1.2::gentoo[static,xattr]
+# required by @system
+# required by @world (argument)
+>=sys-apps/attr-2.4.47-r2 static-libs
+# required by virtual/acl-0-r2::gentoo
+# required by sys-devel/gettext-0.19.8.1::gentoo[acl]
+# required by app-text/opensp-1.5.2-r3::gentoo[nls]
+# required by app-text/openjade-1.3.2-r7::gentoo
+# required by app-text/po4a-0.47-r1::gentoo
+# required by sys-apps/man-db-2.7.6.1-r2::gentoo[nls]
+# required by virtual/man-0-r1::gentoo
+# required by @system
+# required by @world (argument)
+>=sys-apps/acl-2.2.52-r1 static-libs
+# required by net-misc/rsync-3.1.2::gentoo[static,acl]
+# required by @system
+# required by @world (argument)
+>=virtual/acl-0-r2 static-libs
+# required by net-misc/rsync-3.1.2::gentoo[static]
+# required by @system
+# required by @world (argument)
+>=dev-libs/popt-1.16-r2 static-libs
