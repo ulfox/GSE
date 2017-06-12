@@ -7,9 +7,11 @@
 # IF YOU NEED TO ADD EXTRA FEATURES TO YOUR SYSTEM.
 # 
 
-LC_COLLATE="C"
-LC_ALL="en_US.UTF-8"
-LC_CTYPE="en_US.UTF-8"
+if echo "${_flag_tty}" | grep -q 'sshd'; then
+	LC_COLLATE="C"
+	LC_ALL="en_US.UTF-8"
+	LC_CTYPE="en_US.UTF-8"
+fi
 
 source /etc/profile && export PS1="( 'Part C: Preparing to bootstrap' ) $PS1"
 export CHDIR="/sinit.d"
@@ -19,15 +21,18 @@ source "${CHDIR}/chinit.conf" \
 [[ ! -e "${CHDIR}/emergeresume" ]] && echo "#####" >> "${CHDIR}/emergeresume" \
 || sed -i "/#####/d" "${CHDIR}/emergeresume"
 
+inspector "$@"
+
 # PART C BEGINS
-if [[ -n $(echo "$@" | grep '\--force-new') ]]; then
-	_part_c "$@" || die
+if [[ "$(awk -F '=' '/UPDATE/{ print $2 }' <"${CHDIR}/chsinprog")" == 0 || -n $(echo "${_flag_force_new}") ]]; then
+	_part_c "$@" || die "Part C FAILED"
 else
-	if [[ "$(awk -F '=' '/UPDATE/{ print $2 }' <"${CHDIR}/chsinprog")" == 0 ]]; then
-		_part_c "$@" || die
+	if echo "${_lawful_args[@]}" | grep -q 'gupdate'; then
+		_report_back "Update and prepare system: Lawful entry detected, proceeding..."
 	else
-		if [[ -n $(echo "$@" | grep '\--lawful-good') && -n $(echo "$@" | grep 'gupdate') ]]; then
-			:
+		if echo "${_enforce_args[@]}" | grep -q 'gupdate'; then
+			_report_back "Update and prepare system: Enforce entry detected, forcing..."
+			_part_c "$@" "force" || die "Part C FAILED"
 		else
 			if repeat_part "Portage Update"; then
 				_part_c "$@" || die "Part C FAILED"
@@ -37,141 +42,168 @@ else
 fi
 
 # PART PORTAGE, PROFILE AND FEATURES UPDATE
-if [[ -n $(echo "$@" | grep '\--force-new') ]]; then
-	part_portage "$@" && _monitor_chroot_flow "PORTAGE" || "PORTAGE PART FAILED"
+if [[ "$(awk -F '=' '/UPDATE/{ print $2 }' < "${CHDIR}/chsinprog")" == 0 || -n $(echo "${_flag_force_new}") ]]; then
+	part_portage "$@" && _monitor_chroot_flow "PORTAGE"
 else
-	if [[ "$(awk -F '=' '/UPDATE/{ print $2 }' <"${CHDIR}/chsinprog")" == 0 ]]; then
-		part_portage "$@" && _monitor_chroot_flow "PORTAGE" || "PORTAGE PART FAILED"
+	if echo "${_lawful_args[@]}" | grep -q 'gportage'; then
+		_report_back "Portage Configuration: Lawful entry detected, proceeding..."
 	else
-		if [[ -n $(echo "$@" | grep '\--lawful-good') && -n $(echo "$@" | grep 'gportage') ]]; then
-			:
+		if echo "${_enforce_args[@]}" | grep -q 'gportage'; then
+			_report_back "Portage configuration: Enforce entry detected, forcing..."
+			part_portage "$@" "force" && _monitor_chroot_flow "PORTAGE"
 		else
 			if repeat_part "Portage Configuration"; then
-				part_portage "$@" && _monitor_chroot_flow "PORTAGE" || "PORTAGE PART FAILED"
+				part_portage "$@" && _monitor_chroot_flow "PORTAGE"
 			fi
 		fi
 	fi
 fi
 
-if [[ -n $(echo "$@" | grep '\--force-new') ]]; then
-	:
-else
-	if [[ -n $(echo "$@" | grep '\--lawful-good') && -n $(echo "$@" | grep 'grebuild') ]]; then
-		:
+# Part D Begins
+_sreb() {
+	echo -e "\e[35mPart D: Rebuilding system\e[0m"
+	env-update > /dev/null 2>&1 && source /etc/profile && export PS1="( 'Part D: Rebuilding system' ) $PS1"
+	export PATH=${PATH}:${CHDIR}
+	build_the_world
+	chsinit_mon_f "REBUILD"
+}
+
+if [[ "$(awk -F '=' '/REBUILD/{ print $2 }' <"${CHDIR}/chsinprog")" == 0 || -n $(echo "${_flag_force_new}") ]]; then
+	_sreb
+	if echo "${_lawful_args[@]}" | grep -q 'grebuild'; then
+		_report_back "System Rebuild: Lawful entry detected, proceeding..."
 	else
-		if [[ -n $(echo "$@" | grep 'precomp') ]]; then
-			# Part D Begins
-			if [[ "$(awk -F '=' '/REBUILD/{ print $2 }' <"${CHDIR}/chsinprog")" == 0 ]]; then
-				echo -e "\e[35mPart D: Rebuilding system\e[0m"
-				env-update > /dev/null 2>&1 && source /etc/profile && export PS1="( 'Part D: Rebuilding system' ) $PS1"
-				export PATH=${PATH}:${CHDIR}
-				build_the_world
-				chsinit_mon_f "REBUILD"
-			fi
+		if echo "${_enforce_args[@]}" | grep -q 'grebuild'; then
+			_report_back "System Rebuild: Enforce entry detected, forcing..."
+			_sreb "force"
+		else
+			_sreb
 		fi
 	fi
 fi
 
 # PART E BEGINS
-if [[ -n $(echo "$@" | grep '\--force-new') ]]; then
-	configure_system_f
+if [[ "$(awk -F '=' '/CONFIGURE/{ print $2 }' <"${CHDIR}/chsinprog")" == 0 || -n $(echo "${_flag_force_new}") ]]; then
+	configure_system_f "$@"
 else
-	if [[ "$(awk -F '=' '/CONFIGURE/{ print $2 }' <"${CHDIR}/chsinprog")" == 0 ]]; then
-		configure_system_f
+	if echo "${_lawful_args[@]}" | grep -q 'gconfigure'; then
+		_report_back "System Configuration: Lawful entry detected, proceeding..."
 	else
-		if [[ -n $(echo "$@" | grep '\--lawful-good') && -n $(echo "$@" | grep 'gconfigure') ]]; then
-			:
+		if echo "${_enforce_args[@]}" | grep -q 'gconfigure'; then
+			_report_back "System Configuration: Enforce entry detected, forcing..."
+			configure_system_f "$@" "force"
 		else
 			if repeat_part "System Configuration"; then
-				configure_system_f
+				configure_system_f "$@"
 			fi
 		fi
 	fi
 fi
 
 # PART F BEGINS
-if [[ -n $(echo "$@" | grep '\--force-new') ]]; then
-	emerge_requested
+if [[ "$(awk -F '=' '/INSTALL/{ print $2 }' <"${CHDIR}/chsinprog")" == 0 || -n $(echo "${_flag_force_new}") ]]; then
+	emerge_requested "$@"
 else
-	if [[ "$(awk -F '=' '/INSTALL/{ print $2 }' <"${CHDIR}/chsinprog")" == 0 ]]; then
-		emerge_requested
+	if echo "${_lawful_args[@]}" | grep -q 'ginst'; then
+		_report_back "Emerge packages: Lawful entry detected, proceeding..."
 	else
-		if [[ -n $(echo "$@" | grep '\--lawful-good') && -n $(echo "$@" | grep 'ginstall') ]]; then
-			:
+		if echo "${_enforce_args[@]}" | grep -q 'ginst'; then
+			_report_back "Emerge packages: Enforce entry detected, forcing..."
+			emerge_requested "$@" "force"
 		else
 			if repeat_part "Installing Packages"; then
-				emerge_requested
+				emerge_requested "$@"
 			fi
 		fi
 	fi
-	unset YN
 fi
+unset YN
 
 # PART G BEGINS
-if [[ -n $(echo "$@" | grep '\--force-new') ]]; then
+if [[ "$(awk -F '=' '/RUNLEVEL/{ print $2 }' <"${CHDIR}/chsinprog")" == 0 || -n $(echo "${_flag_force_new}") ]]; then
 	_runlevel_configuration
 else
-	if [[ "$(awk -F '=' '/RUNLEVEL/{ print $2 }' <"${CHDIR}/chsinprog")" == 0 ]]; then
-		_runlevel_configuration
+	if echo "${_lawful_args[@]}" | grep -q 'grun'; then
+		_report_back "Runlevel: Lawful entry detected, proceeding..."
 	else
-		if [[ -n $(echo "$@" | grep '\--lawful-good') && -n $(echo "$@" | grep 'grun') ]]; then
-			:
+		if echo "${_enforce_args[@]}" | grep -q 'grun'; then
+			_report_back "Runlevel: Enforce entry detected, forcing..."
+			_runlevel_configuration "force"
 		else
 			if repeat_part "Runlevel Configuration"; then
 				_runlevel_configuration
 			fi
 		fi
 	fi
-	unset YN
 fi
+unset YN
 
 # PART H BEGINS
-if [[ -z $(echo "$@" | grep '\--no-kernel') ]]; then
-	if [[ -n $(echo "$@" | grep '\--force-new') ]]; then
-		_kernel_build "$@"
+if [[ -n "$(echo "${_flag_kernel}")" ]] || [[ -n "$(echo "${_flag_minimal}")" ]]; then
+	:
+else
+	if [[ "$(awk -F '=' '/KERNEL/{ print $2 }' <"${CHDIR}/chsinprog")" == 0 || -n $(echo "${_flag_force_new}") ]]; then
+		_kernel_build
 	else
-		if [[ "$(awk -F '=' '/KERNEL/{ print $2 }' <"${CHDIR}/chsinprog")" == 0 ]]; then
-			_kernel_build
+		if echo "${_lawful_args[@]}" | grep -q 'gkernel'; then
+			_report_back "Kernel: Lawful entry detected, proceeding..."
 		else
-			if [[ -n $(echo "$@" | grep '\--lawful-good') && -n $(echo "$@" | grep 'gkernel') ]]; then
-				:
+			if echo "${_enforce_args[@]}" | grep -q 'gkernel'; then
+				_report_back "Kernel: Enforce entry detected, forcing..."
+				_kernel_build "force"
 			else
 				if repeat_part "Kernel Configuration"; then
 					_kernel_build
 				fi
 			fi
 		fi
-		unset YN
 	fi
-else
-	:
+	unset YN
 fi
 
 # PART I BEGINS
-if [[ -z $(echo "$@" | grep '\--no-kernel') && -z $(echo "$@" | grep '\--no-initramfs') ]]; then
-	if [[ -n $(echo "$@" | grep '\--force-new') ]]; then
+if [[ -n "$(echo "${_flag_kernel}")" ]] || [[ -n "$(echo "${_flag_minimal}")" ]] || [[ -n "$(echo "${_flag_initrd}")" ]]; then
+	:
+else
+	if [[ "$(awk -F '=' '/INITRAMFS/{ print $2 }' <"${CHDIR}/chsinprog")" == 0 || -n $(echo "${_flag_force_new}") ]]; then
 		_initramfs_builder
 	else
-		if [[ "$(awk -F '=' '/INITRAMFS/{ print $2 }' <"${CHDIR}/chsinprog")" == 0 ]]; then
-			_initramfs_builder
+		if echo "${_lawful_args[@]}" | grep -q 'ginitrd'; then
+			_report_back "Initramfs: Lawful entry detected, proceeding..."
 		else
-			if [[ -n $(echo "$@" | grep '\--lawful-good') && -n $(echo "$@" | grep 'ginitrd') ]]; then
-				:
+			if echo "${_enforce_args[@]}" | grep -q 'gkernel'; then
+				_report_back "Initramfs: Enforce entry detected, forcing..."
+				_initramfs_builder "force"
 			else
 				if repeat_part "Initramfs Configuration"; then
 					_initramfs_builder
 				fi
 			fi
 		fi
-		unset YN
 	fi
-else
-	:
+	unset YN
 fi
 
-#emerge --deselect gentoo-sources
-#rm -rf /var/tmp
-#eclean-dist -d
+if [[ -n "${_flag_minimal}" ]]; then
+	rm -f /var/lib/portage/world
+	touch /var/lib/portage/world
+else
+	emerge --deselect sys-kernel/gentoo-sources
+	emerge --deselect sys-kernel/genkernel
+	emerge --deselect sys-boot/grub:2
+	emerge --deselect sys-kernel/dracut
+	emerge --deselect dev-util/ccache
+	emerge --deselect sys-devel/distcc
+	emerge --deselect app-portage/eix
+	emerge --deselect app-portage/gentoolkit
+fi
+
+_emerge_depclear
+
+eclean-dist -d
+eclean-pkg -d
+
+
 #rm -rf /usr/src/linux-4.9.16-gentoo
 #rm -rf /usr/src/linux
 #rm -rf issues.info
