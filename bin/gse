@@ -24,6 +24,7 @@ export CREL="$(grep ^NAME /etc/*release | awk -F '=' '{ print $2 }')"
 export PATH=${PATH}:${CWORKDIR}/scripts/functions
 
 source "${CWORKDIR}/scripts/functions/sinit_functions" || { echo -e "\e[32mMissing scripts\e[0m" && exit 1; }
+source "${CWORKDIR}/scripts/functions/catalyst_functions" || { echo -e "\e[32mMissing scripts\e[0m" && exit 1; }
 source "${CWORKDIR}/etc/gentoo.conf" || { echo -e "\e[32mMissing gentoo.conf\e[0m" && exit 1; }
 
 STAT_VAR=''
@@ -40,7 +41,7 @@ shl_f() {
 		echo "Keep in mind that all scripts from this project are written for bash interpretation"
 		while true; do
 			echo "Do you want to continue?: "
-			read -p "Input :: <= " S
+			read -rp "Input :: <= " S
 			case ${S} in
 				[Yy][eE][sS]|[yY]) clear; break;;
 				[Nn][oO]|[nN]) echo "Exiting..."; exit;;
@@ -76,7 +77,7 @@ subterm_f() {
 main_f() {
 	while true; do
 		clear; men_opt 1
-		read -p "Input :: <= " SELCT
+		read -rp "Input :: <= " SELCT
 		case ${SELCT:-6} in
 			I|i|1|-I|-i|-1)
 				# CALL BUILDER SUBMENU
@@ -107,7 +108,7 @@ main_f() {
 bs_menu_f() {
 	clear; men_opt 5
 	while true; do
-		read -p "Input :: <= " SELCT
+		read -rp "Input :: <= " SELCT
 		case ${SELCT:-4} in
 			I|i|1|-I|-i|-1)
 				# CALL BUILD SYSTEM SUBMENU
@@ -142,7 +143,7 @@ bs_menu_f() {
 bs_f() {
 clear; men_opt 6
 	while true; do
-		read -p "Input :: <= " SELCT
+		read -rp "Input :: <= " SELCT
 		case ${SELCT:-3} in
 			I|i|1|-I|-i|-1)
 				# CALL PORTAGE SUBMENU
@@ -180,7 +181,7 @@ clear; men_opt 6
 portage_men_f() {
 	clear; men_opt 7
 	while true; do
-		read -p "Input :: <= " SELCT
+		read -rp "Input :: <= " SELCT
 		case ${SELCT:-5} in
 			I|i|1|-I|-i|-1)
 				# MAKE MAKE.CONF: AUTOMATIC OR GUIDED CONFIGURATION
@@ -233,7 +234,7 @@ portage_men_f() {
 catalyst_f() {
 	clear; men_opt 10
 	while true; do
-		read -p "Input :: <= " SELCT
+		read -rp "Input :: <= " SELCT
 		case ${SELCT:-6} in
 			I|i|1|-I|-i|-1)
 				# CONFIGURE CATALYST.CONF
@@ -262,7 +263,7 @@ catalyst_f() {
 				read -r 1>&-; BACKTO="CATA_M"; break;;
 			VI|vi|6|-VI|-vi|-6)
 				# START MAIN BUILDER PROCESS
-				clear; source "${CWORKDIR}/scripts/sinit" "seed" "catalyst" "s1" "s2" "s3"
+				clear; warp "$@"
 				echo "Presh any key to return"
 				read -r 1>&-;BACKTO="CATA_M";
 				break;;
@@ -281,7 +282,7 @@ catalyst_f() {
 config_f() {
 	clear; men_opt 8
 	while true; do
-		read -p "Input :: <= " SELCT
+		read -rp "Input :: <= " SELCT
 		case ${SELCT:-3} in
 			I|i|1|-I|-i|-1)
 				# GUIDED FSTAB EDITOR
@@ -378,7 +379,7 @@ selectdef_f() {
 		#same for kernel-arch-version
 	clear; men_opt 9
 	while true; do
-		read -p "Input :: <= " SELCT
+		read -rp "Input :: <= " SELCT
 		case ${SELCT:-3} in
 			I|i|1|-I|-i|-1)
 				clear; echo "Documentations submenu option a)"
@@ -412,7 +413,7 @@ doc_f(){
 	clear; echo "	      Documentations. Please enjoy yourself!"; echo
 	men_opt 2
 	while true; do
-		read -p "Choose a document you wish to read: " SELCT
+		read -rp "Choose a document you wish to read: " SELCT
 		case ${SELCT:-5} in
 			I|i|1|-I|-i|-1)
 				clear; echo "Documentations submenu option a)"
@@ -443,7 +444,7 @@ about_f() {
 	clear; echo "		     Welcome to About Menu"; echo
 	men_opt 3
 	while true; do
-		read -p "Choose a journey: " SELCT
+		read -rp "Choose a journey: " SELCT
 		case ${SELCT:-4} in
 			I|i|1|-I|-i|-1)
 				clear; echo "About submenu option a)"
@@ -504,68 +505,10 @@ while true; do
 done
 }
 
-# STARTS MAIN LOOP FUNCTION
-popar_check_f
-post_par() {
-if [[ -z "$@" ]]; then
-mainlp_f "MM"
-else
-	case "$1" in
-		--fetch-new|-fn)
-			source "${CWORKDIR}/scripts/functions/catalyst_functions" || { echo -e "\e[32mMissing scripts\e[0m" && exit 1; }
-			fetch_new_f "$@"
-			get_latest_portage_f "$@"
-			;;
-		--force-new|-fcn)
-			while true; do
-				echo -e "\e[31mForce new parameter detected\e[0m"
-				echo -e "\e[31mThis option will force everything and purge what stands in its way\e[0m"
-				echo -e "\e[31mAre you sure? Y/N \e[0m"
-				read -rp "Input :: <= " YN
-				case "${YN:-n}" in
-					[yY])
-						source "${CWORKDIR}/scripts/sinit" "seed" "catalyst" "s1" "s2" "s3" "$@"
-						break;;
-					[nN])
-						break;;
-				esac
-			done
-			;;
-		--help|-h)
-			help_f
-			;;
-		--keep|-k)
-			echo "Keep"
-			;;
-		--health-check|-hc)
-			echo "Health check"
-			;;
-		--replace-new|-rpn)
-			echo "Replace new"
-			;;
-		--no-kernel|-nk)
-			echo "No kernel"
-			;;
-		--no-initramfs|-ni)
-			echo "No initramfs"
-			;;
-		--build-controller|-bc)
-			echo "Build controller"
-			;;
-		--build-minimal|-bm)
-			echo "Build minimal"
-			;;
-		--enforce)
-			echo "enforce"
-			;;
-		--lawful-good)
-			echo "lawful-good"
-			;;
-		--test)
-			source "${CWORKDIR}/scripts/sinit" "seed" "catalyst" "s1" "s2" "s3" "$@"
-			;;
+# ISSUE PARAMETER WARRNINGS
 
-	esac
+if [[ -z "$@" ]] ; then
+	mainlp_f "MM" && unset BACKTO && exit 0
+else
+	warp "$@"
 fi
-}
-post_par "$@"
