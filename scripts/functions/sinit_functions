@@ -13,14 +13,28 @@ _subshell() {
 }
 
 parameters_check() {
-	if [[ -n $(echo "$@" | grep '\--force-new') && -n $(echo "$@" | grep '\--lawful-good') ]]; then
-		inspector "Warning: --force-new suppresses --lawful-good"
+	if [[ -n "$(echo "$@")" && ((-z "$(echo "$@" | grep '\--base')" || -z "$(echo "$@" | grep '\-b')")) ]]; then
+		_report_back "You must choose a base if your run gse without main menu. Aborting..."
+		_report_back "See man 1 gse for base options."
+		die "Aborting actions..."
+	fi
+
+	if [[ -n $(echo "$@" | grep '\--force-new') ]] && [[ -n $(echo "$@" | grep '\--lawful-good') || -n $(echo "$@" | grep '\-lg') ]]; then
+		die "Warning: --force-new suppresses --lawful-good"
 		sleep 2
 	fi
 
-	if [[ -n $(echo "$@" | grep '\--lawful-good') && -n $(echo "$@" | grep '\--enforce') ]]; then
-		inspector "Warning: --lawful-good suppresses --enforce"
+	if [[ -n $(echo "$@" | grep '\--force-new') && -n $(echo "$@" | grep '\--enforce') ]]; then
+		_report_back "Warning: --force-new implies --enforce=*"
 		sleep 2
+	fi
+
+	if [[ -n "$(echo "$@" | grep '\--quiet')" || -n "$(echo "$@" | grep '\-q')" ]] && [[ -n "$(echo "$@" | grep '\--verbose')" || -n "$(echo "$@" | grep '\-v')" ]]; then
+		die "Error: verbose & quiet can not be set at the same time"
+	fi
+
+	if [[ -n $(echo "$@" | grep '\--lawful-good') && -n $(echo "$@" | grep '\--enforce') ]]; then
+		die "Warning: --lawful-good suppresses --enforce"
 	fi
 
 	if [[ -n $(echo "$@" | grep '\--force-new') && -n $(echo "$@" | grep '\--keep') ]]; then
@@ -28,40 +42,62 @@ parameters_check() {
 	fi
 
 	if [[ -n $(echo "$@" | grep '\--health-check') && "$#" != 1 ]]; then
-		die "Warning: --health-check unknown parameters $2"
+		die "Warning: --health-check unknown parameters ${@:2}"
 	fi
 
 	if [[ -n $(echo "$@" | grep '\--replace-new') && "$#" != 1 ]]; then
-		die "Warning: --replace-new: unknown parameters $2"
+		die "Warning: --replace-new: unknown parameters ${@:2}"
 	fi
 
-	if [[ -z $(echo "$@" | grep '\--build-minimal') &&  -n $(echo "$@" | grep 'gkernel') ]]; then
-		inspector "Warning: --build-minimal suppresses kernel build"
+	if [[ -n $(echo "$@" | grep '\--build-minimal') &&  -n $(echo "$" | grep '\--enforce' | grep 'gkernel') ]]; then
+		_report_back "Warning: --build-minimal suppresses kernel build {gkernel}"
 		sleep 2
 	fi
 
-	if [[ -z $(echo "$@" | grep '\--build-minimal') &&  -n $(echo "$@" | grep 'ginitrd') ]]; then
-		inspector "Warning: --build-minimal suppresses kernel initramfs"
+	if [[ -n $(echo "$@" | grep '\--build-minimal') &&  -n $(echo "$@" | grep '\--enforce' | grep 'ginitrd') ]]; then
+		_report_back "Warning: --build-minimal suppresses initramfs {ginitrd}"
 		sleep 2
 	fi
 
-	if [[ -z $(echo "$@" | grep '\--build-minimal') &&  -n $(echo "$@" | grep 'ginst') ]]; then
-		inspector "Warning: --build-minimal suppresses custom package installation"
+	if [[ -n $(echo "$@" | grep '\--build-minimal') &&  -n $(echo "$@" | grep '\--enforce' | grep 'ginst') ]]; then
+		_report_back "Warning: --build-minimal suppresses custom package installation {ginst}"
 		sleep 2
 	fi
 }
 
 die() {
-	echo -e "[\e[31m$@\e[0m]" 1>&2 ; exit 1
+	echo -e "\e[31m$@\e[0m" 1>&2 ; exit 1
+}
+
+burn() {
+	inspector "$@"
+	if [[ -n "${_flag_keep}" ]]; then
+		_keep "$(basename $1)" "$1"
+	fi
+	rm -rf "$1"
+}
+
+_keep(){
+	inspector "$@"
+	if [[ ! -e "/var/tmp/gse" ]]; then
+		mkdir -p "/var/tmp/gse"
+	fi
+	tar -czvf "/var/tmp/gse$1"_$(date '+%y-%m-%d').tar.bz2  -C "$2"
+}
+
+_report_back() {
+
+	echo -e "\e[33m$*\e[0m" 1>&2
 }
 
 inspector() {
-	echo -e "\e[33m$*\e[0m" 1>&2
+	[[ -z "$@" ]] && print_inf_f
 }
 
 pass() {
 	echo -e "[\e[34mDone\e[0m]"
 }
+
 
 print_inf_f() {
 	clear
@@ -77,17 +113,15 @@ print_inf_f() {
 	exit 1
 }
 
-repeat_part_f() {
+repeat_parta() {
 	while true; do
 		echo -e "\e[33mPart $1: Has been completed\e[0m"
 		echo "Run again? Y/N: "
 		read -rp "Input :: <= " YN
 		case "${YN}" in
 			[yN])
-				RPPVAR=0
 				return 0;;
 			[nN])
-				RPPVAR=9
 				return 1;;
 		esac
 	done
@@ -114,9 +148,10 @@ help_f() {
 }
 
 _callying_catalyst(){
+	inspector "$@"
 	echo -e "\e[34mCalling catalyst\e[0m"
 	source "${CWORKDIR}/scripts/functions/init_stage3_seq" "$@" \
-	&& sinit_flow_monitor "CATALYST" || die "Calling catalyst failed"
+	|| return 1
 }
 
 _extracting_catalyst() {
@@ -131,27 +166,47 @@ _extracting_catalyst() {
 	&& _workdir_check "${CATDIR}/builds/${TARGETPATH}/stage3-${ARCH}-${TARGETSTAMP}.tar.bz2" \
 	"${CDISTDIR}/workdir-catalyst" \
 	"${CATDIR}/snapshots/portage-${SNAPSHOTNAME}.tar.bz2" "$@" \
-	&& sinit_flow_monitor "EXTRACTION"
+	|| return 1
 }
 
 _repeat_subpart() {
 	while true; do
 		echo -e "\e[33m$1: Has been $2\e[0m"
-		if [[ -n $(echo "$@" | grep '\--force-new') || -n $(echo "$@" | grep '\--force') ]]; then
-			:
-		else
-			echo "Run again? Y/N: "
-			read -rp "Input :: <= " YN
-			case "${YN}" in
-				[yN])
-					RPSRVAR=0
-					return 0;;
-				[nN])
-					RPSRVAR=9
-					return 1;;
+		echo "Run again? Y/N: "
+		read -rp "Input :: <= " YN
+		case "${YN}" in
+			[yN])
+				return 0;;
+			[nN])
+				return 1;;
 			esac
-		fi
 	done
+}
+
+_clean_target() {
+	inspector "$@"
+	
+	burn "$1/var/log"
+	burn "$1/var/tmp"
+	burn "$1/LAST_FAILED_COMMAND"
+	burn "$1/LAST_ACTION"
+	burn "$1/issues.info"
+	burn "$1/root/.bash*"
+	burn "$1/usr/src/linux*"
+	burn "$1/usr/src/linux"
+	burn "$1/sinit.d"
+	# MINIMAL SYSTEM REQUEST
+	if [[ -n "${_flag_minimal}" ]]; then
+		burn "$1/usr/portage"
+		burn "$1/var/cache"
+		burn "$1/var/db"
+		burn "$1/root/.cache"
+		burn "$1/usr/local/portage"
+		mv "$1/root/.ssh" "$1/"
+		burn "$1/root"
+		mkdir -p "$1/root"
+		mv "$1/.ssh" "$1/root/.ssh"	
+	fi
 }
 
 sinit_flow_monitor() {
@@ -159,9 +214,11 @@ sinit_flow_monitor() {
 	case "$1" in
 		EXTRACTION)
 			sed -i -e 's/EXTRACTION=0/EXTRACTION=1/g' "${CLOCALLG}/sinprog"
-			sed -i -e 's/PARTA=0/PARTA=1/g' "${CLOCALLG}/sinprog";;
+			sed -i -e 's/CHECK=0/CHECK=1/g' "${CLOCALLG}/sinprog";;
 		RESET)
 			sed -i -e 's/1/0/g' "${CLOCALLG}/sinprog";;
+		SEED)
+			sed -i -e 's/SEED=0/SEED=1/g' "${CLOCALLG}/sinprog";;
 		PARTA)
 			sed -i -e 's/PARTA=0/PARTA=1/g' "${CLOCALLG}/sinprog";;
 		PARTB)
@@ -169,8 +226,7 @@ sinit_flow_monitor() {
 		CATALYST)
 			sed -i -e 's/CATALYST=0/CATALYST=1/g' "${CLOCALLG}/sinprog";;
 		PRECOMP)
-			sed -i -e 's/PRECOMP=0/PRECOMP=1/g' "${CLOCALLG}/sinprog"
-			sed -i -e 's/PARTA=0/PARTA=1/g' "${CLOCALLG}/sinprog";;
+			sed -i -e 's/PRECOMP=0/PRECOMP=1/g' "${CLOCALLG}/sinprog";;
 		RDEP)
 			sed -i -e 's/RDEP=0/RDEP=1/g' "${CLOCALLG}/sinprog";;
 		dn)
@@ -194,14 +250,9 @@ _dependencies_check() {
 				[yY])
 					echo -e "\e[34mChecking for dependencies\e[0m"
 					_lcreq 1 || die
-					sinit_flow_monitor "RDEP"
 					break;;
 				[nN])
-					echo "If you have not run a dependency check before, please abort"
-					for i in {1..0}; do
-   						sleep 1
-   						printf "\r $i"
-					done
+					_report_back "If you have not run a dependency check before, please abort"
 					break;;
 			esac
 		done
@@ -221,7 +272,7 @@ _dependencies_check() {
 					break;;
 				[nN])
 					echo "If you have not run a dependency check before, please abort"
-					for i in {1..0}; do
+					for i in {1..5}; do
    						sleep 1
    						printf "\r $i"
 					done
@@ -245,32 +296,22 @@ _pseudo_check_purge(){
 	done
 
 	if [[ -n "$@" && -z "$(cat /proc/mounts | grep "workdir-$2")" ]]; then
-		rm -rf "$1"
+		burn "$1"
 	else
 		print_inf_f
 	fi
 }
 
-_fundamentals() {
-	# CHECK FOR RUNTIME DEPENDENCIES
-	if [[ "$(awk -F '=' '/RDEP/{ print $2 }' <"${CLOCALLG}/sinprog")" == 0 ]]; then
-		if [[ -n $(echo "$@" | grep '\--force-new') ]]; then
-			:
-		else
-			_dependencies_check
-		fi
-	fi
-	
+_check_point() {
 	# CHECK IF THERE IS ANY WORK DONE
-	if [[ -n $(echo "$@" | grep '\--force-new') || -n $(echo "$@" | grep '\--force') ]]; then
-		_start_again "force_new" "$1"
-	else
-		if [[ "$(awk -F '=' '/PARTA/{ print $2 }' <"${CLOCALLG}/sinprog")" == 1 ]]; then
+	if [[ "$(awk -F '=' '/CHECK/{ print $2 }' < "${CLOCALLG}/sinprog")" == 1 ]]; then
+		if [[ -n "${_flag_force_new}" ]] || echo "${_enforce_args[@]}" | grep -q 'gparta'; then
+			_start_again "force" "$1"
+		else
 			_start_again "ask_new" "$1"
 		fi
 	fi
 	
-	clear
 	echo "============================================================================"
 	echo -e "\e[35mPART:A Fundamentals\e[0m"
 	echo "============================================================================"
@@ -295,7 +336,7 @@ _start_again() {
 				* ) echo "Wrong answer";;
 			esac
 		done
-	elif [[ "$1" == "force_new" ]]; then
+	elif [[ "$1" == "force" ]]; then
 		echo -e "\e[31mForce new is active!\e[0m"
 		echo -e "\e[31mPurging workdir...\e[0m" 
 		_pseudo_check_purge "$2" \
@@ -325,7 +366,7 @@ _extract_tarball() {
 
 _workdir_check() {
 	[[ -z "$@" && -d "$2" ]] && die "Wrong Parameters"
-	if [[ -n $(echo "$@" | grep '\--force-new') || -n $(echo "$@" | grep '\--force' | grep 'gextr') ]]; then
+	if [[ -n ${_flag_force_new} ]] || echo "${_enforce_args[@]}" | grep -q 'gcat' || echo "${_enforce_args[@]}" | grep -q 'gprec'; then
 		echo "This may take some time"
 		echo "Purging..."
 		_pseudo_check_purge "$2"
@@ -387,10 +428,11 @@ _gentoo_key() {
 }
 
 _get_latest() {
+	inspector "$@"
 	[[ -z "${GENTOOLATEST}" || -z "${GENTOOLATESTASC}" ]] && die "Wrong Parameters" && return 1
 	mkdir -p "${CDISTDIR}/dists" \
 	&& echo -e "[\e[32m*\e[0m] Fetching \e[34m${STAGE3TB}\e[0m"
-	if [[ -n $(echo "$@" | grep '\--fetch-new') || -n $(echo "$@" | grep '\-fn') ]]; then
+	if [[ -n "${_flag_force_new}" ]] || echo "${_enforce_args[@]}" | grep 'gseed'; then
 		rm -f "${CDISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2" >/dev/null 2>&1
 		rm -f "${CDISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2.DIGESTS.asc" >/dev/null 2>&1
 		rm -f "${CDISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2.DIGESTS" >/dev/null 2>&1
@@ -422,10 +464,62 @@ _verify_download() {
 	|| { echo -e "[\e[31m*\e[0m] \e[31mFAILD\e[0m: Verifying \e[31msha512sums\e[0m"; exit 1; }
 }
 
+_call_fetch_new() {
+	source "${CWORKDIR}/scripts/functions/catalyst_functions" || { echo -e "\e[32mMissing scripts\e[0m" && exit 1; }
+	_fetch_new "$@"
+	_get_latest_snapshot "$@"
+}
+
+_seed_net() {
+	if [[ $(echo "${_flag_network}") == 0 ]]; then
+		if [[ "$(awk -F '=' '/SEED/{ print $2 }' < "${CLOCALLG}/sinprog")" == 0 || -n $(echo "${_flag_force_new}") ]]; then
+			_fetch_new "$@" || die "FAILED"
+		else
+			if [[ -n "$(echo "${_lawful_args[@]}" | grep 'gseed')" ]]; then
+				_report_back "Fetch: Lawful entry detected, proceeding..."
+			else
+				if echo "${_enforce_args[@]}" | grep 'gseed'; then
+					_report_back "Fetch: Enforce entry detected, forcing..."
+					_fetch_new "$@" force || die "FAILED"
+				else
+					if _repeat_subpart "Tarball" "fetched"; then
+						_fetch_new "$@" || die "FAILED"
+					else	
+						_report_back "Proceeding on next part..."
+					fi
+				fi
+			fi
+		fi
+	elif [[ ! -e "${CDISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2" ]]; then
+		die "No local tarball is present. Please enable network connection and try again"
+	elif [[ -e "${CDISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2" ]]; then
+		_report_back "Stage3 tarball located"
+		_report_back "Calling catalyst"
+	fi
+}
+
+_call_force_new() {
+	while true; do
+		echo -e "\e[31mForce new parameter detected\e[0m"
+		echo -e "\e[31mThis option will force everything and purge what stands in its way\e[0m"
+		echo -e "\e[31mAre you sure? Y/N \e[0m"
+		read -rp "Input :: <= " YN
+		case "${YN:-n}" in
+			[yY])
+				if [[ -z $(echo "$@" | grep 'gcat') && -z $(echo "$@" | grep 'catalyst') ]]; then
+					source "${CWORKDIR}/scripts/sinit" "$@"
+				fi
+				break;;
+			[nN])
+				exit 0;;
+			esac
+		done
+}
+
 _fetch_new() {
 	# CHECK FOR THE POSITIONAL PARAMETERS AND BAILOUT IF THEY ARE MISSING
 	[[ -z "$@" ]] && die "Wrong parameters"
-	if [[ -n $(echo "$@" | grep '\--force-new') || -n $(echo "$@" | grep '\--force' | grep 'gseed') ]]; then
+	if [[ -n "${_flag_force_new}" ]] || echo "${_enforce_args[@]}" | grep -q 'gseed'; then
 		echo -e "\e[33mSearching for tarball...\e[0m"
 		_export_latest
 		# GET LATEST STAGE3 TARBALL, .DIGEST && .DIGEST.asc
@@ -468,7 +562,9 @@ _fetch_new() {
 	fi
 }
 
+# KEEP DOING UMOUNT -l UNTIL THERE IS NO DIST.D/WORKDIR ENTRY ON STDOUT
 _unmount() {
+	k=0
 	[[ -n "$(grep "dist.d/workdir-"$2 "/proc/mounts" | awk -F ' ' '{ print $2 }')" ]] \
 	&& while true; do
 		while read -r i; do
@@ -478,27 +574,34 @@ _unmount() {
 		
 		[[ -z $(grep "dist.d/workdir-"$2 "/proc/mounts" | awk -F ' ' '{ print $2 }') ]] \
 		&& break
+		[[ "$k" -ge 20 ]] && return 1
+		((++k))
 	done
+	return 0
 }
 
+# MOUNT DEV & SYS WITH RBIND THEN RSLAVE ON TARGET BUILDDIR
 _mount_dev_sys() {
-	[[ -z "$@" ]] && print_inf_f
+	inspector "$@"
 	mount --rbind /dev "$1/$2" \
 	&& mount --make-rslave "$1/$2" \
 	&& echo -e "[\e[32m*\e[0m] Mounting $2" \
 	|| { echo -e "[\e[31*\e[0m] Mounting $2"; die "Failed"; }
 }
 
+# MOUNT PROC ON TARGET BUILDDIR
 _mount_proc() {
-	[[ -z "$@" ]] && print_inf_f 
+	inspector "$@" 
 	mount -t proc /proc "$1/proc" \
 	&& echo -e "[\e[32m*\e[0m] Mounting proc" \
 	|| { echo -e "[\e[31m*\e[0m] Mounting proc"; die "Failed"; }
 }
 
+# PREPARE THE BUILDERDIR AND INITIATE CHROOT, DIE IF ANYENTRY FAILS
 _prepare_chroot() {
-	[[ -z "$@" ]] && print_inf_f
+	inspector "$@"
 
+	rm -f "$1/etc/resolv.conf"
 	cp -L /etc/resolv.conf "$1/etc/" || die "Failed"
 
 	if [[ -n $(echo "$@" | grep 'catalyst') ]]; then
@@ -506,24 +609,24 @@ _prepare_chroot() {
 		if [[ -n $(cat /proc/mounts | grep 'dist.d/workdir-catalyst' | awk -F ' ' '{ print $1 }') ]]; then
 			echo -e "\e[31mPseudos possibly mounted at target directory\e[0m"
 			echo -e "\e[33mResolving the issue...\e[0m"
-			_unmount "catalyst"
+			_unmount "catalyst" || die
 		fi
 		echo -e "\e[34mMounting pseudo\e[0m"
 		[[ -z $(grep 'dist.d/workdir-catalyst' /proc/mounts | awk -F ' ' '{ print $1 }') ]] \
-		&& _mount_proc "$1"
+		&& _mount_proc "$1" || die
 	elif [[ -n $(echo "$@" | grep 'precomp') ]]; then
 		if [[ -n $(cat /proc/mounts | grep 'dist.d/workdir-precomp' | awk -F ' ' '{ print $1 }') ]]; then
 			echo -e "\e[31mPseudos possibly mounted at target directory\e[0m"
 			echo -e "\e[33mResolving the issue...\e[0m"
-			_unmount "precomp"
+			_unmount "precomp" || die
 		fi
 		echo -e "\e[34mMounting pseudo\e[0m"
 		[[ -z $(grep 'dist.d/workdir-precomp' /proc/mounts | awk -F ' ' '{ print $1 }') ]] \
-		&& _mount_proc "$1"
+		&& _mount_proc "$1" || die
 	fi \
-	&& _dev_sys "$1" "dev" \
+	&& _mount_dev_sys "$1" "dev" \
 	&& _mount_dev_sys "$1" "sys" \
-	|| { echo -e "[\e[31m*\e[0m] Something went wrong" && die "Failed"; }
+	|| die "Something went wrong"
 
 	mkdir -p "$1/sinit.d"
 
@@ -536,7 +639,7 @@ _prepare_chroot() {
 
 	# CREATE REPOS.CONF DIRECOTRY & AND COPY REPOS.CONF TO IT
 	mkdir -p "$1/etc/portage/repos.conf"
-	cp "$1/usr/share/portage/config/repos.conf" "$1/etc/portage/repos.conf/gentoo.conf"
+	cp "$1/usr/share/portage/config/repos.conf" "$1/etc/portage/repos.conf/gentoo.conf" || die
 
 	# Set local timezone if set
 	if [[ -n $(cat /etc/timezone) ]]; then
@@ -548,7 +651,7 @@ _prepare_chroot() {
 	echo -e "[\e[32m*\e[0m] Copying requested files"
 	if [[ -n $(cat ${CCONFDIR}/system/inject_files | sed '/^#/ d' | sed '/^\s*$/d') ]]; then
 
-		while read -r INJFL;do
+		while read -r INJFL; do
 			f1="$(echo $INJFL | awk -F ' ' '{ print $1 }')"
 			f2="${BWORKDIR}/(echo $INJFL | awk -F ' ' '{ print $2 }')"
 			echo "Copying $f1 to $f2"
@@ -610,13 +713,14 @@ _prepare_chroot() {
 	fi
 
 	echo -e "\e[34mChrooting at new system\e[0m"
-	sleep 2
+	sleep 0.5
+	# PASS ALL PP AND INITIATE CHROOT
 	chroot "$1" "sinit.d/chroot_init" "$@" || { echo -e "[\e[31m*\e[0m] Chrooting configuration failed"; die; } \
 	&& sinit_flow_monitor "PARTB"
 }
 
+# THIS SCRIPT IS SOURCED AT THE BEGINING FOR CHECKING THE BUILDER'S RUNTIME DEPENDENCIES
 _lcreq() {
-	# THIS SCRIPT IS SOURCED AT THE BEGINING FOR CHECKING THE BUILDER'S RUNTIME DEPENDENCIES
 	CRDPENDS=''
 	_am_i_root_sub() {
 		if [[ "$1" == "0" ]]; then
@@ -626,11 +730,12 @@ _lcreq() {
 		fi
 	}
 
+	# GENTOO SECTION
 	case "$1" in
 		1)
 			[[ $(command -v eix) ]] \
 			|| { echo -e "[\e[33m*\e[0m] \e[35mPlease install eix to proceed!\e[0m" \
-			&& { _am_i_root_sub $UID && echo -e "[\e[32m*\e[0m] Root privileges found" \
+			&& { _am_i_root_sub "$UID" && echo -e "[\e[32m*\e[0m] Root privileges found" \
 			&& emerge -aq eix && echo -e "[\e[33m*\e[0m] \e[35mUpdating database\e[0m" \
 			&& eix-sync -a >/dev/null 2>&1; } \
 			|| { echo -e "[\e[31m*\e[0m] Could not get root privileges" \
@@ -652,6 +757,7 @@ _lcreq() {
 				fi
 			done;;
 		2)
+			# NOT SUPPORTED
 			mapfile -t lreq < <(cat "${CLOCALLG}/nogloc_req" | sed '/^#/ d' | sed '/^\s*$/d')
 
 			for i in "${lreq[@]}"; do
@@ -677,3 +783,474 @@ _lcreq() {
 		done
 	esac
 }
+
+# CREATE ARRAY OF ENABLED ARGUMENTS
+_case_args() {
+	case "$1" in
+		gfund		)
+			_on_eargs+=("$1");;
+		gseed		)
+			_on_eargs+=("$1");;
+		gcat		)
+			_on_eargs+=("$1");;
+		gextr		)
+			_on_eargs+=("$1");;
+		gprec		)
+			_on_eargs+=("$1");;
+		gparta		)
+			_on_eargs+=("$1");;
+		gupdate		)
+			_on_eargs+=("$1");;
+		gportage	)
+			_on_eargs+=("$1");;
+		grebuild	)
+			_on_eargs+=("$1");;
+		gsnap 		)
+			_on_eargs+=("$1");;
+		gconfigure	)
+			_on_eargs+=("$1");;
+		ginst		)
+			_on_eargs+=("$1");;
+		grun		)
+			_on_eargs+=("$1");;
+		gkernel		)
+			_on_eargs+=("$1");;
+		ginitrd		)
+			_on_eargs+=("$1");;
+		gpartb		)
+			_on_eargs+=("$1");;
+		*			)
+			die "Error: $2 unknown argument $1"
+	esac
+}
+
+# EXPORT ARGUMENTS
+_export_args() {
+	if [[ -z "$(echo "$1" | grep '=')" ]]; then
+		die "Missing arguments for $2"
+	else
+		_check_args="${1#*=}"
+		if [[ "${_check_args}" == '' ]]; then
+			die "No arguments were set for $2. Aborting..."
+		else
+			declare -a _ARGARRAY=("gfund" "gseed" "gcat" "gextr" "gprec" "gparta" \
+				"gupdate" "gportage" "grebuild" "gconfigure" "ginst" "grun" "gkernel" "ginitrd")	
+
+			_on_eargs=()
+
+			for i in {1..14}; do
+				if [[ $(echo "${_check_args}" | cut -d ' ' -f 1) == $(echo "${_check_args}" | cut -d ' ' -f 2) ]]; then
+					_on_eargs+=("${_check_args}") && break
+				fi
+				if [[ -n "$(echo "${_check_args}" | cut -d ' ' -f $i)" ]]; then
+					if [[ -n "$(echo "${_ARGARRAY[@]}" | grep "$(echo "${_check_args}" | cut -d ' ' -f $i)")" ]]; then
+						j="$(echo "${_check_args}" | cut -d ' ' -f $i)"
+						_case_args "$j" "$2"
+					else
+						die "Error: $2 unknown argument $(echo "${_check_args}" | cut -d ' ' -f $i)"
+					fi
+				else
+					break
+				fi
+			done
+
+		export _on_eargs
+		
+		fi
+	fi
+	unset _ARGARRAY
+}
+
+# FLAGS AND ARGUMENTS
+librarium() {
+	_report_back "================================================"
+	_flag_fetch=''
+	_flag_force_new=''
+	_flag_keep=''
+	_flag_health=''
+	_flag_replace=''
+	_flag_keep=''
+	_flag_initrd=''
+	_flag_minimal=''
+	_flag_controller=''
+	_flag_enforce=''
+	_flag_lawful=''
+	_flag_verbose=''
+	_flag_quiet=''
+	_flag_test=''
+	_flag_silent='9'
+	_flag_network=''
+	while true; do
+		[[ -z "$@" ]] && return 0
+		case "$1" in
+			--fetch-new|-fn 			)	
+				_flag_fetch=0
+				export _flag_fetch;;
+
+			--force-new|-fcn 			)
+				_flag_force_new=0
+				export _flag_force_new;;
+		
+			--help|-h 					)
+				_flag_help=0
+				export _flag_help;;
+			--base*|-b* 					)
+				if [[ -z "$(echo "$1" | grep '=')" ]]; then
+					die "Missing argument for base method"
+				else
+					_base_method="${1#*=}"
+					if [[ "${_base_method}" == '' ]]; then
+						die "No target base. Aborting..."
+					else							
+						case "${_base_method}" in
+							catalyst 	)
+								_flag_base="catalyst"
+								_report_back "Base: catalyst"
+								export _flag_base;;
+							precomp 	)
+								_flag_base="precomp"
+								_report_back "Base: precomp"
+								export _flag_base;;
+							*			)
+								die "Wrong target base. Choose either catalyst or precomp"
+						esac
+					fi
+				fi
+				;;
+			--keep|-k 					)
+				_flag_keep=0
+				_report_back "Keep old work is enabled"
+				_report_back "Everything will be saved at /var/gse/work-date"
+				export _flag_keep;;
+	
+			--health-check|-hc 			)
+				_flag_health=0
+				_report_back "Calling health check function..."
+				export _flag_health;;
+		
+			--replace-new|-rpn 			)
+				_flag_replace=0
+				_report_back "Replacing base scripts..."
+				export _flag_replace;;
+		
+			--no-kernel|-nk 			)
+				_flag_kernel=1
+				_report_back "Kernel and initramfs will be excluded"
+				export _flag_kernel;;
+		
+			--no-initramfs|-ni 			)
+				_flag_initrd=1
+				_report_back "Initramfs will be excluded"
+				export _flag_initrd;;
+		
+			--build-controller*|-bc*	)
+				if [[ -z "$(echo "$1" | grep '=')" ]]; then
+					die "Missing argument for controller's path"
+				else
+					_flag_controller_path="${1#*=}"
+					[[ ${_flag_controller_path:0:1} != "/" ]] && _flag_controller_path="/${_flag_controller_path}"
+					if [[ "${_flag_controller_path}" == '/' ]]; then
+						die "Root is not allowed to be set as moddir path. Aborting..."
+					else
+						if [[ -d "${_flag_controller_path}" ]]; then
+							_flag_controller=0
+							export _flag_controller
+							export _flag_controller_path
+							_report_back "Controller flag enabled"
+						else
+							die "Error: moddir's target is not a directory"
+						fi
+					fi
+				fi
+				;;
+		
+			--build-minimal|-bm 		)
+				_flag_minimal=0
+				_report_back "Minimal build detected"
+				_report_back "Custom packages will be excluded"
+				_report_back "Custom profile will be excluded"
+				_report_back "Custom flags will be excluded"
+				_report_back "Kernel build will be excluded"
+				_report_back "Initramfs will be excluded"
+				export _flag_minimal;;
+		
+			--enforce*					)
+				_export_args "$1" "enforce"
+				_enforce_args=()
+				for i in "${_on_eargs[@]}"; do
+					_enforce_args+=("$i")
+				done
+				unset _on_eargs
+				export _enforce_args
+				_flag_enforce=0
+				export _flag_enforce
+				_report_back "The following enforcer arguments have been enabled"
+				_report_back "${_enforce_args[@]}"
+				;;
+		
+			--lawful-good*				)
+				_export_args "$1" "lawful-good"
+				_lawful_args=()
+				for i in "${_on_eargs[@]}"; do
+					_lawful_args+=("$i")
+				done
+				unset _on_eargs
+				export _lawful_args
+				_flag_lawful=0
+				export _flag_lawful
+				_report_back "The following lawful arguments have been enabled"
+				_report_back "${_lawful_args[@]}"
+				;;
+
+			--verbose|-v 				)
+				_flag_verbose=0
+				export _flag_verbose;;
+
+			--quiet|-q 					)
+				_flag_quiet=0
+				export _flag_quiet;;
+		
+			--test						)
+				_flag_test=0
+				export _flag_test
+				source "${CWORKDIR}/scripts/sinit" "$@" ;;
+
+			*							)
+				die "Unknown $1 operation"
+				;;
+		esac
+		shift
+	done
+}
+
+# CHECK GIVEN SPACE CONDITIONS
+_free_space() {
+	if [[ $(echo "$1" | sed 's/[^G]*//g') == "G" ]]; then
+		if [[ "$(echo "$1" | sed 's/[^0-9]*//g')" -le "$2" ]]; then
+			_report_back "$3 has less than $2G available space."
+			_report_back "The average disk space $4"
+			_report_back "Please resolve this issue with freeing at least $2G and start again"
+			_report_back "When building the chaintool and bootstraping the system"
+			die "Bailing out..."
+		fi
+	elif [[ $(echo "$1" | sed 's/[^M]*//g') == "M" ]]; then
+		die "The storedir $1 has less than 1G of space. Aborting..."
+	fi
+}
+
+# MAKE SOME CHECKS BEFORE INITIATING THE REST OF THE PROCESSES
+witch_hunt() {
+	inspector "$@"
+
+	# CHECK IF CATALYST STOREDIR, PORTDIR AND DISTDIR ARE DIRECTORiES
+	_export_catalyst_workdirs
+	
+	for i in "${CATDIR}" "${CATPORTDIR}" "${CATDISTDIR}"; do
+		if [[ -e "$i" && ! -d "$i" ]]; then
+			die "Error: $i is not a directory. Aborting"
+		fi
+	done
+
+	# CHECK IF DIST.D EXISTS AND IS A DIRECTORY
+	[[ -e "${CDISTDIR}" && ! -d "${CDISTDIR}" ]] && die "FATAL: dist.d is not a directory"
+
+	# CHECK AVAILABLE SPACE OF STOREDIR AND DIST.D DIR
+	_tmp_catdir=$(df -h "$CATDIR" | awk -F ' ' '{ print $4 }' | tail -n +2)
+	_tmp_distdir=$(df -h "$CDISTDIR" | awk -F ' ' '{ print $4 }' | tail -n +2)
+
+	_free_space "${_tmp_catdir}" "50" "Catalysts storedir" "catalyst will use for a stage3 tarball will be around 50G"
+	_free_space "${_tmp_distdir}" "15" "Dist.d dir" "dist.d will use is at least 15G"
+	unset CATDIR
+	unset _tmp_distdir
+	unset _tmp_catdir
+
+	# CHECK FOR SUPERUSER PRIVILAGES
+	if _am_i_root "$UID"; then
+		_report_back "Superuser detected"
+	else
+		die "User is not superuser. Aborting"
+	fi
+
+	# PRIORITY CHECK FOR THE SCRIPT'S PID
+	if [[ "$(ps -fl $$ | tail -n +2 | awk -F ' ' '{ print $8}')" -le 0 ]]; then
+		_report_back "The priority of $0 is not high, and currently greater or equal to 0"
+		_report_back "Changing priority to -5"
+		renice -n -5 -p "$$" >/dev/null
+	fi
+
+	# ISSUE WARNING IF CONNECTION SEEMS TO BE FROM SSHD
+	if [[ -n "${SSH_CLIENT}" || -n "${SSH_TTY}" ]]; then
+		if [[ "$(echo "${TERM}")" == "screen" ]]; then
+			_report_back "Session detected: ssh"
+			_report_back "Tmux/Screen detected"
+			_flag_tty="sshd"
+			export _flag_tty
+		else
+			while true; do
+				_report_back "================================================"
+				_report_back "It appears you are running connected via ssh session"
+				_report_back "It is recommended, if you haven't done yet, to stop this process"
+				_report_back "and start it new from a tmux or screen session."
+				_report_back "Most of the processes will require much time for normal computers, "
+				_report_back "therefore it is a good idea to have a failsafe in case of a disconnect."
+				_report_back "Do you wish to continue? {Not recommended}"
+				_report_back "Answer Y/N "
+				_report_back "================================================"
+				read -rp "Input :: <= " YN
+				case "$YN" in 
+					[yY])
+						_flag_tty="sshd"
+						export _flag_tty
+						break;;
+					[nN])
+						_report_back "Please restart from a detachable shell"
+						die;;
+				esac
+			done
+		fi
+	fi
+
+	# EXPORT NETWORK CONDITION
+	_report_back "Scanning for networking..."
+	if ping -c 3 www.gentoo.org >/dev/null 2>&1; then
+		_report_back "Network detected"
+		_flag_network=0
+		export _flag_network
+	else
+		_report_back "Network not detected"
+		_flag_network=1
+		export _flag_network
+	fi
+	return 0
+}
+
+# INQUSITOR. CHECK FOR VERBOSITY LEVEL, CALL WITCH HUNT AND PROMPT IN CASE OF FORCE NEW
+inquisitor() {R
+	inspector "$@"
+
+	parameters_check "$@"
+
+	# PROMPT FOR FLAGS
+	while true; do
+		_report_back "================================================"
+		_report_back "Do you wish to apply those and proceed?"
+		_report_back "Answer: Y/N "
+		read -rp "Input :: <= " YN
+		case "$YN" in
+			[yY])
+				break;;
+			[nN])
+				die "Requested exit.";;
+			*)
+				_report_back "Please answer Y/N "
+		esac
+	done
+
+	# PROMPT FOR CONTINUE IF FORCE_NEW IS PRESENT
+	if [[ -n "$(echo ${_flag_force_new})" ]]; then
+		_report_back "================================================"
+		_report_back "================================================"
+		_report_back "Warning: Force new flag has been enabled."
+		_report_back "This flag will enable force globally."
+		_report_back "Forced parts will always proceed to next part while purging everything that stands in the way"
+		_report_back "See --enforce for forcing certain areas of the process, instead of this flag."
+		_report_back "Are you sure? Y/N (Not recommended)"
+		_report_back "================================================"
+		_report_back "================================================"
+		while true; do
+			read -rp "Input :: <= " YN
+			case "$YN" in
+				[yN])
+					break;;
+				[nN])
+					die "Requested exit."
+					;;
+				*	)
+					_report_back "Please answer Y/N "
+			esac
+		done
+	fi
+
+	# MAKE CHECKS AS DESCRIBED IN WITCH HUNT
+	witch_hunt "$@"
+
+	if [[ "$(echo "${_flag_verbose}")" == 0 ]]; then
+		_silence=1
+		export _silence
+	elif [[ "$(echo "${_flag_quiet}")" == 0 ]]; then
+		_silence=0
+		export _silence
+	else
+		_silence=9
+		export _silence
+	fi
+
+	# PERFORM RUNTIME DEPENDENCIES CHECK. ISSUE WARNING FOR ALL BUT GENTOO
+	if [[ "$(awk -F '=' '/RDEP/{ print $2 }' <"${CLOCALLG}/sinprog")" == 0 ]]; then
+		_dependencies_check && sinit_flow_monitor "RDEP"
+	fi
+
+}
+
+warp() {
+	# DIE IF PP ARE NULL
+	inspector "$@"
+
+	# FILTER AND EXPORT ALL FLAGS AND ARGUMENTS. DIE UNLESS CONDITIONS ARE EXACT
+	librarium "$@"
+
+	# THIS FUNCTION WILL ISSUE ESSENTIAL SYSTEM CHECKS, BEFORE PROCEEDING.
+	inquisitor "$@"
+
+	_flags_list0=("$_flag_fetch" \
+		"$_flag_force_new" \
+		"$_flag_keep" \
+		"$_flag_health" \
+		"$_flag_replace" \
+		"$_flag_keep" \
+		"$_flag_initrd" \
+		"$_flag_minimal" \
+		"$_flag_controller" \
+		"$_flag_controller_path" \
+		"$_flag_enforce" \
+		"$_enforce_args" \
+		"$_flag_lawful" \
+		"$_lawful_args" \
+		"$_flag_verbose" \
+		"$_flag_quiet" \
+		"$_flag_test"
+		"$_flag_network")
+	# STAGE A
+
+	# THIS LIST WILL BE EXPORTED TO THE SOURCED SINIT BUILDER SCRIPT
+	_flags_stagea=()
+
+	_flags_list1=("_flag_fetch" \
+		"_flag_force_new" \
+		"_flag_keep" \
+		"_flag_minimal" \
+		"_flag_enforce" \
+		"_enforce_args" \
+		"_flag_lawful" \
+		"_lawful_args" \
+		"_flag_verbose" \
+		"_flag_quiet" \
+		"_flag_test" \
+		"_flag_network" \
+		"_flag_base")
+
+	for i in "${_flags_list1[@]}"; do
+		if [[ "$(echo ${!i})" == 0 ]]; then
+			_flags_stagea+=("${i}")
+		fi
+	done
+
+	echo "${_flags_stagea[@]}"
+	source "${CWORKDIR}/scripts/sinit" "${_flags_stagea[@]}"
+	# STAGE B
+
+	# STAGE C
+
+}
+
+
