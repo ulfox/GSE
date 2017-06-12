@@ -1,5 +1,10 @@
 #!/bin/bash
 
+if echo "${_flag_tty}" | grep -q 'sshd'; then
+	LC_COLLATE="C"
+	LC_ALL="en_US.UTF-8"
+	LC_CTYPE="en_US.UTF-8"
+fi
 
 # OPTIONS MENU
 _copt() {
@@ -162,16 +167,17 @@ _simple_fetch() {
 }
 
 _get_latest_snapshot() {
-	if [[ -n $(echo "$@" | grep '\--force-new') ]]; then
-		echo -e "\e[33mForce new is active!\e[0m"
+	if [[ -n "${_flag_force_new}" ]] || echo "${_enforce_args[@]}" | grep -q 'gsnap'; then
+		inspector "$@"
+		echo -e "\e[33mForce is active!\e[0m"
 		_export_catalyst_workdirs
 		rm -f "${CATDIR}/portage-latest.tar.bz2"
 		rm -f "${CATDIR}/portage-latest.tar.bz2.md5sum"
 		_portage_md5sum
 		_simple_fetch
 	else
-		if [[ -n $(echo "$@" | grep '\--fetch-new') || -n $(echo "$@" | grep '\-fn') ]]; then
-			[[ -z "$@" ]] && die "Wrong parameters"
+		if [[ -n "${_flag_fetch}" ]]; then
+			inspector "$@"
 			_export_catalyst_workdirs
 			rm -f "${CATDIR}/portage-latest.tar.bz2"
 			rm -f "${CATDIR}/portage-latest.tar.bz2.md5sum"
@@ -206,7 +212,7 @@ _get_latest_snapshot() {
 
 # CHECK SNAPSHOT
 _snapshot_checkup() {
-[[ -z "$@" ]] && die "Wrong parameters"
+inspector "$@"
 [[ $(du -sh "$1" | awk -F ' ' '{print $1}' | sed 's/[^0-9]*//g') -le 220 ]] \
 && [[ $(du -sh "$1" | awk -F ' ' '{print $1}' | sed 's/[^0-9]*//g') -ge 50 ]] \
 || return 1
@@ -248,7 +254,7 @@ unset ARRAYSNAP
 }
 
 _stagex() {
-	[[ -z "$@" ]] && die "Wrong parameters"
+	inspector "$@"
 	if [[ -e "$1" ]]; then
 		# STAGE 2
 		echo -e "\e[35mBuilding stage$2\e[0m"
@@ -256,21 +262,20 @@ _stagex() {
 		cat "${CCONFDIR}/system/catalyst/stage$2.spec" | sed '/^#/ d' | sed '/^\s*$/d' \
 		> "${CATDIR}/.stage$2.spec"
 
-		catalyst -c "${CCONFDIR}/system/catalyst/catalyst.conf" -f "${CATDIR}/.stage$2.spec" \
-		&& pass || die "Failed"
+		#catalyst -c "${CCONFDIR}/system/catalyst/catalyst.conf" -f "${CATDIR}/.stage$2.spec" \
+		#&& pass || die "Failed"
 	else
-		echo -e "\e[31mCould not locate stage$2-${ARCH}-${TARGETSTAMP}.tar.bz2\e[0m"
-		return 1
+		die "Could not locate stage$2-${ARCH}-${TARGETSTAMP}.tar.bz2"
 	fi
 }
 
 _call_stagex() {
-	[[ -z "$@" ]] && die "Wrong parameters"
-	if [[ -n $(echo $@ | grep '\--force-new') ]]; then
-		echo -e "\e[31mForce new is active!\e[0m"
+	inspector "$@"
+	if [[ -n "${_flag_force_new}" ]] || echo "${_enforce_args[@]}" | grep -q 'gcat'; then
+		echo -e "\e[31mForce is active!\e[0m"
 		_stagex "$1" "$2"
 	else
-		if [[ -e "${CATDIR}/builds/${TARGETPATH}/stage$2-${ARCH}-${TARGETSTAMP}.tar.bz2" && -n $(echo "$@" | grep "s$2") ]]; then
+		if [[ -e "${CATDIR}/builds/${TARGETPATH}/stage$2-${ARCH}-${TARGETSTAMP}.tar.bz2" ]]; then
 
 			echo -e "\e[32mStage$2 located\e[0m"
 			while read -p "Do you wish to build new? Y/N :: <= " ANS; do

@@ -4,6 +4,12 @@
 # THIS SCRIPT PROVIDES A SIMPLE GUIDES CONFIGURATION FOR THE FSTAB
 #
 
+if echo "${_flag_tty}" | grep -q 'sshd'; then
+	LC_COLLATE="C"
+	LC_ALL="en_US.UTF-8"
+	LC_CTYPE="en_US.UTF-8"
+fi
+
 fs_opt() {
 	case $1 in
 		1)

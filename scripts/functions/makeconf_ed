@@ -1,5 +1,11 @@
 #!/bin/bash
 
+if echo "${_flag_tty}" | grep -q 'sshd'; then
+	LC_COLLATE="C"
+	LC_ALL="en_US.UTF-8"
+	LC_CTYPE="en_US.UTF-8"
+fi
+
 # HERE MAKE.CONF IS CONFIGURED, BY EITHER AN AUTOMATIC METHOD OR BY A GUIDED METHOD
 [[ -z "${CCONFDIR}" ]] && exit 1
 
@@ -85,7 +91,7 @@ http://mirrors.rit.edu/gentoo/ ftp://mirror.iawnet.sandia.gov/pub/gentoo/ http:/
 http://mirror.lug.udel.edu/pub/gentoo/ ftp://cosmos.illinois.edu/pub/gentoo/ http://cosmos.illinois.edu/pub/gentoo/ http://gentoo.cs.uni.edu/ \
 rsync://gentoo.cs.uni.edu/gentoo-distfiles http://mirror.usu.edu/mirrors/gentoo/ \
 | awk -F ' ' '{ print $2 }' 2>/dev/null)" \
-&& pass || { inspector "There was a problem automatically generating the servers."
+&& pass || { _report_back "There was a problem automatically generating the servers."
 echo "Please use manually: mirrorselect -i -o >> {CCONFDIR}/system/portage/make.conf"; }
 
 echo "GENTOO_MIRRORS=\"${GENMIRR}\"" >>"${CCONFDIR}/system/portage/make.conf"

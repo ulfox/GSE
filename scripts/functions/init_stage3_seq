@@ -1,12 +1,14 @@
 #!/bin/bash
 
 # GET LATEST PORTAGE SNAPSHOT, CREATE GSE PROFILE AND LAST INITIATE THE STAGE 1,2,3 BUILD SEQUENCE
-LC_COLLATE=C
-LC_ALL="en_US.UTF-8"
-LC_CTYPE="en_US.UTF-8"
+if echo "${_flag_tty}" | grep -q 'sshd'; then
+	LC_COLLATE="C"
+	LC_ALL="en_US.UTF-8"
+	LC_CTYPE="en_US.UTF-8"
+fi
 
-# PP CHECK
-[[ -z "$@" ]] && print_inf_f
+# INSPECTOR
+inspector "$@"
 
 source "${CWORKDIR}/scripts/functions/catalyst_functions" || die "Missing scripts"
 
@@ -24,7 +26,7 @@ if [[ ! -e "${CATDIR}/builds/${TARGETPATH}/${TARGETNAME}.tar.bz2" ]]; then
 fi
 
 # CHECK IF SNAPSHOT EXISTS AND HAS NORMAL SIZE
-check_portage_snap_f() {
+check_portage_snap() {
 if [[ ! -e "${CATDIR}/snapshots/portage-${SNAPSHOTNAME}.tar.bz2" ]] || ! _snapshot_checkup "${CATDIR}/snapshots/portage-${SNAPSHOTNAME}.tar.bz2"; then
 # REMOVE THE SNAPSHOT IF IT EXISTS BUT SEEMS HEAVILY MODIFIED
 rm -f "${CATDIR}/snapshots/portage-${SNAPSHOTNAME}.tar.bz2" >/dev/null 2>&1
@@ -180,9 +182,9 @@ fi
 unset BRKVAR	
 }
 
-if [[ -n $(echo $@ | grep '\--force-new') ]]; then
+if [[ -n "${_flag_force_new}" ]] || echo "${_enforce_args[@]}" | grep -q 'gsnap'; then
 	echo -e "\e[33mSearching for portage snapshot...\e[0m"
-	echo -e "\e[31mForce new is active!\e[0m"
+	echo -e "\e[31mForce is active!\e[0m"
 	if [[ ! -e "${CATDIR}/snapshots/portage-${SNAPSHOTNAME}.tar.bz2" ]]; then
 		echo -e "\e[33mCould not locate snapshot\e[0m"
 		echo -e "\e[33mAttempting to fetch new...\e[0m"
@@ -191,11 +193,11 @@ if [[ -n $(echo $@ | grep '\--force-new') ]]; then
 		catalyst -s "${SNAPSHOTNAME}" && pass || die "FAILED"; }
 	fi
 else
-	check_portage_snap_f
+	check_portage_snap
 fi
 
 # STAGE 1
-_call_stagex_f "${CATDIR}/builds/${TARGETPATH}/${TARGETNAME}.tar.bz2" "1" "$@"
+_call_stagex "${CATDIR}/builds/${TARGETPATH}/${TARGETNAME}.tar.bz2" "1" "$@"
 unset TARGETNAME
 unset TARGETPATH
 unset TARGETSTAMP
@@ -203,7 +205,7 @@ unset SNAPSHOTNAME
 _target_paths "2"
 
 # STAGE 2
-_call_stagex_f "${CATDIR}/builds/${TARGETPATH}/stage1-${ARCH}-${TARGETSTAMP}.tar.bz2" "2" "$@"
+_call_stagex "${CATDIR}/builds/${TARGETPATH}/stage1-${ARCH}-${TARGETSTAMP}.tar.bz2" "2" "$@"
 unset TARGETNAME
 unset TARGETPATH
 unset TARGETSTAMP
@@ -211,7 +213,7 @@ unset SNAPSHOTNAME
 _target_paths "3"
 
 # STAGE 3
-_call_stagex_f "${CATDIR}/builds/${TARGETPATH}/stage2-${ARCH}-${TARGETSTAMP}.tar.bz2" "3" "$@"
+_call_stagex "${CATDIR}/builds/${TARGETPATH}/stage2-${ARCH}-${TARGETSTAMP}.tar.bz2" "3" "$@"
 unset ANS
 unset TARGETNAME
 unset TARGETPATH
