@@ -71,22 +71,44 @@ die() {
 
 burn() {
 	inspector "$@"
+	
+	# If keep flag is on, make a backup, then proceed with purge
 	if [[ -n "${_flag_keep}" ]]; then
-		_keep "$(basename $1)" "$1"
+		if _keep "$(basename "$1")" "$1"; then
+			echo -e "\e[31mPurging...\e[0m"
+			if [[ -d "$1" ]]; then
+				rm -rf "$1"
+			else
+				rm -f "$1"
+			fi
+		else
+			die "Backup failed"
+		fi
+	else
+		echo -e "\e[31mPurging...\e[0m"
+		if [[ -d "$1" ]]; then
+			rm -rf "$1"
+		else
+			rm -f "$1"
+		fi
 	fi
-	rm -rf "$1"
 }
 
 _keep(){
 	inspector "$@"
-	if [[ ! -e "/var/tmp/gse" ]]; then
-		mkdir -p "/var/tmp/gse"
+	# Create a date entry directory
+	_date_var="$(date '+%y-%m-%d')"
+	if [[ ! -e "/var/tmp/gse/${_date_var}" ]]; then
+		mkdir -p "/var/tmp/gse/${_date_var}"
 	fi
-	tar -czvf "/var/tmp/gse$1"_$(date '+%y-%m-%d').tar.bz2  -C "$2"
+
+	_report_back "The keep flag has been detected."
+	_report_back "Making backup of, $1 before proceeding with purging"
+	tar czvf "/var/tmp/gse/${_date_var}/$1.tar.bz2" "$2" >/dev/null 2>&1 \
+	&& return 0 || return 1
 }
 
 _report_back() {
-
 	echo -e "\e[33m$*\e[0m" 1>&2
 }
 
@@ -97,7 +119,6 @@ inspector() {
 pass() {
 	echo -e "[\e[34mDone\e[0m]"
 }
-
 
 print_inf_f() {
 	clear
@@ -185,6 +206,7 @@ _repeat_subpart() {
 
 _clean_target() {
 	inspector "$@"
+	[[ -z "$(echo "$@" | grep 'workdir')" ]] && print_inf_f
 	
 	burn "$1/var/log"
 	burn "$1/var/tmp"
@@ -311,10 +333,6 @@ _check_point() {
 			_start_again "ask_new" "$1"
 		fi
 	fi
-	
-	echo "============================================================================"
-	echo -e "\e[35mPART:A Fundamentals\e[0m"
-	echo "============================================================================"
 }
 
 _start_again() {
@@ -330,7 +348,7 @@ _start_again() {
 				[Yy][eE][sS]|[yY])
 					break;;
 				"START NEW")
-					echo -e "\e[31mPurging...\e[0m" 
+					echo -e "\e[33mChecking...\e[0m"
 					_pseudo_check_purge "$2" \
 					&& sinit_flow_monitor "RESET" && sed -i -e 's/1/0/g' "${CWORKDIR}/scripts/chroot_scripts/chsinprog"; break;;
 				* ) echo "Wrong answer";;
@@ -338,7 +356,7 @@ _start_again() {
 		done
 	elif [[ "$1" == "force" ]]; then
 		echo -e "\e[31mForce new is active!\e[0m"
-		echo -e "\e[31mPurging workdir...\e[0m" 
+		echo -e "\e[31mPurging workdir...\e[0m"
 		_pseudo_check_purge "$2" \
 		&& sinit_flow_monitor "RESET" && sed -i -e 's/1/0/g' "${CWORKDIR}/scripts/chroot_scripts/chsinprog"
 	fi
@@ -367,8 +385,8 @@ _extract_tarball() {
 _workdir_check() {
 	[[ -z "$@" && -d "$2" ]] && die "Wrong Parameters"
 	if [[ -n ${_flag_force_new} ]] || echo "${_enforce_args[@]}" | grep -q 'gcat' || echo "${_enforce_args[@]}" | grep -q 'gprec'; then
-		echo "This may take some time"
-		echo "Purging..."
+		_report_back "This may take some time"
+		_report_back "Checking..."
 		_pseudo_check_purge "$2"
 		_extract_tarball "$@"
 	else
@@ -385,8 +403,8 @@ _workdir_check() {
 						_extract_tarball "$@"
 						break;;
 					PURGE)
-						echo "This may take some time"
-						echo "Purging..."
+						_report_back "This may take some time"
+						_report_back "Checking..."
 						_pseudo_check_purge "$2"
 						_extract_tarball "$@"
 						break;;
@@ -433,9 +451,9 @@ _get_latest() {
 	mkdir -p "${CDISTDIR}/dists" \
 	&& echo -e "[\e[32m*\e[0m] Fetching \e[34m${STAGE3TB}\e[0m"
 	if [[ -n "${_flag_force_new}" ]] || echo "${_enforce_args[@]}" | grep 'gseed'; then
-		rm -f "${CDISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2" >/dev/null 2>&1
-		rm -f "${CDISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2.DIGESTS.asc" >/dev/null 2>&1
-		rm -f "${CDISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2.DIGESTS" >/dev/null 2>&1
+		burn "${CDISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2"
+		burn "${CDISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2.DIGESTS.asc"
+		burn "${CDISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2.DIGESTS"
 		wget -c -O "${CDISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2" "${GENTOOLATEST}" >/dev/null 2>&1 \
 		&& echo "${STAGE3TB}" > "${CDISTDIR}/dists/latest.info" \
 		&& pass || die "FAILED"
@@ -1125,7 +1143,7 @@ witch_hunt() {
 }
 
 # INQUSITOR. CHECK FOR VERBOSITY LEVEL, CALL WITCH HUNT AND PROMPT IN CASE OF FORCE NEW
-inquisitor() {R
+inquisitor() {
 	inspector "$@"
 
 	parameters_check "$@"
@@ -1245,7 +1263,6 @@ warp() {
 		fi
 	done
 
-	echo "${_flags_stagea[@]}"
 	source "${CWORKDIR}/scripts/sinit" "${_flags_stagea[@]}"
 	# STAGE B
 

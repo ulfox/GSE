@@ -133,7 +133,7 @@ _target_paths() {
 _fetch_portage() {
 if [[ -e "${CATDIR}/portage-latest.tar.bz2" ]]; then
 	echo -e "[\e[31m*\e[0m] Purging old snapshot" \
-	&& rm -f "${CATDIR}/portage-latest.tar.bz2"
+	&& burn "${CATDIR}/portage-latest.tar.bz2"
 else
 	echo -e "[\e[31m*\e[0m] Local backup snapshot was not found!"
 fi
@@ -171,16 +171,16 @@ _get_latest_snapshot() {
 		inspector "$@"
 		echo -e "\e[33mForce is active!\e[0m"
 		_export_catalyst_workdirs
-		rm -f "${CATDIR}/portage-latest.tar.bz2"
-		rm -f "${CATDIR}/portage-latest.tar.bz2.md5sum"
+		burn "${CATDIR}/portage-latest.tar.bz2"
+		burn "${CATDIR}/portage-latest.tar.bz2.md5sum"
 		_portage_md5sum
 		_simple_fetch
 	else
 		if [[ -n "${_flag_fetch}" ]]; then
 			inspector "$@"
 			_export_catalyst_workdirs
-			rm -f "${CATDIR}/portage-latest.tar.bz2"
-			rm -f "${CATDIR}/portage-latest.tar.bz2.md5sum"
+			burn "${CATDIR}/portage-latest.tar.bz2"
+			burn "${CATDIR}/portage-latest.tar.bz2.md5sum"
 			echo -e "\e[33mSearching for portage snapshot...\e[0m"
 			# PORTAGE MD5SUM
 			_portage_md5sum

@@ -9,13 +9,14 @@ fi
 # STAGE A
 # CHECK POSITIONAL PARAMETERS
 inspector "$@"
-
+clear
+echo "============================================================================"
+echo -e "\e[35m 			   PART:A Fundamentals\e[0m"
 echo "============================================================================"
 echo -e "[\e[32m*\e[0m] \e[34mInitializing\e[0m"
 # ALL ESSENTIAL VARIABLES FOR THE DOWNLOAD AND AUTHENTICATION PROCESS
 source "${CWORKDIR}/etc/gentoo.conf" >/dev/null 2>&1 \
 && echo -e "[\e[32m*\e[0m] \e[35mExporting variables\e[0m" \
-&& echo "============================================================================" \
 || { echo -e "[\e[31m*\e[0m] \e[35mExporting variables\e[0m"; echo -e "\e[31mAborting\e[0m..."; sleep 2; return 1; }
 
 # PART A
@@ -146,7 +147,7 @@ _am_i_root "$UID" && echo -e "[\e[32m*\e[0m] Requesting root privileges" \
 TARGETSTAMP="$(grep 'version_stamp' "${CCONFDIR}/system/catalyst/stage3.spec" \
 | sed '/^#/ d' | awk -F ' ' '{ print $2 }' | sed  -e "s_\"__g")"\
 && if _prepare_chroot "${BWORKDIR}" "$@"; then
-	_clean_target || die
+	_clean_target "${BWORKDIR}" "$@" || die
 else
 	die
 fi
