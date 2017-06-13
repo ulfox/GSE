@@ -3,7 +3,7 @@
 GSE \- Gentoo Stateless Environment
 .SH SYNOPSIS
 .B gse 
-[\fBOPTIONS\fR]
+[\fBOPTIONS\fR] \fB--base\fR={catalyst,precomp}
 .SH "DESCRIPTION"
 .nf
 \fBGSE\fR is a set of scripts and configuration files that takes special advantage of catalyst,
@@ -35,8 +35,8 @@ already a successful system build and one wishes to reconfigure all parts but on
 then he could simply start gse with --lawful-good=apply-new. This command can be used multiple times,
 each time with a new entry.
 
-Supported entries: seed, catalyst_snap, catalyst_st-{1,2,3}, extraction, update, portage, apply-new, 
-configure, install, kernel, initramfs, clean, all.
+Supported entries: gfund, gseed, gsnap, gcat, extr, gprec, gupdate, gportage, gapply-new, 
+gconfigure, ginstall, gkernel, ginitrd, gclean, all.
 
 To make gse passive for everything, simply do: gse --lawful-good=all. This option will simply archive
 the work done and sign it.
@@ -46,6 +46,15 @@ the work done and sign it.
 See --lawful-good, for examples. The only difference is that this option instructs gse to use force on the
 target part instead of being passive. Note that --enforce=all, implies --force-new.
 .fi
+.TP
+\fB\-\-base\fR \fB\-b\fR
+This option instructs gse about the method that should be used for the fundations of the system to be built.
+Currently there are 2 options which gse supports. The one is 'catalyst', while the other is 'precomp'. The
+catalyst opton will initiate the functions for creating a stage3 tarball, reading the spec files. The precomp
+option instructs gse to mark the system's fundation as stage3-latest-tarball, which is the tarball that one
+would donwload from the Gentoo mirors for installing a basics system. Precomp stands for precompiled which
+is actually not a good name but it states that the targeted tarball has already been built by the
+Gentoo Release Engineering Team.
 .TP
 \fB\-\-help\fR \fB\-h\fR
 .nf
@@ -82,7 +91,7 @@ and intiramfs as a separate step, by using --build-controller (see below).
 This option instructs gse to exclude the initramfs build from Stage B building sequence.
 .fi
 .TP
-\fB\-\-build-controller\fR [\fB\-\fR\fIkernel-mods\fR] \fB\-\-bc\fR [\fB\-\fR\fIkernel-mods\fR]
+\fB\-\-build-controller\fR \fB\-bc\fR [\fB\-\fR\fIkernel-mods\fR]
 .nf
 This option will instruct gse to build only the controller. To build the initramf outside of the 
 stage B you have to provide the gse with the directory containing the kernel modules. 
@@ -97,6 +106,33 @@ located at /scripts/chroot_scripts. This option implies --no-kernel --no-initram
 profile is also excluded from the system. Minimal system is ideal for creating a simple, small
 image with customized bootscripts and configuration files.
 .fi
+.SH EXAMPLES
+You can simply call gse without any arguments, and follow the main menu and submenus for initiating
+the build of your system. GSE should be run each time one wants to edit the configuration files, since
+the configuration files are listed on configuration submenus which makes it more easy to follow, and
+is a way to make sure you did not forget to configure an entry, since its is listed there.
+
+The --base={catalyst,precomp} is the only option that is required to use GSE without the main menu.
+It actually instructs gse that it should use the configuration files as they are and initiate the
+inidcated build that follows --base=.
+
+To instruct gse for making a system with catalyst base, you type: gse --base=catalyst.
+
+If you have configured again the configuration files and you wish to make a new system, but keep the current
+one, you could then add: gse --base=catalyst --keep, or gse --base=precomp --keep, if the system was built with
+precomp method.
+
+The --lawful-good & --enfoce options are perfect for skiping/forcing certain areas that gse will prompt to
+reconfigure or continue. Asume that gse has already finished building a system with --base=catalyst and you
+wish to apply new configuration options in the chroot stage. Then you could run: gse --base=catalyst
+--lawful-good="gparta,gupdate,gportage,ginst,gkernel,ginitrd" --enforce="gconfiguration"
+.fi
+.PP
+Note: Remeber hat --lawful-good supresses --enforce. Thereforce --lawful-good="gparta" --enforce="gparta" will
+read only --lawful-good="gparta"
+.fi
+
+
 .SH "SEE ALSO"
 .nf
 man 5 gse
