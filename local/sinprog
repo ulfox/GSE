@@ -2,6 +2,7 @@
 # If you want to start again, please select START NEW when prompted during
 # the PartA: Fundamentals
 PARTA=0
+CHECK=0
 RDEP=0
 SEED=0
 CATALYST=0
