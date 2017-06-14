@@ -1,0 +1,70 @@
+#!/bin/bash
+
+echo "Creating GSE md5sums"
+#(cd "${CWORKDIR}"; find . -path ./dist.d -prune -o -type f -exec md5sum "{}" + | sed 's_\./_STFLAG\/_g' > gse_list.md5sum
+#cat gse_list.md5sum | sed -e 's_STFLAG_'"$PWD"'_g' >gse_list.md5sums; cd - >/dev/null)
+
+CWORKDIR="$(dirname "$PWD")"
+
+# FUNCTION FOR GENERATING THE MD5SUM FILE AND THE BACKUP TARBALL
+_gse_backup() {
+(cd "${CWORKDIR}"
+[[ -z "${CWORKDIR}" ]] && exit
+
+# USED TO MAKE THE LISTS
+if [[ ! -e "${CWORKDIR}/tmp/.gse_list0" ]]; then
+	rm -rf "tmp/.gselist"
+	mkdir -p "tmp/.gselist"
+
+	# CREATES THE BASE FOR THE LIST ENTRIES
+	cp -r "${CWORKDIR}"/{bin,config.d,docs,scripts,local,README.md,TODO,etc} "tmp/.gselist"
+
+	# GENERATE LIST0, THIS ONE IS USED FOR THE ARCHIVES CREATION
+	find "tmp/.gselist" -type f | sed 's_tmp/.gselist_STFLAG_g'> "${CWORKDIR}/tmp/.gse_list0"
+	
+	# GENERATE LIST, THIS ONE IS USED FOR THE MD5SUM LIST
+	find "tmp/.gselist" -type f | sed -e 's_tmp/.gselist_'"$PWD"'_g' > "${CWORKDIR}/tmp/.gse_list"
+
+	# PURGE GSELIST
+	rm -rf "tmp/.gselist"
+fi
+
+# READ LIST0 AND CREATE THE ARCHIVES
+while read -r i; do
+	rsync -aAXRrq "$i" "tmp/TheArchives"
+done < <(cat "${CWORKDIR}/tmp/.gse_list0" | sed -e 's_STFLAG/__g')
+
+# CREATE THE BACKUP
+tar cvzf "tmp/gse_list.tar.bz2" "tmp/TheArchives/" >/dev/null
+
+# GENERATE THE MD5SUMS CHECKLIST
+while read -r i; do
+	md5sum "$i" >> "${CWORKDIR}/tmp/.gse_list.md5sum0"
+done < <(cat "${CWORKDIR}/tmp/.gse_list" | sed -e 's_\./_\/_g')
+
+# INJECT STFLAG STRING TO EXTRACT IT LATER
+cat "${CWORKDIR}/tmp/.gse_list.md5sum0" | sed -e 's_'"${CWORKDIR}"'_STFLAG_g' > "${CWORKDIR}/tmp/.gse_list.md5sum"
+
+# DELETE MD5SUM0
+rm "${CWORKDIR}/tmp/.gse_list.md5sum0"
+cd "${CWORKDIR}/tmp"
+rm -rf "TheArchives")
+}
+
+# DO NOT UNCOMMENT THIS. THE FUNCTIONS WILL BREAK, OR WILL WONT REPLACE THE SCRIPTS THEY WAY IT SHOULD BE.
+if [[ ! -e "${CWORKDIR}/tmp/.gse_list.md5sum" ]]; then
+	: #_gse_backup
+fi
+
+# THIS IS THE REPLACE RENEW PART
+(rm -f "${CWORKDIR}/tmp/.MODLIST" >/dev/null
+md5sum -c < <(cat "${CWORKDIR}/tmp/.gse_list.md5sum" | sed -e 's_STFLAG_'"${CWORKDIR}"'_g') \
+| grep FAILED | awk -F ':' '{ print $1 }' | sed -e 's_'"${CWORKDIR}/"'__g' >> "${CWORKDIR}/tmp/.MODLIST"
+
+cd "${CWORKDIR}"
+tar xvf "tmp/gse_list.tar.bz2" -C "tmp/" >/dev/null 2>&1)
+
+while read -r i; do
+	rsync -aAXrhv 
+	echo "${CWORKDIR}/tmp/tmp/TheArchives/$i" "${CWORKDIR}/$i"
+done < <(cat "${CWORKDIR}/tmp/.MODLIST")
