@@ -19,18 +19,27 @@ source "${CWORKDIR}/etc/gentoo.conf" >/dev/null 2>&1 \
 && echo -e "[\e[32m*\e[0m] \e[35mExporting variables\e[0m" \
 || { echo -e "[\e[31m*\e[0m] \e[35mExporting variables\e[0m"; echo -e "\e[31mAborting\e[0m..."; sleep 2; return 1; }
 
+
 # PART A
 _part_a() {
+	# CHECK IF THERE IS ANY WORK DONE
+	if [[ "$(awk -F '=' '/CHECK/{ print $2 }' < "${CLOCALLG}/sinprog")" == 1 ]] || echo "$@" | grep -q 'force'; then
+		if echo "${_flag_base}" | grep -q 'catalyst'; then
+			_start_again "${CDISTDIR}/workdir-catalyst" "$@" "force"
+		elif echo "${_flag_base}" | grep -q 'precomp'; then
+			_start_again "${CDISTDIR}/workdir-precomp" "$@" "force"
+		fi
+	fi
+
 	# CALL CATALYST BUILD OR PRECOMPILED BUILD
 	case "${_flag_base}" in
 		catalyst)
-			_check_point "${CDISTDIR}/workdir-catalyst" "$@"
-		
+
 			if _seed_net "$@"; then
 				sinit_flow_monitor "SEED"
 			fi
 
-			if [[ "$(awk -F '=' '/CATALYST/{ print $2 }' < "${CLOCALLG}/sinprog")" == 0 || -n $(echo "${_flag_force_new}") ]]; then
+			if [[ "$(awk -F '=' '/CATALYST/{ print $2 }' < "${CLOCALLG}/sinprog")" == 0 ]] || echo "$@" | grep -q 'force'; then
 				_callying_catalyst "$@" || die "Catalyst failed"
 				sinit_flow_monitor "CATALYST"
 			else
@@ -52,7 +61,7 @@ _part_a() {
 			fi
 
 		
-			if [[ "$(awk -F '=' '/EXTRACTION/{ print $2 }' < "${CLOCALLG}/sinprog")" == 0 || -n $(echo "${_flag_force_new}") ]]; then
+			if [[ "$(awk -F '=' '/EXTRACTION/{ print $2 }' < "${CLOCALLG}/sinprog")" == 0 ]] || echo "$@" | grep -q 'force'; then
 				_extracting_catalyst "$@" || die "Extraction failed"
 				sinit_flow_monitor "EXTRACTION"
 			else
@@ -86,7 +95,7 @@ _part_a() {
 				sinit_flow_monitor "SEED"
 			fi
 
-			if [[ "$(awk -F '=' '/PRECOMP/{ print $2 }' < "${CLOCALLG}/sinprog")" == 0 || -n $(echo "${_flag_force_new}") ]]; then
+			if [[ "$(awk -F '=' '/PRECOMP/{ print $2 }' < "${CLOCALLG}/sinprog")" == 0 ]] || echo "$@" | grep -q 'force'; then
 				_workdir_check "${CDISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2" \
 				"${CDISTDIR}/workdir-precomp" "$@" || die
 			else
@@ -111,16 +120,21 @@ _part_a() {
 }
 
 
-if [[ "$(awk -F '=' '/PARTA/{ print $2 }' < "${CLOCALLG}/sinprog")" == 0 || -n $(echo "${_flag_force_new}") ]]; then
-	_part_a "$@" || die
-	sinit_flow_monitor "PARTA"
+if [[ "$(awk -F '=' '/PARTA/{ print $2 }' < "${CLOCALLG}/sinprog")" == 0 || -n $(echo "${_flag_force_new}") ]] || echo "${_enforce_args[@]}" | grep -q 'gparta'; then
+	if 	[[ -n $(echo "${_flag_force_new}") ]] || echo "${_enforce_args[@]}" | grep -q 'gparta'; then
+		_part_a "$@" "force" || die
+		sinit_flow_monitor "PARTA"
+	else
+		_part_a "$@" || die
+		sinit_flow_monitor "PARTA"
+	fi
 else
 	if echo "${_lawful_args[@]}" | grep -q 'gparta'; then
 		_report_back "Lawful entry detected on parta, proceeding..."
 	else		
 		if echo "${_enforce_args[@]}" | grep 'gparta'; then
 			_report_back "Enforce entry detected on parta, forcing..."
-			_part_a "$@" || die
+			_part_a "$@" "force" || die
 			sinit_flow_monitor "PARTA"
 		else
 			if repeat_parta "A"; then
@@ -138,18 +152,27 @@ case "${_flag_base}" in
 esac
 
 echo "============================================================================"
-echo -e "\e[35mPART:B Preparing to enter the new system\e[0m"
+echo -e "\e[35m		PART: B Preparing to enter the new system\e[0m"
 echo "============================================================================"
 
 _am_i_root "$UID" && echo -e "[\e[32m*\e[0m] Requesting root privileges" \
 || { echo -e "[\e[31m*\e[0m] Requesting root privileges"; exit 1; }
 
 TARGETSTAMP="$(grep 'version_stamp' "${CCONFDIR}/system/catalyst/stage3.spec" \
-| sed '/^#/ d' | awk -F ' ' '{ print $2 }' | sed  -e "s_\"__g")"\
-&& if _prepare_chroot "${BWORKDIR}" "$@"; then
-	_clean_target "${BWORKDIR}" "$@" || die
+| sed '/^#/ d' | awk -F ' ' '{ print $2 }' | sed  -e "s_\"__g")"
+
+if echo "${_enforce_args[@]}" | grep 'gpartb'; then
+	if _prepare_chroot "${BWORKDIR}" "$@" 'cforce'; then
+		_clean_target "${BWORKDIR}" "$@" || die
+	else
+		die
+	fi
 else
-	die
+	if _prepare_chroot "${BWORKDIR}" "$@"; then
+		_clean_target "${BWORKDIR}" "$@" || die
+	else
+		die
+	fi
 fi
 
 SUBBUILD=0
