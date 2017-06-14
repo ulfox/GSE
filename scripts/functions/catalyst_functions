@@ -167,45 +167,35 @@ _simple_fetch() {
 }
 
 _get_latest_snapshot() {
-	if [[ -n "${_flag_force_new}" ]] || echo "${_enforce_args[@]}" | grep -q 'gsnap'; then
+	if [[ -n "${_flag_fetch}" ]]; then
 		inspector "$@"
-		echo -e "\e[33mForce is active!\e[0m"
 		_export_catalyst_workdirs
+		echo -e "[\e[34m*\e[0m] Marking portage-latest.tar.bz2 for purging"
 		burn "${CATDIR}/portage-latest.tar.bz2"
+		echo -e "[\e[34m*\e[0m] Marking portage-latest.tar.bz2.md5sum for purging"
 		burn "${CATDIR}/portage-latest.tar.bz2.md5sum"
 		_portage_md5sum
 		_simple_fetch
+		_verify_portage
 	else
-		if [[ -n "${_flag_fetch}" ]]; then
-			inspector "$@"
-			_export_catalyst_workdirs
-			burn "${CATDIR}/portage-latest.tar.bz2"
-			burn "${CATDIR}/portage-latest.tar.bz2.md5sum"
-			echo -e "\e[33mSearching for portage snapshot...\e[0m"
-			# PORTAGE MD5SUM
-			_portage_md5sum
-			_simple_fetch
-			_verify_portage
-		else
-			# PORTAGE MD5SUM
-			if _portage_md5sum; then
-				if _verify_portage; then
-					echo "Copying to ${CATDIR}/snapshots" \
-					&& cp "${CATDIR}/portage-latest.tar.bz2" "${CATDIR}/snapshots/portage-${SNAPSHOTNAME}.tar.bz2" \
-					&& cp "${CATDIR}/portage-latest.tar.bz2.md5sum" "${CATDIR}/snapshots/portage-${SNAPSHOTNAME}.tar.bz2.md5sum" \
-					&& pass && return 0 || die "Failed"
-				else
-					echo -e "[\e[31m*\e[0m] \e[31mFAILD\e[0m: Snapshot \e[31mverified\e[0m"
-					_fetch_portage \
-					&& _verify_portage \
-					&& echo "Copying to ${CATDIR}/snapshots" \
-					&& cp "${CATDIR}/portage-latest.tar.bz2" "${CATDIR}/snapshots/portage-${SNAPSHOTNAME}.tar.bz2" \
-					&& cp "${CATDIR}/portage-latest.tar.bz2.md5sum" "${CATDIR}/snapshots/portage-${SNAPSHOTNAME}.tar.bz2.md5sum" \
-					&& pass && return 0 || die "Failed"
-				fi
+		# PORTAGE MD5SUM
+		if _portage_md5sum; then
+			if _verify_portage; then
+				echo "Copying to ${CATDIR}/snapshots" \
+				&& cp "${CATDIR}/portage-latest.tar.bz2" "${CATDIR}/snapshots/portage-${SNAPSHOTNAME}.tar.bz2" \
+				&& cp "${CATDIR}/portage-latest.tar.bz2.md5sum" "${CATDIR}/snapshots/portage-${SNAPSHOTNAME}.tar.bz2.md5sum" \
+				&& pass && return 0 || die "Failed"
 			else
-				die "Failed"
+				echo -e "[\e[31m*\e[0m] \e[31mFAILD\e[0m: Snapshot \e[31mverified\e[0m"
+				_fetch_portage \
+				&& _verify_portage \
+				&& echo "Copying to ${CATDIR}/snapshots" \
+				&& cp "${CATDIR}/portage-latest.tar.bz2" "${CATDIR}/snapshots/portage-${SNAPSHOTNAME}.tar.bz2" \
+				&& cp "${CATDIR}/portage-latest.tar.bz2.md5sum" "${CATDIR}/snapshots/portage-${SNAPSHOTNAME}.tar.bz2.md5sum" \
+				&& pass && return 0 || die "Failed"
 			fi
+		else
+			die "Failed"
 		fi
 	fi
 }
@@ -271,7 +261,7 @@ _stagex() {
 
 _call_stagex() {
 	inspector "$@"
-	if [[ -n "${_flag_force_new}" ]] || echo "${_enforce_args[@]}" | grep -q 'gcat'; then
+	if echo "$@" | grep -q 'force'; then
 		echo -e "\e[31mForce is active!\e[0m"
 		_stagex "$1" "$2"
 	else
