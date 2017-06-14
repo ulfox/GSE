@@ -1,15 +1,15 @@
 # Symlinks, bind-mounts,  overlas and tmpfs
 # Please follow the examples to configure any symlinks you wish to create automatically
 # 
-# Symlink options: symlink {f=y/n} {dir=path} {source} {target}
+# Symlink options: symlink {f=y/n} {path} {source} {target}
 # Example 1: symlink f=n /etc/conf.d/net /user-data/local/net
 # This will be translated as: ln -s /etc/conf.d/net /user-data/local/net
 #
 # On the other hand, this: symlink f=y /user-data/custom-location /etc/conf.d/net /user-data/custom-location/net
 # is translated as: mkdir -p /user-data/custom-location && ln -s /etc/conf.d/net /user-data/custom-location/net
 #
-# Bind mount options: bindmount {f=y/n} {dir=path} {source} {target}
-# Example 2: bindmount f=y dir=/user-data/local/home/user /home/user/data /user-data/local/home/user/data
+# Bind mount options: bindmount {f=y/n} {path} {source} {target}
+# Example 2: bindmount f=y /user-data/local/home/user /home/user/data /user-data/local/home/user/data
 # Same as: mkdir -p /user-data/local/home/user && /home/user/data /user-data/local/home/user/data none rw,bind 0 0
 #
 # Overlay options: overlay {lowerdir} {uperdir} {workdir}
@@ -21,3 +21,8 @@
 # Same as tmpfs /var/logs tmpfs nodev,nosuid,noexec,nodiratime,size=64M 0 0
 #
 #
+
+
+
+
+# EOF
