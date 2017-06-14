@@ -12,9 +12,10 @@
 			echo "##							   ##"
 			echo -e "## [ \e[32mI\e[39m  ]	\e[33mSystem menu\e[0m		   	           ##"
 			echo -e "## [ \e[32mII\e[39m ]	\e[33mBuild the controller image\e[0m		   ##"
-			echo -e "## [ \e[32mIII\e[39m]	\e[33mDocumentations\e[0m				   ##"
-			echo -e "## [ \e[32mIV\e[39m ]	\e[33mAbout the project\e[0m			   ##"
-			echo -e "## [ \e[32mV\e[39m  ]	\e[33mI shouldn't be here, please let me leave!\e[0m  ##"
+			echo -e "## [ \e[32mIII\e[39m]	\e[33mGSE Tools\e[0m				   ##"
+			echo -e "## [ \e[32mIV\e[39m ]	\e[33mDocumentations\e[0m				   ##"
+			echo -e "## [ \e[32mV\e[39m  ]	\e[33mAbout the project\e[0m			   ##"
+			echo -e "## [ \e[32mVI\e[39m ]	\e[33mI shouldn't be here, please let me leave!\e[0m  ##"
 			echo "##							   ##"
 			echo -e "## [ \e[32mT\e[39m  ]				  \e[32mTerminal\e[0m	   ##"
 			echo "##							   ##"
@@ -172,5 +173,21 @@
 			echo -e "## [ \e[32mT\e[39m  ]		  		\e[32mTerminal\e[0m   ##"
 			echo "##						   ##"
 			echo "#####################################################"
+			;;
+		11)
+			echo -e "####################  \e[94m~~GSE Tools~~\e[39m   #####################"
+			if [[ "${CREL}" == Gentoo ]]; then
+				echo -e "## 				     	   \e[35m${CREL}\e[0m \e[33msystem\e[0m ##"
+			else
+				echo -e "## 				\e[35mGentoo\e[0m \e[31msystem not found!\e[0m ##"
+			fi
+			echo "##						         ##"
+			echo -e "## [ \e[32mI\e[39m  ]	\e[33mRenew ALL\e[0m		                 ##"
+			echo -e "## [ \e[32mII\e[39m ]	\e[33mVersion Check\e[0m				 ##"
+			echo -e "## [ \e[32mIII\e[39m]	\e[33mReturn back\e[0m				 ##"
+			echo "##							 ##"
+			echo -e "## [ \e[32mT\e[39m  ]				\e[32mTerminal\e[0m	 ##"
+			echo "##							 ##"
+			echo "###########################################################"
 			;;
 	esac	
