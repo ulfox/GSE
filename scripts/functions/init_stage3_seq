@@ -182,10 +182,10 @@ fi
 unset BRKVAR	
 }
 
-if [[ -n "${_flag_force_new}" ]] || echo "${_enforce_args[@]}" | grep -q 'gsnap'; then
+if echo "$@" | grep -q 'force'; then
 	echo -e "\e[33mSearching for portage snapshot...\e[0m"
-	echo -e "\e[31mForce is active!\e[0m"
 	if [[ ! -e "${CATDIR}/snapshots/portage-${SNAPSHOTNAME}.tar.bz2" ]]; then
+		echo -e "\e[31mForce is active!\e[0m"
 		echo -e "\e[33mCould not locate snapshot\e[0m"
 		echo -e "\e[33mAttempting to fetch new...\e[0m"
 		_get_latest_snapshot "$@" \
