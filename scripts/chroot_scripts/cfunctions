@@ -213,7 +213,7 @@ part_portage() {
 		exit 1
 	fi
 
-	if [[ -n $(echo "$@" | grep '\--force-new') ]]; then
+	if echo "$@" | grep -q 'cforce'; then
 		echo -e "\e[34mEnabling basic profile\e[0m]"
 		eselect profile set 1 && echo -e "\e[34mEnabled\e[0m"  \
 		|| ask_for_shell "Could not enable basic profile"
@@ -270,7 +270,7 @@ build_the_world() {
 		echo "If catalyst built this system, simply say no"
 		echo "Answer Yes or No: "
 		read -rp "Input :: <= " YN
-		case "${YN:-n}" in
+		case "${YN}" in
 			[yY][eE][sS]|[yY])
 				if emerge -eq @world; then
 					_report_back "World rebuild has been completed"
@@ -335,10 +335,12 @@ _portage_subpart() {
 	cp /usr/share/portage/config/repos.conf /etc/portage/repos.conf/gentoo.conf
 
 	if [[ -n $(echo "$@" | grep 'catalyst') ]]; then
-		emerge --sync >LAST_ACTION 2>&1 && pass || { echo "emerge --sync" > LAST_FAILED_COMMAND; combat_medic; }
+		#emerge --sync >LAST_ACTION 2>&1 && pass || { echo "emerge --sync" > LAST_FAILED_COMMAND; combat_medic; }
+		rsync -aAXhrv root@192.168.2.2:/usr/portage/ /usr/portage/ >LAST_ACTION 2>&1 && pass || { echo "emerge--webrsync" > LAST_FAILED_COMMAND; combat_medic; }
 		env-update >LAST_ACTION 2>&1
 	elif [[ -n $(echo "$@" | grep 'precomp') ]]; then
-		emerge-webrsync >LAST_ACTION 2>&1 && pass || { echo "emerge--webrsync" > LAST_FAILED_COMMAND; combat_medic; }
+		#emerge-webrsync >LAST_ACTION 2>&1 && pass || { echo "emerge--webrsync" > LAST_FAILED_COMMAND; combat_medic; }
+		rsync -aAXhrv root@192.168.2.2:/usr/portage/ /usr/portage/ >LAST_ACTION 2>&1 && pass || { echo "emerge--webrsync" > LAST_FAILED_COMMAND; combat_medic; }
 		env-update >LAST_ACTION 2>&1
 	fi
 
@@ -377,7 +379,7 @@ _portage_subpart() {
 
 _part_c() {
 	echo "============================================================================"
-	echo -e "\e[35mPart C: Syncing Portage\e[0m"
+	echo -e "\e[35m 		Part C: Syncing Portage\e[0m"
 	echo "============================================================================"
 	echo -e "\e[34mUpdating the database\e[0m"
 	_portage_subpart "$@"
@@ -633,7 +635,7 @@ _kernel_build() {
 	env-update > /dev/null 2>&1 && source /etc/profile && export PS1="( 'Part H: Building the Kernel' ) $PS1"
 	export PATH=${PATH}:${CHDIR}
 	MKPS=$(grep MAKEOPTS "/etc/portage/make.conf" | sed '/^#/ d' | sed  -e "s_\"__g" | awk -F '-j' '{print $2}' | sed '/^\s*$/d')
-	if [[ -n $(echo "$@" | grep '\--force-new') ]]; then
+	if echo "$@" | grep -q 'cforce'; then
 		echo -e "The \e[34mBuilding kernel\e[0m"
 		if genkernel --install kernel --kernel-config="${CHDIR}/kernel-conf" \
 			--makeopts="-j${MKPS}" --btrfs --postclear --e2fsprogs; then
@@ -814,7 +816,7 @@ emerge_master_loop() {
 						echo "You can answer SHELL to open shell again, or call die with EXIT"
 						echo -e "Answer: \e[35mRESUME\e[0m/\e[33mSHELL\e[0m/\e[31mEXIT\e[0m"
 						read -rp "Input :: <= " AANS
-						case "${AANS:-n}" in
+						case "${AANS}" in
 							RESUME)
 								break;;
 							SHELL)
@@ -865,7 +867,7 @@ subshell_loop() {
 		echo "You can answer SHELL to open shell again, or call die with EXIT"
 		echo "Answer? CONTINUE/SHELL/EXIT: "
 		read -rp "Input :: <= " AANS
-		case "${AANS:-n}" in
+		case "${AANS}" in
 			CONTINUE)
 				LOOPVAR="EXITSHELL"
 				break;;
