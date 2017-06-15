@@ -1,0 +1,117 @@
+
+{{Note|This project is currently under development. The page itself aims to provide the basic concepts and requirements for the project
+when it is done in the future.}}
+
+'''GSE''': Gentoo Stateless Environment is a set of scripts and configuration files that take special advantage of catalyst and other
+Gentoo features for to purpose of creating a Gentoo system that can function under stateless conditions.
+
+=== Installation ===
+=== USE Flags ===
+
+{|
+|-
+| '''distcc''' || : Enables distcc support for the builds (no crossdev)
+|-
+| '''ccache''' || :  Enables ccache support
+|}
+
+
+To install GSE, run:
+
+{{Emerge|category/gse}}
+
+To use distcc and ccache, one has to enable those flags, otherwise gse will read no option regarding distcc/ccache, with exeption the catalyst part which is independent of the process.
+
+=== Building the System ===
+
+In general, as stated above, GSE consists of scripts, meaning that most of the time, it reads configuration files. Those files can be accessed either by the script's main menu, or manually from /usr/lib64/gse/config.d. During the built process, two products are created, I) a Gentoo system being one, II) a set of a kernel with an initramfs being the second. The separation of those is important, since the kenrel and initramfs will be distributed alone, while the system will be fetched from the the machine that runs those, and further configured in the process.
+
+Bellow are presented the part's of GSE building sequence. Those part's refer only to the system product(I), meaning that the controller
+has a completely different stage, separated from the process. This ensures that the controller is mutually excluded from the rest of the system. The kernel exists with it's optional(sometimes) initramfs, and everything around is controlled by it.
+
+ Description per part
+              Part A. Verifies the sources and creates a stage 3 system using catalyst
+              Part B. Creates the mount points and copies the essential files for the chroot stage
+              Part C. Updates portage and Installs eix
+              Part D. Prompts for a world rebuild, if the system is not created from catalyst(locally)
+              Part E. This part reads all the configuration files and applies changes to the system
+              Part F. Essential to make the system further functional and requested user packages
+              Part G. Reads the conf file containing runlevel instructions and executes a loop of rc-update commands
+              Part H. {optional} Reads the .config file, prompts for extra configuration and builds a modular kernel
+              Part I. {optional} This part creates an initramfs with dracut or genkernel
+              Part J: Removes all packages that are no longer required
+              Part K: Exits chroot, further clean the system, archive it and sign it
+              Part L: Mark the products complete and ready to be distributed. From now, all clients that request
+              a version check, will be notified for this product and prompted to begin fetching
+
+The optional part's are included if someone wishes to built a system using the gse process, but does not wish to include the controller.
+This disables the functions provided by the controller.
+ 
+Before initiating a build sequence, one has to edit the configuration files at /usr/lib64/gse/config.d. The files can be edited from
+the GSE main menu, which is recommended, since all are listed there, under special categories, which gives a more condensed view and assures that no configuration area will be missed.
+
+To bring up the GSE main menu script, run:
+{{RootCmd|gse -mm}}
+or simply
+{{RootCmd|gse}}
+
+The second entry instructs gse to just bring the main menu up, and from then on, all configurations and instructions will be enabled
+through the sub-menus entries, while the first entry instructs gse to bring up the main menu while at the same time exporting optional
+flags for the build process.
+
+For a list of the available gse flags and arguments see gse manpage(1), which holds more details and examples.
+{{RootCmd|man 1 gse}}
+
+After the configuration files have been edited, the building sequence is ready to begin. Currently there are two building options
+supported by gse. The first one is catalyst while the second one is precomp (as precompiled). The latest one is nothing more than
+a latest stage3 tarball that is distributed by the Gentoo Release Engineering team. It should be noted that the RelEng team uses catalyst
+to build the above tarball.
+
+Because most of the gse scripts on stage A are built to support catalyst, we will assume that catalyst is going to be used as the base option for our examples.
+
+The build can be initiated either from the main menu: ''System menu -> Build a system -> Catalyst -> Initiate Build'' or by:
+{{RootCmd|gse --base{{=}}catalyst}}
+
+The ''--base'' flag is the only flag with its argument, required to initiate the building sequence, everything else is considered optional.
+
+Among the supported flags and arguments, the most famous are: --lawful-good="arguments" and --enforce="arguments". Both flags use the 
+same arguments, which are simply hooks in the build sequence. They start with a [g] followed by a three letters regarding the part. Example: gcat refers to catalyst part inside the StageA, while the gupd refers to the portage update part inside the {chroot} StageB. 
+
+The differences of --lawful-good and --enforce are two. First one is that they enable opposite functions. That is, the --lawful-good flag will automatically say 'pass' to the referred hook point (excluding it from the process) while --enforce flag will automatically say yes, and additionally use force on the referred part. The second difference is that --lawful-good suppresses --enforce, meaning that if someone uses:
+{{RootCmd|gse --base{{=}}catalyst --lawful-good{{=}}gparta --enforce{{=}}gparta}}
+then, gse will automatically pass all parts of partA. For more information about parts and stages see gse manpage(5):
+{{RootCmd|man 5 gse}}
+
+==== Stage A ====
+
+===== Part: A Fundamentals =====
+
+From partA the only configuration files that are used, are the spec files that catalyst will use for building the stage3 tarball. Apart from those, the rest of the process will try to locate the portage snapshot or create it (for catalyst option) then build the stages. When
+done, extraction sub-part is enabled and a "${CDISTDIR}/workdir-catalyst" is created to host the extracted tarball. For precomp base, the process simply downloads the latest stag3 tarball, verifies the origin and the file's integrity before extracting the tarball to "${CDISTDIR}/workdir-precomp". 
+
+===== PART: B Preparing to enter the new system =====
+
+Here, the chroot preparation function is enabled. This function create all the mount points required for the chroot process, copy the files required by the chroot scripts, copy extra files that are indicated inside the ''inject-custom'' configuration file and last pass all the parameters required for StageB before chrooting happens.
+
+==== Stage B ====
+
+===== Part:C Syncing Portage =====
+
+Chroot has happen, and the chroot_init script has been enabled. This part read the imported environmental variables and proceeds with probably the most important part of the script, updating portage.
+
+===== Three Control Functions =====
+
+Stage B scripts come together with three control functions. Those functions provide three basic tools for ensuring that failed parts will not break the process. The first one is called chroot_master_loop and as its name states, it does nothing more than initiating a loop when called. The loop can only call the other two functions or exit when one of those is satisfied. 
+
+The second function is called emerge_master_loop and its job is to read if there is a emerge resume list, and prompt for resume or if there is a last failed command and prompt for a reaction. Among the resume/reaction options, the user can select SHELL to manually resolve the issue (e.g. add USE Flags in the package.use directory to fix an emerge issue) and then exit the shell so the main script can continue resume the process by doing a resume/reaction.
+
+The third function is called _ask_for_shell, and is a simple function which is called when a part that is not emerge related fails. Because this case is harder to resolve automatically (e.g. a copy action trying to copy a file that is missing), the user is asked instead to resolve this manually by being provided with the last failed command, the stderr log and the probably the items that where related with. For example, for the command that creates the fstab entries, the provided logs would indicate the failed command, the stderr and the entries that were intended to be created in the fstab.
+
+The above functions are called by a function which checks the exit code of each step. If a fail is detected, then the related loop function is called.
+
+===== Part Portage =====
+
+This part is a sub-part of Part: C. Here the only entry worth mentioning is the GSE Profile creation.
+
+====== The GSE Profile ======
+
