@@ -106,8 +106,12 @@ _keep(){
 
 	_e_report_back "The keep flag has been detected."
 	_e_report_back "Making backup of, $1 before proceeding with purging"
-	tar czvf "/var/tmp/gse/${_date_var}/$1.tar.bz2" "$2" >/dev/null 2>&1 \
-	&& return 0 || return 1
+	if [[ -d "$2" ]]; then
+		tar czvf "/var/tmp/gse/${_date_var}/$1.tar.bz2" "$2" >/dev/null 2>&1 \
+		&& return 0 || return 1
+	elif [[ ! -d "$2" ]]; then
+		cp "$2" "/var/tmp/gse/${_date_var}/$1"
+	fi
 }
 
 _e_report_back() {
@@ -221,7 +225,6 @@ _clean_target() {
 	burn "$1/issues.info"
 	burn "$1/root/.bash*"
 	burn "$1/usr/src/linux*"
-	burn "$1/usr/src/linux"
 	burn "$1/sinit.d"
 	# MINIMAL SYSTEM REQUEST
 	if [[ -n "${_flag_minimal}" ]]; then

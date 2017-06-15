@@ -65,7 +65,7 @@ _sreb() {
 	env-update > /dev/null 2>&1 && source /etc/profile && export PS1="( 'Part D: Rebuilding system' ) $PS1"
 	export PATH=${PATH}:${CHDIR}
 	build_the_world
-	chsinit_mon_f "REBUILD"
+	_monitor_chroot_flow "REBUILD"
 }
 
 if [[ "$(awk -F '=' '/REBUILD/{ print $2 }' <"${CHDIR}/chsinprog")" == 0 || -n $(echo "${_flag_force_new}") ]]; then
@@ -202,11 +202,6 @@ _emerge_depclear
 
 eclean-dist -d
 eclean-pkg -d
-
-
-#rm -rf /usr/src/linux-4.9.16-gentoo
-#rm -rf /usr/src/linux
-#rm -rf issues.info
 
 # Creating user-data dir-tree
 mkdir -p /user-data/persistent/{etc,var,logs,config.d,local,rmount}

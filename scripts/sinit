@@ -23,12 +23,18 @@ source "${CWORKDIR}/etc/gentoo.conf" >/dev/null 2>&1 \
 # PART A FUNDAMENTALS
 _part_a() {
 	# CHECK IF THERE IS ANY WORK DONE
-	if [[ "$(awk -F '=' '/CHECK/{ print $2 }' < "${CLOCALLG}/sinprog")" == 1 ]] || echo "$@" | grep -q 'force'; then
+	if [[ "$(awk -F '=' '/CHECK/{ print $2 }' < "${CLOCALLG}/sinprog")" == 1 ]]; then
+		if echo "${_flag_base}" | grep -q 'catalyst'; then
+			_start_again "${CDISTDIR}/workdir-catalyst" "$@"
+		elif echo "${_flag_base}" | grep -q 'precomp'; then
+			_start_again "${CDISTDIR}/workdir-precomp" "$@"
+		fi
+	elif echo "$@" | grep -q 'force'; then
 		if echo "${_flag_base}" | grep -q 'catalyst'; then
 			_start_again "${CDISTDIR}/workdir-catalyst" "$@" "force"
 		elif echo "${_flag_base}" | grep -q 'precomp'; then
 			_start_again "${CDISTDIR}/workdir-precomp" "$@" "force"
-		fi
+		fi		
 	fi
 
 	# CALL CATALYST BUILD OR PRECOMPILED BUILD
@@ -159,17 +165,17 @@ _am_i_root "$UID" && echo -e "[\e[32m*\e[0m] Requesting root privileges" \
 TARGETSTAMP="$(grep 'version_stamp' "${CCONFDIR}/system/catalyst/stage3.spec" \
 | sed '/^#/ d' | awk -F ' ' '{ print $2 }' | sed  -e "s_\"__g")"
 
-if echo "${_enforce_args[@]}" | grep 'gpartb'; then
+if [[ -n "${_flag_start_new}" ]] || echo "${_enforce_args[@]}" | grep 'gpartb'; then
 	if _prepare_chroot "${BWORKDIR}" "$@" 'cforce'; then
 		_clean_target "${BWORKDIR}" "$@" || die
 	else
-		die
+		die "Cleaning failed"
 	fi
 else
 	if _prepare_chroot "${BWORKDIR}" "$@"; then
 		_clean_target "${BWORKDIR}" "$@" || die
 	else
-		die
+		die "Cleaning failed"
 	fi
 fi
 

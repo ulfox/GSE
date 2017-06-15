@@ -278,7 +278,7 @@ build_the_world() {
 			[yY][eE][sS]|[yY])
 				if emerge -eq @world; then
 					_e_report_back "World rebuild has been completed"
-					chsinit_mon "REBUILD"; break
+					_monitor_chroot_flow "REBUILD"; break
 				else
 					echo "emerge -eq @world" > LAST_FAILED_COMMAND
 					combat_medic
@@ -286,7 +286,7 @@ build_the_world() {
 			[nN][oO]|[nN])
 				echo "Exiting Rebuilding Part"
 				sleep 1
-				chsinit_mon "REBUILD"; break;;
+				_monitor_chroot_flow "REBUILD"; break;;
 		esac
 	done
 	unset YN
