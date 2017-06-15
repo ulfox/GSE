@@ -28,11 +28,11 @@ if [[ "$(awk -F '=' '/UPDATE/{ print $2 }' <"${CHDIR}/chsinprog")" == 0 || -n $(
 	_part_c "$@" || die "Part C FAILED"
 else
 	if echo "${_lawful_args[@]}" | grep -q 'gupdate'; then
-		_report_back "Update and prepare system: Lawful entry detected, proceeding..."
+		_e_report_back "Update and prepare system: Lawful entry detected, proceeding..."
 	else
 		if echo "${_enforce_args[@]}" | grep -q 'gupdate'; then
-			_report_back "Update and prepare system: Enforce entry detected, forcing..."
-			_part_c "$@" "force" || die "Part C FAILED"
+			_e_report_back "Update and prepare system: Enforce entry detected, forcing..."
+			_part_c "$@" "cforce" || die "Part C FAILED"
 		else
 			if repeat_part "Portage Update"; then
 				_part_c "$@" || die "Part C FAILED"
@@ -46,11 +46,11 @@ if [[ "$(awk -F '=' '/UPDATE/{ print $2 }' < "${CHDIR}/chsinprog")" == 0 || -n $
 	part_portage "$@" && _monitor_chroot_flow "PORTAGE"
 else
 	if echo "${_lawful_args[@]}" | grep -q 'gportage'; then
-		_report_back "Portage Configuration: Lawful entry detected, proceeding..."
+		_e_report_back "Portage Configuration: Lawful entry detected, proceeding..."
 	else
 		if echo "${_enforce_args[@]}" | grep -q 'gportage'; then
-			_report_back "Portage configuration: Enforce entry detected, forcing..."
-			part_portage "$@" "force" && _monitor_chroot_flow "PORTAGE"
+			_e_report_back "Portage configuration: Enforce entry detected, forcing..."
+			part_portage "$@" "cforce" && _monitor_chroot_flow "PORTAGE"
 		else
 			if repeat_part "Portage Configuration"; then
 				part_portage "$@" && _monitor_chroot_flow "PORTAGE"
@@ -71,11 +71,11 @@ _sreb() {
 if [[ "$(awk -F '=' '/REBUILD/{ print $2 }' <"${CHDIR}/chsinprog")" == 0 || -n $(echo "${_flag_force_new}") ]]; then
 	_sreb
 	if echo "${_lawful_args[@]}" | grep -q 'grebuild'; then
-		_report_back "System Rebuild: Lawful entry detected, proceeding..."
+		_e_report_back "System Rebuild: Lawful entry detected, proceeding..."
 	else
 		if echo "${_enforce_args[@]}" | grep -q 'grebuild'; then
-			_report_back "System Rebuild: Enforce entry detected, forcing..."
-			_sreb "force"
+			_e_report_back "System Rebuild: Enforce entry detected, forcing..."
+			_sreb "cforce"
 		else
 			_sreb
 		fi
@@ -87,11 +87,11 @@ if [[ "$(awk -F '=' '/CONFIGURE/{ print $2 }' <"${CHDIR}/chsinprog")" == 0 || -n
 	configure_system_f "$@"
 else
 	if echo "${_lawful_args[@]}" | grep -q 'gconfigure'; then
-		_report_back "System Configuration: Lawful entry detected, proceeding..."
+		_e_report_back "System Configuration: Lawful entry detected, proceeding..."
 	else
 		if echo "${_enforce_args[@]}" | grep -q 'gconfigure'; then
-			_report_back "System Configuration: Enforce entry detected, forcing..."
-			configure_system_f "$@" "force"
+			_e_report_back "System Configuration: Enforce entry detected, forcing..."
+			configure_system_f "$@" "cforce"
 		else
 			if repeat_part "System Configuration"; then
 				configure_system_f "$@"
@@ -105,11 +105,11 @@ if [[ "$(awk -F '=' '/INSTALL/{ print $2 }' <"${CHDIR}/chsinprog")" == 0 || -n $
 	emerge_requested "$@"
 else
 	if echo "${_lawful_args[@]}" | grep -q 'ginst'; then
-		_report_back "Emerge packages: Lawful entry detected, proceeding..."
+		_e_report_back "Emerge packages: Lawful entry detected, proceeding..."
 	else
 		if echo "${_enforce_args[@]}" | grep -q 'ginst'; then
-			_report_back "Emerge packages: Enforce entry detected, forcing..."
-			emerge_requested "$@" "force"
+			_e_report_back "Emerge packages: Enforce entry detected, forcing..."
+			emerge_requested "$@" "cforce"
 		else
 			if repeat_part "Installing Packages"; then
 				emerge_requested "$@"
@@ -124,11 +124,11 @@ if [[ "$(awk -F '=' '/RUNLEVEL/{ print $2 }' <"${CHDIR}/chsinprog")" == 0 || -n 
 	_runlevel_configuration
 else
 	if echo "${_lawful_args[@]}" | grep -q 'grun'; then
-		_report_back "Runlevel: Lawful entry detected, proceeding..."
+		_e_report_back "Runlevel: Lawful entry detected, proceeding..."
 	else
 		if echo "${_enforce_args[@]}" | grep -q 'grun'; then
-			_report_back "Runlevel: Enforce entry detected, forcing..."
-			_runlevel_configuration "force"
+			_e_report_back "Runlevel: Enforce entry detected, forcing..."
+			_runlevel_configuration "cforce"
 		else
 			if repeat_part "Runlevel Configuration"; then
 				_runlevel_configuration
@@ -146,11 +146,11 @@ else
 		_kernel_build
 	else
 		if echo "${_lawful_args[@]}" | grep -q 'gkernel'; then
-			_report_back "Kernel: Lawful entry detected, proceeding..."
+			_e_report_back "Kernel: Lawful entry detected, proceeding..."
 		else
 			if echo "${_enforce_args[@]}" | grep -q 'gkernel'; then
-				_report_back "Kernel: Enforce entry detected, forcing..."
-				_kernel_build "force"
+				_e_report_back "Kernel: Enforce entry detected, forcing..."
+				_kernel_build "cforce"
 			else
 				if repeat_part "Kernel Configuration"; then
 					_kernel_build
@@ -169,11 +169,11 @@ else
 		_initramfs_builder
 	else
 		if echo "${_lawful_args[@]}" | grep -q 'ginitrd'; then
-			_report_back "Initramfs: Lawful entry detected, proceeding..."
+			_e_report_back "Initramfs: Lawful entry detected, proceeding..."
 		else
 			if echo "${_enforce_args[@]}" | grep -q 'gkernel'; then
-				_report_back "Initramfs: Enforce entry detected, forcing..."
-				_initramfs_builder "force"
+				_e_report_back "Initramfs: Enforce entry detected, forcing..."
+				_initramfs_builder "cforce"
 			else
 				if repeat_part "Initramfs Configuration"; then
 					_initramfs_builder
