@@ -68,7 +68,7 @@ subterm_f() {
 	sleep 2
 	echo 'echo -e "\e[33mInside Subshell\e[0m"' >> /root/.bashrc
 	echo 'echo -e "\e[33mExit to return back to parent\e[0m"' >> /root/.bashrc
-	(clear; exec /bin/bash;)
+	(clear; exec /bin/bash "${lppar[@]}";)
 	sed -i "/Inside Subshell/d" "/root/.bashrc"
 	sed -i "/Exit to return back to parent/d" "/root/.bashrc"
 	echo -e "\e[33mYou are back to parent\e[0m"
@@ -82,13 +82,13 @@ main_f() {
 		case ${SELCT:-6} in
 			I|i|1|-I|-i|-1			)
 				# CALL BUILDER SUBMENU
-				bs_menu_f; break;;
+				bs_menu_f "${lppar[@]}"; break;;
 			II|ii|2|-II|-ii|-2		)
 				# CALL CONTROLLER SUBMENU
 				con_f; break;;
 	 		III|iii|3|-III|-iii|-3	)
 				# GSE TOOLS SUBMENU: RENEW & VERSION CHECK
-				gse_t; break;;
+				gse_t "${lppar[@]}"; break;;
 			IV|iv|4|-IV|-iv|-4		)
 				# CALL DOCUMENTATION SUBMENU
 				doc_f; break;;
@@ -99,7 +99,7 @@ main_f() {
  				echo -e "\e[32mExiting\e[39m..."; BACKTO="Q"
  				break;;
  			[tT]					)
-				subterm_f
+				subterm_f "${lppar[@]}"
 				echo "Presh any key to return"
 				read -r 1>&-;BACKTO="MM" 
   				clear; break;;
@@ -127,7 +127,7 @@ gse_t() {
 				BACKTO="MM"
 				break;;
  			[tT]					)
-				subterm_f
+				subterm_f "${lppar[@]}"
 				echo "Presh any key to return"
 				read -r 1>&-;BACKTO="GSET" 
   				clear; break;;
@@ -143,16 +143,16 @@ bs_menu_f() {
 		case ${SELCT:-4} in
 			I|i|1|-I|-i|-1			)
 				# CALL BUILD SYSTEM SUBMENU
-				clear; bs_f
+				clear; bs_f "${lppar[@]}"
 				break;;
 			II|ii|2|-II|-ii|-2		)
 				# CALL CONFIGURATION SUBMENU
-				clear; config_f
+				clear; config_f "${lppar[@]}"
 				break;;
 			III|iii|3|-III|-iii|-3	)
-				subterm_f
+				subterm_f "${lppar[@]}"
 				# CALL SELECT DEFAULT SYSTEM SUBMENU
-				clear; selectdef_f
+				clear; selectdef_f "${lppar[@]}"
 				break;;
 			IV|iv|4|-IV|-iv|-4		)
 				# TBU: WILL INCLUDE A STAGE4 TARBALL CREATION
@@ -162,7 +162,7 @@ bs_menu_f() {
 			V|v|5					)
 				clear; BACKTO="MM"; break;;
 			[tT]					)
-				subterm_f
+				subterm_f "${lppar[@]}"
 				echo "Presh any key to return"
 				read -r 1>&-;BACKTO="BSM";
   				clear; break;;
@@ -179,28 +179,22 @@ clear; men_opt 6
 		case ${SELCT:-3} in
 			I|i|1|-I|-i|-1			)
 				# CALL PORTAGE SUBMENU
-				portage_men_f
+				portage_men_f "${lppar[@]}"
 				break;;
 			II|ii|2|-II|-ii|-2		)
 				# CALL CATALYST SUBMENU
-				catalyst_f
+				catalyst_f "${lppar[@]}"
 				break;;
 			III|iii|3|-III|-iii|-3	)
-				# START LOCAL BUILD
-				clear; source "${CWORKDIR}/scripts/sinit" "no_seed" "localrb"
+				# START PRE PRECOMPILED
+				clear; warp "--base=precomp" "${lppar[@]}"
 				echo "Presh any key to return"
 				read -r 1>&-;BACKTO="SM";
 				break;;
 			IV|iv|4|-IV|-iv|-4		)
-				# START PRE PRECOMPILED
-				clear; source "${CWORKDIR}/scripts/sinit" "seed" "precomp"
-				echo "Presh any key to return"
-				read -r 1>&-;BACKTO="SM";
-				break;;
-			V|v|5|-V|-v|-5			)
 				clear; BACKTO="BSM"; break;;
 			[tT]					)
-				subterm_f
+				subterm_f "${lppar[@]}"
 				echo "Presh any key to return"
 				read -r 1>&-;BACKTO="SM";
   				clear; break;;
@@ -254,7 +248,7 @@ portage_men_f() {
 			VIII|viii|8				)
 				BACKTO="SM"; break;;
 			[tT]					)
-				subterm_f
+				subterm_f "${lppar[@]}"
 				echo "Presh any key to return"
 				read -r 1>&-;BACKTO="PORT_M";
   				clear; break;;
@@ -295,14 +289,14 @@ catalyst_f() {
 				read -r 1>&-; BACKTO="CATA_M"; break;;
 			VI|vi|6|-VI|-vi|-6		)
 				# START MAIN BUILDER PROCESS
-				clear; warp "$@"
+				clear; warp "--base=catalyst" "${lppar[@]}"
 				echo "Presh any key to return"
 				read -r 1>&-;BACKTO="CATA_M";
 				break;;
 			VII|vii|7				)
 				BACKTO="SM"; break;;
 			[tT]					)
-				subterm_f
+				subterm_f "${lppar[@]}"
 				echo "Presh any key to return"
 				read -r 1>&-;BACKTO="PORT_M";
   				clear; break;;
@@ -310,6 +304,7 @@ catalyst_f() {
 		esac
 	done
 }
+
 # CONFIGURATION SUBMENU
 config_f() {
 	clear; men_opt 8
@@ -394,7 +389,7 @@ config_f() {
 			XVI|xvi|16				)
 				BACKTO="BSM"; break;;
 			[tT]					)
-				subterm_f
+				subterm_f "${lppar[@]}"
 				echo "Presh any key to return"
 				read -r 1>&-;BACKTO="CO_F";
   				clear; break;;
@@ -424,7 +419,7 @@ selectdef_f() {
 			III|iii|3|-III|-iii|-3	)
 				clear; BACKTO="BSM"; break;;
 			[tT]					)
-				subterm_f
+				subterm_f "${lppar[@]}"
 				echo "Presh any key to return"
 				read -r 1>&-;BACKTO="SELDEF";
   				clear; break;;
@@ -505,7 +500,7 @@ while true; do
 	case "${BACKTO:-MM}" in
 		MM 		)
 			# PULLS MAIN MENU FUNCTION
-			main_f;;
+			main_f "${lppar[@]}";;
 		DOC 	)
 			# PULLS DOCUMENTATION MENU FUNCTION
 			doc_f;;
@@ -514,24 +509,24 @@ while true; do
 			about_f;;
 		PORT_M 	)
 			# PULLS PORTAGE SUBMENU FUNCTION
-			portage_men_f;;
+			portage_men_f "${lppar[@]}";;
 		CATA_M 	)
-			catalyst_f;;
+			catalyst_f "${lppar[@]}";;
 		SM 		)
 			# PULLS BUILD SYSTEM SUBMENU: THIS IS A SUBMENU OF BULDERS MENU
-			bs_f;;
+			bs_f "${lppar[@]}";;
 		BSM 	)
 			# PULLS BUILDER MENU
-			bs_menu_f;;
+			bs_menu_f "${lppar[@]}";;
 		CO_F 	)
 			# PULLS CONFIGURATION SUBMENU: SUBMENU OF BUILDERS MENU
-			config_f;;
+			config_f "${lppar[@]}";;
 		SELDEF 	)
 			# PULLS SELECT DEFAULT SYSTEM SUBMENU: SUBMENU OF BUILDERS MENU
-			selectdef_f;;
+			selectdef_f "${lppar[@]}";;
 		GSET 	)
 			# PULL GSE TOOLS SUBMENU
-			gse_t;;
+			gse_t "${lppar[@]}";;
 		Q 		)
 			# EXIT
 			sleep 1
@@ -540,10 +535,12 @@ while true; do
 done
 }
 
-# ISSUE PARAMETER WARRNINGS
-
-if [[ -z "$@" ]] ; then
-	mainlp_f "MM" && unset BACKTO && exit 0
+lppar=()
+for i in "$@"; do
+	lppar+=("$i")
+done
+if [[ -z "$@" ]] || echo "$@" | grep -q '\-mm'; then
+mainlp_f "MM" "${lppar[@]}" && unset BACKTO && exit 0
 else
 	warp "$@"
 fi
