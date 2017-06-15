@@ -34,3 +34,7 @@ sys-fs/dosfstools udev
 # required by @system
 # required by @world (argument)
 >=dev-libs/popt-1.16-r2 static-libs
+
+# required by sys-fs/btrfs-progs-4.10.2::gentoo[static]
+# required by sys-fs/btrfs-progs (argument)
+>=sys-apps/util-linux-2.28.2 static-libs
