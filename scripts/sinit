@@ -20,7 +20,7 @@ source "${CWORKDIR}/etc/gentoo.conf" >/dev/null 2>&1 \
 || { echo -e "[\e[31m*\e[0m] \e[35mExporting variables\e[0m"; echo -e "\e[31mAborting\e[0m..."; sleep 2; return 1; }
 
 
-# PART A
+# PART A FUNDAMENTALS
 _part_a() {
 	# CHECK IF THERE IS ANY WORK DONE
 	if [[ "$(awk -F '=' '/CHECK/{ print $2 }' < "${CLOCALLG}/sinprog")" == 1 ]] || echo "$@" | grep -q 'force'; then
@@ -44,10 +44,10 @@ _part_a() {
 				sinit_flow_monitor "CATALYST"
 			else
 				if echo "${_lawful_args[@]}" | grep -q 'gcat'; then
-					_report_back "Catalyst: Lawful entry detected, proceeding..."
+					_e_report_back "Catalyst: Lawful entry detected, proceeding..."
 				else
 					if echo "${_enforce_args[@]}" | grep -q 'gcat'; then
-						_report_back "Catalyst: Enforce entry detected, forcing..."
+						_e_report_back "Catalyst: Enforce entry detected, forcing..."
 						_callying_catalyst "$@" "force" || die
 						sinit_flow_monitor "CATALYST"
 					else
@@ -66,10 +66,10 @@ _part_a() {
 				sinit_flow_monitor "EXTRACTION"
 			else
 				if echo "${_lawful_args[@]}" | grep -q 'extr'; then
-					_report_back "Extraction: Lawful entry detected, proceeding..."
+					_e_report_back "Extraction: Lawful entry detected, proceeding..."
 				else
 					if echo "${_enforce_args[@]}" | grep -q 'extr'; then
-						_report_back "Extraction: Enforce entry detected, forcing..."
+						_e_report_back "Extraction: Enforce entry detected, forcing..."
 						_extracting_catalyst "$@" "force" || die
 						sinit_flow_monitor "EXTRACTION"
 					else
@@ -88,9 +88,7 @@ _part_a() {
 			unset TARGETSTAMP
 			;;
 		precomp)
-			# PART A FUNDAMENTALS
-			_fundamentals "${CDISTDIR}/workdir-precomp" "$@"
-		
+
 			if _seed_net "$@"; then
 				sinit_flow_monitor "SEED"
 			fi
@@ -100,10 +98,10 @@ _part_a() {
 				"${CDISTDIR}/workdir-precomp" "$@" || die
 			else
 				if echo "${_lawful_args[@]}" | grep -q 'gprec'; then
-					_report_back "Precomp: Lawful entry detected, proceeding..."
+					_e_report_back "Precomp: Lawful entry detected, proceeding..."
 				else
 					if echo "${_enforce_args[@]}" | grep -q 'gprec'; then
-						_report_back "Precomp: Enforce entry detected, forcing..."
+						_e_report_back "Precomp: Enforce entry detected, forcing..."
 						_extracting_catalyst "$@" "force" || die
 					else
 						if _repeat_subpart "Precomp Extraction" "completed"; then
@@ -130,10 +128,10 @@ if [[ "$(awk -F '=' '/PARTA/{ print $2 }' < "${CLOCALLG}/sinprog")" == 0 || -n $
 	fi
 else
 	if echo "${_lawful_args[@]}" | grep -q 'gparta'; then
-		_report_back "Lawful entry detected on parta, proceeding..."
+		_e_report_back "Lawful entry detected on parta, proceeding..."
 	else		
 		if echo "${_enforce_args[@]}" | grep 'gparta'; then
-			_report_back "Enforce entry detected on parta, forcing..."
+			_e_report_back "Enforce entry detected on parta, forcing..."
 			_part_a "$@" "force" || die
 			sinit_flow_monitor "PARTA"
 		else

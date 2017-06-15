@@ -65,6 +65,6 @@ cd "${CWORKDIR}"
 tar xvf "tmp/gse_list.tar.bz2" -C "tmp/" >/dev/null 2>&1)
 
 while read -r i; do
-	rsync -aAXrhv 
+	#rsync -aAXrhv 
 	echo "${CWORKDIR}/tmp/tmp/TheArchives/$i" "${CWORKDIR}/$i"
 done < <(cat "${CWORKDIR}/tmp/.MODLIST")

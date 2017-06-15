@@ -15,8 +15,8 @@ _subshell() {
 parameters_check() {
 	if [[ -z "$(echo "$@" | grep '\--fetch-new')" && -z "$(echo "$@" | grep '\-fn')" ]]; then
 		if [[ -z "$(echo "$@" | grep '\--base')" && -z "$(echo "$@" | grep '\-b')" ]]; then
-			_report_back "You must choose a base if your run gse without main menu. Aborting..."
-			_report_back "See man 1 gse for base options."
+			_e_report_back "You must choose a base if your run gse without main menu. Aborting..."
+			_e_report_back "See man 1 gse for base options."
 			die "Aborting actions..."
 		fi
 	fi
@@ -27,7 +27,7 @@ parameters_check() {
 	fi
 
 	if [[ -n $(echo "$@" | grep '\--force-new') && -n $(echo "$@" | grep '\--enforce') ]]; then
-		_report_back "Warning: --force-new implies --enforce=*"
+		_e_report_back "Warning: --force-new implies --enforce=*"
 		sleep 2
 	fi
 
@@ -52,17 +52,17 @@ parameters_check() {
 	fi
 
 	if [[ -n $(echo "$@" | grep '\--build-minimal') &&  -n $(echo "$" | grep '\--enforce' | grep 'gkernel') ]]; then
-		_report_back "Warning: --build-minimal suppresses kernel build {gkernel}"
+		_e_report_back "Warning: --build-minimal suppresses kernel build {gkernel}"
 		sleep 2
 	fi
 
 	if [[ -n $(echo "$@" | grep '\--build-minimal') &&  -n $(echo "$@" | grep '\--enforce' | grep 'ginitrd') ]]; then
-		_report_back "Warning: --build-minimal suppresses initramfs {ginitrd}"
+		_e_report_back "Warning: --build-minimal suppresses initramfs {ginitrd}"
 		sleep 2
 	fi
 
 	if [[ -n $(echo "$@" | grep '\--build-minimal') &&  -n $(echo "$@" | grep '\--enforce' | grep 'ginst') ]]; then
-		_report_back "Warning: --build-minimal suppresses custom package installation {ginst}"
+		_e_report_back "Warning: --build-minimal suppresses custom package installation {ginst}"
 		sleep 2
 	fi
 }
@@ -104,14 +104,18 @@ _keep(){
 		mkdir -p "/var/tmp/gse/${_date_var}"
 	fi
 
-	_report_back "The keep flag has been detected."
-	_report_back "Making backup of, $1 before proceeding with purging"
+	_e_report_back "The keep flag has been detected."
+	_e_report_back "Making backup of, $1 before proceeding with purging"
 	tar czvf "/var/tmp/gse/${_date_var}/$1.tar.bz2" "$2" >/dev/null 2>&1 \
 	&& return 0 || return 1
 }
 
-_report_back() {
+_e_report_back() {
 	echo -e "\e[33m$*\e[0m" 1>&2
+}
+
+_o_report_back() {
+	echo -e "\e[34m$*\e[0m" 1>&2	
 }
 
 inspector() {
@@ -276,7 +280,7 @@ _dependencies_check() {
 					_lcreq 1 || die
 					break;;
 				[nN])
-					_report_back "If you have not run a dependency check before, please abort"
+					_e_report_back "If you have not run a dependency check before, please abort"
 					break;;
 			esac
 		done
@@ -364,12 +368,14 @@ _extract_tarball() {
 	echo -e "\e[34mExtracting tarball\e[0m"
 	if tar xvjpf "$1" -C "$2" --xattrs --numeric-owner >/dev/null 2>&1; then
 		echo -e "[\e[32m*\e[0m] Extracted"
-		if [[ -n "$(echo "$@" | grep catalyst)" ]]; then
+		
+		if echo "${_flag_base}" | grep -q 'catalyst'; then
 			echo -e "\e[34mExtracting portage\e[0m"
-			tar xvjpf "$3" --xattrs --numeric-owner -C "$2/usr/" >/dev/null 2>&1
-			echo -e "[\e[32m*\e[0m] Extracted"
-		else
-			die "Extracting portage FAILED"
+			if tar xvjpf "$3" --xattrs --numeric-owner -C "$2/usr/" >/dev/null 2>&1; then
+				echo -e "[\e[32m*\e[0m] Extracted"
+			else
+				die "Extracting portage FAILED"
+			fi
 		fi
 	else
 		die "Extracting tarball FAILED"
@@ -379,8 +385,8 @@ _extract_tarball() {
 _workdir_check() {
 	[[ -z "$@" && -d "$2" ]] && die "Wrong Parameters"
 	if echo "$@" | grep -q 'force'; then
-		_report_back "This may take some time"
-		_report_back "Checking..."
+		_e_report_back "This may take some time"
+		_e_report_back "Checking..."
 		_pseudo_check_purge "$2"
 		_extract_tarball "$@"
 	else
@@ -397,8 +403,8 @@ _workdir_check() {
 						_extract_tarball "$@"
 						break;;
 					PURGE)
-						_report_back "This may take some time"
-						_report_back "Checking..."
+						_e_report_back "This may take some time"
+						_e_report_back "Checking..."
 						_pseudo_check_purge "$2"
 						_extract_tarball "$@"
 						break;;
@@ -492,16 +498,16 @@ _seed_net() {
 			_fetch_new "$@" || die "FAILED"
 		else
 			if [[ -n "$(echo "${_lawful_args[@]}" | grep 'gseed')" ]]; then
-				_report_back "Fetch: Lawful entry detected, proceeding..."
+				_e_report_back "Fetch: Lawful entry detected, proceeding..."
 			else
 				if echo "${_enforce_args[@]}" | grep 'gseed'; then
-					_report_back "Fetch: Enforce entry detected, forcing..."
+					_e_report_back "Fetch: Enforce entry detected, forcing..."
 					_fetch_new "$@" "force" || die "FAILED"
 				else
 					if _repeat_subpart "Tarball" "fetched"; then
 						_fetch_new "$@" || die "FAILED"
 					else	
-						_report_back "Proceeding on next part..."
+						_e_report_back "Proceeding on next part..."
 					fi
 				fi
 			fi
@@ -509,8 +515,8 @@ _seed_net() {
 	elif [[ ! -e "${CDISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2" ]]; then
 		die "No local tarball is present. Please enable network connection and try again"
 	elif [[ -e "${CDISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2" ]]; then
-		_report_back "Stage3 tarball located"
-		_report_back "Calling catalyst"
+		_e_report_back "Stage3 tarball located"
+		_e_report_back "Calling catalyst"
 	fi
 }
 
@@ -879,7 +885,7 @@ _export_args() {
 
 # FLAGS AND ARGUMENTS
 librarium() {
-	_report_back "================================================"
+	_e_report_back "================================================"
 	_flag_fetch=''
 	_flag_force_new=''
 	_flag_keep=''
@@ -896,11 +902,12 @@ librarium() {
 	_flag_test=''
 	_flag_silent=''
 	_flag_network=''
+	_flag_mm=''
 	while true; do
 		[[ -z "$@" ]] && return 0
 		case "$1" in
 			--fetch-new|-fn 			)	
-				_report_back "Fetch new is enabled"
+				_e_report_back "Fetch new is enabled"
 				_flag_fetch=0
 				export _flag_fetch;;
 
@@ -922,11 +929,11 @@ librarium() {
 						case "${_base_method}" in
 							catalyst 	)
 								_flag_base="catalyst"
-								_report_back "Base: catalyst"
+								_e_report_back "Base: catalyst"
 								export _flag_base;;
 							precomp 	)
 								_flag_base="precomp"
-								_report_back "Base: precomp"
+								_e_report_back "Base: precomp"
 								export _flag_base;;
 							*			)
 								die "Wrong target base. Choose either catalyst or precomp"
@@ -936,28 +943,28 @@ librarium() {
 				;;
 			--keep|-k 					)
 				_flag_keep=0
-				_report_back "Keep old work is enabled"
-				_report_back "Everything will be saved at /var/gse/work-date"
+				_e_report_back "Keep old work is enabled"
+				_e_report_back "Everything will be saved at /var/gse/work-date"
 				export _flag_keep;;
 	
 			--health-check|-hc 			)
 				_flag_health=0
-				_report_back "Health check is enabled"
+				_e_report_back "Health check is enabled"
 				export _flag_health;;
 		
 			--replace-new|-rpn 			)
 				_flag_replace=0
-				_report_back "Replacing base scripts..."
+				_e_report_back "Replacing base scripts..."
 				export _flag_replace;;
 		
 			--no-kernel|-nk 			)
 				_flag_kernel=1
-				_report_back "Kernel and initramfs will be excluded"
+				_e_report_back "Kernel and initramfs will be excluded"
 				export _flag_kernel;;
 		
 			--no-initramfs|-ni 			)
 				_flag_initrd=1
-				_report_back "Initramfs will be excluded"
+				_e_report_back "Initramfs will be excluded"
 				export _flag_initrd;;
 		
 			--build-controller*|-bc*	)
@@ -973,7 +980,7 @@ librarium() {
 							_flag_controller=0
 							export _flag_controller
 							export _flag_controller_path
-							_report_back "Controller flag enabled"
+							_e_report_back "Controller flag enabled"
 						else
 							die "Error: moddir's target is not a directory"
 						fi
@@ -983,12 +990,12 @@ librarium() {
 		
 			--build-minimal|-bm 		)
 				_flag_minimal=0
-				_report_back "Minimal build detected"
-				_report_back "Custom packages will be excluded"
-				_report_back "Custom profile will be excluded"
-				_report_back "Custom flags will be excluded"
-				_report_back "Kernel build will be excluded"
-				_report_back "Initramfs will be excluded"
+				_e_report_back "Minimal build detected"
+				_e_report_back "Custom packages will be excluded"
+				_e_report_back "Custom profile will be excluded"
+				_e_report_back "Custom flags will be excluded"
+				_e_report_back "Kernel build will be excluded"
+				_e_report_back "Initramfs will be excluded"
 				export _flag_minimal;;
 		
 			--enforce*					)
@@ -1002,8 +1009,8 @@ librarium() {
 				export _enforce_args
 				_flag_enforce=0
 				export _flag_enforce
-				_report_back "The following enforcer arguments have been enabled"
-				_report_back "${_enforce_args[@]}"
+				_e_report_back "The following enforcer arguments have been enabled"
+				_e_report_back "${_enforce_args[@]}"
 				;;
 		
 			--lawful-good*				)
@@ -1016,22 +1023,25 @@ librarium() {
 				export _lawful_args
 				_flag_lawful=0
 				export _flag_lawful
-				_report_back "The following lawful arguments have been enabled"
-				_report_back "${_lawful_args[@]}"
+				_e_report_back "The following lawful arguments have been enabled"
+				_e_report_back "${_lawful_args[@]}"
 				;;
 
 			--verbose|-v 				)
-				_report_back "Verbose flag is enabled"
+				_e_report_back "Verbose flag is enabled"
 				_flag_verbose=0
 				export _flag_verbose;;
 
 			--quiet|-q 					)
-				_report_back "Silence flag is enabled"
+				_e_report_back "Silence flag is enabled"
 				_flag_quiet=0
 				export _flag_quiet;;
+			-mm 						)
+				_flag_mm=0
+				export _flag_m;;
 		
 			--test						)
-				_report_back "Test flag is enabled"
+				_e_report_back "Test flag is enabled"
 				_flag_test=0
 				export _flag_test
 				source "${CWORKDIR}/scripts/sinit" "$@" ;;
@@ -1048,10 +1058,10 @@ librarium() {
 _free_space() {
 	if [[ $(echo "$1" | sed 's/[^G]*//g') == "G" ]]; then
 		if [[ "$(echo "$1" | sed 's/[^0-9]*//g')" -le "$2" ]]; then
-			_report_back "$3 has less than $2G available space."
-			_report_back "The average disk space $4"
-			_report_back "Please resolve this issue with freeing at least $2G and start again"
-			_report_back "When building the chaintool and bootstraping the system"
+			_e_report_back "$3 has less than $2G available space."
+			_e_report_back "The average disk space $4"
+			_e_report_back "Please resolve this issue with freeing at least $2G and start again"
+			_e_report_back "When building the chaintool and bootstraping the system"
 			die "Bailing out..."
 		fi
 	elif [[ $(echo "$1" | sed 's/[^M]*//g') == "M" ]]; then
@@ -1087,36 +1097,36 @@ witch_hunt() {
 
 	# CHECK FOR SUPERUSER PRIVILAGES
 	if _am_i_root "$UID"; then
-		_report_back "Superuser detected"
+		_e_report_back "Superuser detected"
 	else
 		die "User is not superuser. Aborting"
 	fi
 
 	# PRIORITY CHECK FOR THE SCRIPT'S PID
 	if [[ "$(ps -fl $$ | tail -n +2 | awk -F ' ' '{ print $8}')" -le 0 ]]; then
-		_report_back "The priority of $0 is not high, and currently greater or equal to 0"
-		_report_back "Changing priority to -5"
+		_e_report_back "The priority of $0 is not high, and currently greater or equal to 0"
+		_e_report_back "Changing priority to -5"
 		renice -n -5 -p "$$" >/dev/null
 	fi
 
 	# ISSUE WARNING IF CONNECTION SEEMS TO BE FROM SSHD
 	if [[ -n "${SSH_CLIENT}" || -n "${SSH_TTY}" ]]; then
 		if [[ "$(echo "${TERM}")" == "screen" ]]; then
-			_report_back "Session detected: ssh"
-			_report_back "Tmux/Screen detected"
+			_e_report_back "Session detected: ssh"
+			_e_report_back "Tmux/Screen detected"
 			_flag_tty="sshd"
 			export _flag_tty
 		else
 			while true; do
-				_report_back "================================================"
-				_report_back "It appears you are running connected via ssh session"
-				_report_back "It is recommended, if you haven't done yet, to stop this process"
-				_report_back "and start it new from a tmux or screen session."
-				_report_back "Most of the processes will require much time for normal computers, "
-				_report_back "therefore it is a good idea to have a failsafe in case of a disconnect."
-				_report_back "Do you wish to continue? {Not recommended}"
-				_report_back "Answer Y/N "
-				_report_back "================================================"
+				_e_report_back "================================================"
+				_e_report_back "It appears you are running connected via ssh session"
+				_e_report_back "It is recommended, if you haven't done yet, to stop this process"
+				_e_report_back "and start it new from a tmux or screen session."
+				_e_report_back "Most of the processes will require much time for normal computers, "
+				_e_report_back "therefore it is a good idea to have a failsafe in case of a disconnect."
+				_e_report_back "Do you wish to continue? {Not recommended}"
+				_e_report_back "Answer Y/N "
+				_e_report_back "================================================"
 				read -rp "Input :: <= " YN
 				case "$YN" in 
 					[yY])
@@ -1124,7 +1134,7 @@ witch_hunt() {
 						export _flag_tty
 						break;;
 					[nN])
-						_report_back "Please restart from a detachable shell"
+						_e_report_back "Please restart from a detachable shell"
 						die;;
 				esac
 			done
@@ -1132,13 +1142,13 @@ witch_hunt() {
 	fi
 
 	# EXPORT NETWORK CONDITION
-	_report_back "Scanning for networking..."
+	_e_report_back "Scanning for networking..."
 	if ping -c 3 www.gentoo.org >/dev/null 2>&1; then
-		_report_back "Network detected"
+		_e_report_back "Network detected"
 		_flag_network=0
 		export _flag_network
 	else
-		_report_back "Network not detected"
+		_e_report_back "Network not detected"
 		_flag_network=1
 		export _flag_network
 	fi
@@ -1149,13 +1159,14 @@ witch_hunt() {
 inquisitor() {
 	inspector "$@"
 
+	# ISSUE PARAMETER WARRNINGS
 	parameters_check "$@"
 
 	# PROMPT FOR FLAGS
 	while true; do
-		_report_back "================================================"
-		_report_back "Do you wish to apply those and proceed?"
-		_report_back "Answer: Y/N "
+		_e_report_back "================================================"
+		_e_report_back "Do you wish to apply those and proceed?"
+		_e_report_back "Answer: Y/N "
 		read -rp "Input :: <= " YN
 		case "$YN" in
 			[yY])
@@ -1163,21 +1174,21 @@ inquisitor() {
 			[nN])
 				die "Requested exit.";;
 			*)
-				_report_back "Please answer Y/N "
+				_e_report_back "Please answer Y/N "
 		esac
 	done
 
 	# PROMPT FOR CONTINUE IF FORCE_NEW IS PRESENT
 	if [[ -n "$(echo ${_flag_force_new})" ]]; then
-		_report_back "================================================"
-		_report_back "================================================"
-		_report_back "Warning: Force new flag has been enabled."
-		_report_back "This flag will enable force globally."
-		_report_back "Forced parts will always proceed to next part while purging everything that stands in the way"
-		_report_back "See --enforce for forcing certain areas of the process, instead of this flag."
-		_report_back "Are you sure? Y/N (Not recommended)"
-		_report_back "================================================"
-		_report_back "================================================"
+		_e_report_back "================================================"
+		_e_report_back "================================================"
+		_e_report_back "Warning: Force new flag has been enabled."
+		_e_report_back "This flag will enable force globally."
+		_e_report_back "Forced parts will always proceed to next part while purging everything that stands in the way"
+		_e_report_back "See --enforce for forcing certain areas of the process, instead of this flag."
+		_e_report_back "Are you sure? Y/N (Not recommended)"
+		_e_report_back "================================================"
+		_e_report_back "================================================"
 		while true; do
 			read -rp "Input :: <= " YN
 			case "$YN" in
@@ -1187,7 +1198,7 @@ inquisitor() {
 					die "Requested exit."
 					;;
 				*	)
-					_report_back "Please answer Y/N "
+					_e_report_back "Please answer Y/N "
 			esac
 		done
 	fi
@@ -1247,7 +1258,7 @@ warp() {
 	if [[ -n "${_flag_base}" ]]; then
 		_flags_stagea=()
 
-		_flags_list1=("_flag_fetch" \
+		_flags_listA=("_flag_fetch" \
 			"_flag_force_new" \
 			"_flag_keep" \
 			"_flag_minimal" \
@@ -1261,7 +1272,7 @@ warp() {
 			"_flag_network" \
 			"_flag_base")
 
-		for i in "${_flags_list1[@]}"; do
+		for i in "${_flags_listA[@]}"; do
 			if [[ "$(echo ${!i})" == 0 ]]; then
 				_flags_stagea+=("${i}")
 			fi
