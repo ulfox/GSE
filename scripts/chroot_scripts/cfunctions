@@ -32,8 +32,12 @@ delete_fail() {
 	sed -i "/FAILED/d" "${CHDIR}/emergeresume"
 }
 
-_report_back() {
-	echo -e "\e[33m$*\e[0m" 1>&2
+_e_report_back() {
+	echo -e "\e[33m$*\e[0m"
+}
+
+_o_report_back() {
+	echo -e "\e[34m$*\e[0m"
 }
 
 # ALL ERROR MESSAGES BUT FIRST
@@ -98,7 +102,7 @@ _emerge_depclear() {
 	# DEPCLEAN BEFORE APPLYING NEW PROFILE CHANGES
 	echo -e "\e[34mRunning depclean before proceeding...\e[0m"
 	if emerge --depclean >LAST_ACTION 2>&1; then
-		_report_back "Depclean completed"
+		_e_report_back "Depclean completed"
 	else
 		echo "emerge --depclean" >LAST_FAILED_COMMAND
 		combat_medic
@@ -255,7 +259,7 @@ _apply_new() {
 	# APPLYING PROFILE CHANGES
 	echo -e "[\e[32m*\e[0m] \e[34mApplying new profile changes\e[0m"
 	if emerge -q --update --deep --newuse --with-bdeps=y @world; then
-		_report_back "Changes successfully applied"
+		_e_report_back "Changes successfully applied"
 	else
 		echo "emerge -q --update --deep --newuse --with-bdeps=y @world" > LAST_FAILED_COMMAND
 		combat_medic
@@ -273,7 +277,7 @@ build_the_world() {
 		case "${YN}" in
 			[yY][eE][sS]|[yY])
 				if emerge -eq @world; then
-					_report_back "World rebuild has been completed"
+					_e_report_back "World rebuild has been completed"
 					chsinit_mon "REBUILD"; break
 				else
 					echo "emerge -eq @world" > LAST_FAILED_COMMAND
@@ -291,7 +295,7 @@ build_the_world() {
 
 _update_portage(){
 	if emerge -q --deep --update portage >LAST_ACTION 2>&1; then
-		_report_back "Portage update was successful"
+		_e_report_back "Portage update was successful"
 	else
 		echo "emerge -q --deep --update portage" > LAST_FAILED_COMMAND
 		combat_medic
@@ -300,7 +304,7 @@ _update_portage(){
 
 _emerge_eix() {
 	if emerge -q app-portage/eix >LAST_ACTION 2>&1; then
-		_report_back "Emerge of eix was successful"
+		_e_report_back "Emerge of eix was successful"
 	else
 		echo "emerge -q app-portage/eix" > LAST_FAILED_COMMAND
 		combat_medic
@@ -309,7 +313,7 @@ _emerge_eix() {
 
 _update_eix() {
 	if eix-update >LAST_ACTION 2>&1; then
-		_report_back "Update of eix was successful"
+		_e_report_back "Update of eix was successful"
 		_monitor_chroot_flow "UPDATE"
 	else
 		echo "eix-update" > LAST_FAILED_COMMAND
@@ -319,7 +323,7 @@ _update_eix() {
 
 _emerge_gentoolkit() {
 	if emerge -q app-portage/gentoolkit >LAST_ACTION 2>&1; then
-		_report_back "Emerge of gentoolkit was successful"
+		_e_report_back "Emerge of gentoolkit was successful"
 	else
 		echo "emerge -q app-portage/gentoolkit" > LAST_FAILED_COMMAND
 		combat_medic
@@ -352,25 +356,33 @@ _portage_subpart() {
 		echo -e "\e[34mEmerging eix\e[0m"
 		_emerge_eix
 		echo -e "\e[34mUpdating eix database\e[0m"
-		_update_eix
+		if _update_eix; then
+			:
+		else
+			combat_medic
+		fi
 	else
 		echo -e "\e[33meix located\e[0m"
 		echo -e "\e[34mUpdating eix database\e[0m"
-		_update_eix		
+		if _update_eix; then
+			:
+		else
+			combat_medic
+		fi	
 	fi
 	if ! eix --installed app-portage/gentoolkit >LAST_ACTION 2>&1; then
 		echo -e "\e[34mEmerging app-portage/gentoolkit\e[0m"
 		_emerge_gentoolkit
 		echo -e "\e[34mRunning\e[0m \e[35mGentoo's\e[0m \e[34mReverse Dependency rebuilder\e[0m"
 		if revdep-rebuild; then
-			_report_back "Reverse Dependency Completed"
+			_e_report_back "Reverse Dependency Completed"
 		else
 			combat_medic
 		fi
 	else
 		echo -e "\e[34mRunning\e[0m \e[35mGentoo's\e[0m \e[34mReverse Dependency rebuilder\e[0m"
 		if revdep-rebuild; then
-			_report_back "Reverse Dependency Completed"
+			_e_report_back "Reverse Dependency Completed"
 		else
 			combat_medic
 		fi
@@ -575,7 +587,7 @@ configure_system_f() {
 _emerge_default() {
 	echo -e "\e[34mEmerging\e[0m..."
 	if emerge -q --update --deep --with-bdeps=y ${INS_PARTF}; then
-		_report_back "Emerged"
+		_e_report_back "Emerged"
 	else
 		echo "emerge -q --update --deep --with-bdeps=y ${INS_PARTF}" > LAST_FAILED_COMMAND
 		echo "###################################" >> issues.info
@@ -592,7 +604,7 @@ _emerge_custom_requested() {
 	mapfile -t CMPL < <(cat "${CHDIR}/custom_pacl" | sed '/^#/ d' | sed '/^\s*$/d')
 
 	if emerge -q --deep --update "${CMPL[@]}"; then
-		_report_back "Emerged"
+		_e_report_back "Emerged"
 	else
 		echo "emerge -q --deep --update ${CMPL[@]}" > LAST_FAILED_COMMAND
 		echo "###################################" >> issues.info
@@ -745,7 +757,7 @@ recal_action() {
 # CALL FOR EVALUATION LAST FAILD ACTION
 _recal_action() {
 	if recal_action; then
-		_report_back "Recalling action has been completed" \
+		_e_report_back "Recalling action has been completed" \
 		&& delete_fail \
 		&& return 0
 	else
@@ -756,7 +768,7 @@ _recal_action() {
 # CALL FOR EVALUATION EMERGE RESUME
 _resume(){
 	if _emerge_resume; then
-		_report_back "Resume action was successful" \
+		_e_report_back "Resume action was successful" \
 		&& delete_fail \
 		&& return 0
 	else
