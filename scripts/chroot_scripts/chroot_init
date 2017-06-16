@@ -69,7 +69,6 @@ _sreb() {
 }
 
 if [[ "$(awk -F '=' '/REBUILD/{ print $2 }' <"${CHDIR}/chsinprog")" == 0 || -n $(echo "${_flag_force_new}") ]]; then
-	_sreb
 	if echo "${_lawful_args[@]}" | grep -q 'grebuild'; then
 		_e_report_back "System Rebuild: Lawful entry detected, proceeding..."
 	else
@@ -184,6 +183,10 @@ else
 	unset YN
 fi
 
+
+eclean-dist -d
+eclean-pkg -d
+
 if [[ -n "${_flag_minimal}" ]]; then
 	rm -f /var/lib/portage/world
 	touch /var/lib/portage/world
@@ -200,8 +203,6 @@ fi
 
 _emerge_depclear
 
-eclean-dist -d
-eclean-pkg -d
 
 # Creating user-data dir-tree
 mkdir -p /user-data/persistent/{etc,var,logs,config.d,local,rmount}

@@ -178,18 +178,23 @@ else
 		die "Cleaning failed"
 	fi
 fi
-
+umount -l "${BWORKDIR}/"*
+umount -l "${BWORKDIR}/"*
+umount -l "${BWORKDIR}/"*
+umount -l "${BWORKDIR}/"*
+umount -l "${BWORKDIR}/"*
 SUBBUILD=0
-GSEVER="${GSEVER}.${SUBBUILD}"
+GVEX="${GSEVER}.${SUBBUILD}"
 while true; do
-	if ! ls "${CDISTDIR}/stage3-amd64-${GSEVER}.tar.bz2" >/dev/null 2>&1; then
-		echo -e "\e[34mArchiving...\e[0m"
-		tar cvf "${CDISTDIR}/stage3-amd64-${GSEVER}.tar.bz2" -C "${BWORKDIR}" >/dev/null 2>&1 \
-		&& { print_inf 1 && echo -e "\e[34mYou can find your system @ ${CDISTDIR}\e[0m"
-		echo -e "\e[34mWith version extension: ${GSEVER}\e[0m"; } \
+	if ! ls "${CDISTDIR}/stage3-amd64-${GVEX}.tar.bz2" >/dev/null 2>&1; then
+		(cd "${BWORKDIR}"
+		tar -cjpP --ignore-failed-read "${CDISTDIR}/stage3-amd64-${GVEX}.tar.bz2" . >/dev/null 2>&1; ) \
+		&& { _o_report_back "Archived" && echo -e "\e[34mYou can find your system @ ${CDISTDIR}\e[0m"
+		echo -e "\e[34mWith version extension: ${GVEX}\e[0m"; } \
 		|| die "Failed"
 		break
 	else
+		GVEX="${GSEVER}.${SUBBUILD}"
 		((++SUBBUILD))
 	fi
 done
