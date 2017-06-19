@@ -12,7 +12,7 @@ if echo "${_flag_tty}" | grep -q 'sshd'; then
 	LC_ALL="en_US.UTF-8"
 	LC_CTYPE="en_US.UTF-8"
 fi
-
+echo "$@"
 source /etc/profile && export PS1="( 'Part C: Preparing to bootstrap' ) $PS1"
 export CHDIR="/sinit.d"
 export PATH=${PATH}:${CHDIR}
@@ -23,40 +23,69 @@ source "${CHDIR}/chinit.conf" \
 
 inspector "$@"
 
+if grep -q '\-gupdate' "${CHDIR}/cscripts/doscripts"; then
+	_e_report_back "Sourcing scripts before Part: Portage Update"
+	_do_rs '\-gupdate'
+fi
+
 # PART C BEGINS
-if [[ "$(awk -F '=' '/UPDATE/{ print $2 }' <"${CHDIR}/chsinprog")" == 0 || -n $(echo "${_flag_force_new}") ]]; then
-	_part_c "$@" || die "Part C FAILED"
+if echo "${_lawful_args[@]}" | grep -q 'gupdate'; then
+	_e_report_back "Update and prepare system: Lawful entry detected, proceeding..."
 else
-	if echo "${_lawful_args[@]}" | grep -q 'gupdate'; then
-		_e_report_back "Update and prepare system: Lawful entry detected, proceeding..."
-	else
+	if [[ "$(awk -F '=' '/UPDATE/{ print $2 }' <"${CHDIR}/chsinprog")" == 0 || -n "${_flag_force_new}" ]] || echo "${_enforce_args[@]}" | grep -q 'gupdate'; then
 		if echo "${_enforce_args[@]}" | grep -q 'gupdate'; then
-			_e_report_back "Update and prepare system: Enforce entry detected, forcing..."
+			_e_report_back "Update and prepare system: Force entry detected, forcing..."
 			_part_c "$@" "cforce" || die "Part C FAILED"
 		else
-			if repeat_part "Portage Update"; then
-				_part_c "$@" || die "Part C FAILED"
-			fi
+			_part_c "$@" || die "Part C FAILED"
+		fi
+	else
+		if repeat_part "Portage Update"; then
+			_part_c "$@" || die "Part C FAILED"
+		else
+			_e_report_back "Proceeding to sub portage part"
 		fi
 	fi
 fi
 
+if grep -q '\+gupdate' "${CHDIR}/cscripts/doscripts"; then
+	_e_report_back "Sourcing scripts after Part: Portage Update"
+	_do_rs '\+gupdate'
+fi
+
+if grep -q '\-gportage' "${CHDIR}/cscripts/doscripts"; then
+	_e_report_back "Sourcing scripts before Part: Portage"
+	_do_rs '\-gportage'
+fi
+
 # PART PORTAGE, PROFILE AND FEATURES UPDATE
-if [[ "$(awk -F '=' '/UPDATE/{ print $2 }' < "${CHDIR}/chsinprog")" == 0 || -n $(echo "${_flag_force_new}") ]]; then
-	part_portage "$@" && _monitor_chroot_flow "PORTAGE"
+if echo "${_lawful_args[@]}" | grep -q 'gportage'; then
+	_e_report_back "Portage Configuration: Lawful entry detected, proceeding..."
 else
-	if echo "${_lawful_args[@]}" | grep -q 'gportage'; then
-		_e_report_back "Portage Configuration: Lawful entry detected, proceeding..."
-	else
+	if [[ "$(awk -F '=' '/UPDATE/{ print $2 }' < "${CHDIR}/chsinprog")" == 0 || -n "${_flag_force_new}" ]] || echo "${_enforce_args[@]}" | grep -q 'gportage'; then
 		if echo "${_enforce_args[@]}" | grep -q 'gportage'; then
-			_e_report_back "Portage configuration: Enforce entry detected, forcing..."
+			_e_report_back "Portage configuration: Force entry detected, forcing..."
 			part_portage "$@" "cforce" && _monitor_chroot_flow "PORTAGE"
 		else
-			if repeat_part "Portage Configuration"; then
-				part_portage "$@" && _monitor_chroot_flow "PORTAGE"
-			fi
+			part_portage "$@" && _monitor_chroot_flow "PORTAGE"
+		fi		
+	else
+		if repeat_part "Portage Configuration"; then
+			part_portage "$@" && _monitor_chroot_flow "PORTAGE"
+		else
+			_e_report_back "Proceeding"
 		fi
 	fi
+fi
+
+if grep -q '\+gportage' "${CHDIR}/cscripts/doscripts"; then
+	_e_report_back "Sourcing scripts after Part:Portage"
+	_do_rs '\+gportage'
+fi
+
+if grep -q '\-grebuild' "${CHDIR}/cscripts/doscripts"; then
+	_e_report_back "Sourcing scripts before Part: System Rebuild"
+	_do_rs '\-grebuild'
 fi
 
 # Part D Begins
@@ -68,121 +97,186 @@ _sreb() {
 	_monitor_chroot_flow "REBUILD"
 }
 
-if [[ "$(awk -F '=' '/REBUILD/{ print $2 }' <"${CHDIR}/chsinprog")" == 0 || -n $(echo "${_flag_force_new}") ]]; then
-	if echo "${_lawful_args[@]}" | grep -q 'grebuild'; then
-		_e_report_back "System Rebuild: Lawful entry detected, proceeding..."
-	else
+if echo "${_lawful_args[@]}" | grep -q 'grebuild'; then
+	_e_report_back "Rebuild: Lawful entry detected, proceeding..."
+else
+	if [[ "$(awk -F '=' '/REBUILD/{ print $2 }' <"${CHDIR}/chsinprog")" == 0 || -n "${_flag_force_new}" ]] || echo "${_enforce_args[@]}" | grep -q 'grebuild'; then
 		if echo "${_enforce_args[@]}" | grep -q 'grebuild'; then
-			_e_report_back "System Rebuild: Enforce entry detected, forcing..."
-			_sreb "cforce"
-		else
-			_sreb
+			_e_report_back "System Rebuild: Force entry detected, forcing..."
 		fi
+			_sreb
 	fi
+fi
+
+if grep -q '\+grebuild' "${CHDIR}/cscripts/doscripts"; then
+	_e_report_back "Sourcing scripts after Part: System Rebuild"
+	_do_rs '\+grebuild'
+fi
+
+if grep -q '\-gconfigure' "${CHDIR}/cscripts/doscripts"; then
+	_e_report_back "Sourcing scripts before Part: Emerge Packages"
+	_do_rs '\-gconfigure'
 fi
 
 # PART E BEGINS
-if [[ "$(awk -F '=' '/CONFIGURE/{ print $2 }' <"${CHDIR}/chsinprog")" == 0 || -n $(echo "${_flag_force_new}") ]]; then
-	configure_system_f "$@"
+if echo "${_lawful_args[@]}" | grep -q 'gconfigure'; then
+	_e_report_back "System Configuration: Lawful entry detected, proceeding..."
 else
-	if echo "${_lawful_args[@]}" | grep -q 'gconfigure'; then
-		_e_report_back "System Configuration: Lawful entry detected, proceeding..."
-	else
+	if [[ "$(awk -F '=' '/CONFIGURE/{ print $2 }' <"${CHDIR}/chsinprog")" == 0 || -n "${_flag_force_new}" ]] || echo "${_enforce_args[@]}" | grep -q 'gconfigure'; then
 		if echo "${_enforce_args[@]}" | grep -q 'gconfigure'; then
-			_e_report_back "System Configuration: Enforce entry detected, forcing..."
+			_e_report_back "System Configuration: Force entry detected, forcing..."
 			configure_system_f "$@" "cforce"
 		else
-			if repeat_part "System Configuration"; then
-				configure_system_f "$@"
-			fi
+			configure_system_f "$@"
 		fi
+	else
+		if repeat_part "System Configuration"; then
+			configure_system_f "$@"
+		else
+			_e_report_back "Proceeding to emerging packages"
+		fi	
 	fi
+fi
+
+if grep -q '\+gconfigure' "${CHDIR}/cscripts/doscripts"; then
+	_e_report_back "Sourcing scripts after Part: Emerge Packages"
+	_do_rs '\+gconfigure'
+fi
+
+if grep -q '\-ginst' "${CHDIR}/cscripts/doscripts"; then
+	_e_report_back "Sourcing scripts before Part: Configuration"
+	_do_rs '\-ginst'
 fi
 
 # PART F BEGINS
-if [[ "$(awk -F '=' '/INSTALL/{ print $2 }' <"${CHDIR}/chsinprog")" == 0 || -n $(echo "${_flag_force_new}") ]]; then
-	emerge_requested "$@"
+if echo "${_lawful_args[@]}" | grep -q 'ginst'; then
+	_e_report_back "Emerge packages: Lawful entry detected, proceeding..."
 else
-	if echo "${_lawful_args[@]}" | grep -q 'ginst'; then
-		_e_report_back "Emerge packages: Lawful entry detected, proceeding..."
-	else
+	if [[ "$(awk -F '=' '/INSTALL/{ print $2 }' <"${CHDIR}/chsinprog")" == 0 || -n "${_flag_force_new}" ]] || echo "${_enforce_args[@]}" | grep -q 'ginst'; then
 		if echo "${_enforce_args[@]}" | grep -q 'ginst'; then
-			_e_report_back "Emerge packages: Enforce entry detected, forcing..."
+			_e_report_back "Emerge packages: Force entry detected, forcing..."
 			emerge_requested "$@" "cforce"
 		else
-			if repeat_part "Installing Packages"; then
-				emerge_requested "$@"
-			fi
+			emerge_requested "$@"
+		fi			
+	else
+		if repeat_part "Installing Packages"; then
+			emerge_requested "$@"
+		else
+			_e_report_back "Proceeding to runlevel update"
 		fi
 	fi
 fi
 unset YN
+
+if grep -q '\+ginst' "${CHDIR}/cscripts/doscripts"; then
+	__e_report_back "Sourcing scripts after Part: Configuration"
+	_do_rs '\+ginst'
+fi
+
+if grep -q '\-grun' "${CHDIR}/cscripts/doscripts"; then
+	_e_report_back "Sourcing scripts before Part: Runlevels"
+	_do_rs '\-grun'
+fi
 
 # PART G BEGINS
-if [[ "$(awk -F '=' '/RUNLEVEL/{ print $2 }' <"${CHDIR}/chsinprog")" == 0 || -n $(echo "${_flag_force_new}") ]]; then
-	_runlevel_configuration
+if echo "${_lawful_args[@]}" | grep -q 'grun'; then
+	_e_report_back "Runlevel: Lawful entry detected, proceeding..."
 else
-	if echo "${_lawful_args[@]}" | grep -q 'grun'; then
-		_e_report_back "Runlevel: Lawful entry detected, proceeding..."
-	else
+	if [[ "$(awk -F '=' '/RUNLEVEL/{ print $2 }' <"${CHDIR}/chsinprog")" == 0 || -n "${_flag_force_new}" ]] || echo "${_enforce_args[@]}" | grep -q 'grun'; then
 		if echo "${_enforce_args[@]}" | grep -q 'grun'; then
-			_e_report_back "Runlevel: Enforce entry detected, forcing..."
-			_runlevel_configuration "cforce"
+			_e_report_back "Runlevel: Force entry detected, forcing..."
+		fi
+			_runlevel_configuration
+	else
+		if repeat_part "Runlevel Configuration"; then
+			_runlevel_configuration
 		else
-			if repeat_part "Runlevel Configuration"; then
-				_runlevel_configuration
-			fi
+			_e_report_back "Proceeding"
 		fi
 	fi
 fi
 unset YN
 
+if grep -q '\+grun' "${CHDIR}/cscripts/doscripts"; then
+	_e_report_back "Sourcing scripts after Part: Runlevels"
+	_do_rs '\+grun'
+fi
+
+if grep -q '\-gkernel' "${CHDIR}/cscripts/doscripts"; then
+	_e_report_back "Sourcing scripts before Part: kernel"
+	_do_rs '\-gkernel'
+fi
+
 # PART H BEGINS
-if [[ -n "$(echo "${_flag_kernel}")" ]] || [[ -n "$(echo "${_flag_minimal}")" ]]; then
+if [[ -n "${_flag_kernel}" ]] || [[ -n "${_flag_minimal}" ]]; then
 	:
 else
-	if [[ "$(awk -F '=' '/KERNEL/{ print $2 }' <"${CHDIR}/chsinprog")" == 0 || -n $(echo "${_flag_force_new}") ]]; then
-		_kernel_build
+	if echo "${_lawful_args[@]}" | grep -q 'gkernel'; then
+		_e_report_back "Kernel: Lawful entry detected, proceeding..."
 	else
-		if echo "${_lawful_args[@]}" | grep -q 'gkernel'; then
-			_e_report_back "Kernel: Lawful entry detected, proceeding..."
-		else
+		if [[ "$(awk -F '=' '/KERNEL/{ print $2 }' <"${CHDIR}/chsinprog")" == 0 || -n $(echo "${_flag_force_new}") ]] || echo "${_enforce_args[@]}" | grep -q 'gkernel'; then
 			if echo "${_enforce_args[@]}" | grep -q 'gkernel'; then
-				_e_report_back "Kernel: Enforce entry detected, forcing..."
+				_e_report_back "Kernel: Force entry detected, forcing..."
 				_kernel_build "cforce"
 			else
-				if repeat_part "Kernel Configuration"; then
-					_kernel_build
-				fi
+				_kernel_build
+			fi
+		else
+			if repeat_part "Kernel Configuration"; then
+				_kernel_build
+			else
+				_e_report_back "Proceeding"
 			fi
 		fi
 	fi
 	unset YN
+fi
+
+if grep -q '\+gkernel' "${CHDIR}/cscripts/doscripts"; then
+	_e_report_back "Sourcing scripts after Part: Kernel"
+	_do_rs '\+gkernel'
+fi
+
+if grep -q '\-ginitrd' "${CHDIR}/cscripts/doscripts"; then
+	_e_report_back "Sourcing scripts before Part: Initrd"
+	_do_rs '\-ginitrd'
 fi
 
 # PART I BEGINS
-if [[ -n "$(echo "${_flag_kernel}")" ]] || [[ -n "$(echo "${_flag_minimal}")" ]] || [[ -n "$(echo "${_flag_initrd}")" ]]; then
+if [[ -n "${_flag_kernel}" ]] || [[ -n "${_flag_minimal}" ]] || [[ -n "${_flag_initrd}" ]]; then
 	:
 else
-	if [[ "$(awk -F '=' '/INITRAMFS/{ print $2 }' <"${CHDIR}/chsinprog")" == 0 || -n $(echo "${_flag_force_new}") ]]; then
-		_initramfs_builder
+	if echo "${_lawful_args[@]}" | grep -q 'ginitrd'; then
+		_e_report_back "Initramfs: Lawful entry detected, proceeding..."
 	else
-		if echo "${_lawful_args[@]}" | grep -q 'ginitrd'; then
-			_e_report_back "Initramfs: Lawful entry detected, proceeding..."
-		else
-			if echo "${_enforce_args[@]}" | grep -q 'gkernel'; then
-				_e_report_back "Initramfs: Enforce entry detected, forcing..."
+		if [[ "$(awk -F '=' '/INITRAMFS/{ print $2 }' <"${CHDIR}/chsinprog")" == 0 || -n "${_flag_force_new}" ]] || echo "${_enforce_args[@]}" | grep -q 'ginitrd'; then
+			if echo "${_enforce_args[@]}" | grep -q 'ginitrd'; then
+				_e_report_back "Initramfs: Force entry detected, forcing..."
 				_initramfs_builder "cforce"
 			else
-				if repeat_part "Initramfs Configuration"; then
-					_initramfs_builder
-				fi
+				_initramfs_builder
+			fi
+		else
+			if repeat_part "Initramfs Configuration"; then
+				_initramfs_builder
+			else
+				_e_report_back "Proceeding"
 			fi
 		fi
 	fi
 	unset YN
 fi
 
+if grep -q '\+ginitrd' "${CHDIR}/cscripts/doscripts"; then
+	_e_report_back "Sourcing scripts after Part: Initrd"
+	_do_rs '\+ginitrd'
+fi
+
+if grep -q '\-gdes' "${CHDIR}/cscripts/doscripts"; then
+	_e_report_back "Sourcing scripts before Part: Deselect packages"
+	_do_rs '\-gdes'
+fi
 
 eclean-dist -d
 eclean-pkg -d
@@ -203,6 +297,10 @@ fi
 
 _emerge_depclear
 
+if grep -q '\+gdes' "${CHDIR}/cscripts/doscripts"; then
+	_e_report_back "Sourcing scripts after Part: Deselect packages"
+	_do_rs '\+gdes'
+fi
 
 # Creating user-data dir-tree
 mkdir -p /user-data/persistent/{etc,var,logs,config.d,local,rmount}

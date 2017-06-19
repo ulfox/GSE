@@ -13,13 +13,6 @@ _subshell() {
 }
 
 parameters_check() {
-	if [[ -z "$(echo "$@" | grep '\--fetch-new')" && -z "$(echo "$@" | grep '\-fn')" ]]; then
-		if [[ -z "$(echo "$@" | grep '\--base')" && -z "$(echo "$@" | grep '\-b')" ]]; then
-			_e_report_back "You must choose a base if your run gse without main menu. Aborting..."
-			_e_report_back "See man 1 gse for base options."
-			die "Aborting actions..."
-		fi
-	fi
 
 	if [[ -n $(echo "$@" | grep '\--force-new') ]] && [[ -n $(echo "$@" | grep '\--lawful-good') || -n $(echo "$@" | grep '\-lg') ]]; then
 		die "Warning: --force-new suppresses --lawful-good"
@@ -144,7 +137,7 @@ print_inf_f() {
 	exit 1
 }
 
-repeat_parta() {
+repeat_part() {
 	while true; do
 		echo -e "\e[33mPart $1: Has been completed\e[0m"
 		echo "Run again? Y/N: "
@@ -452,7 +445,7 @@ _get_latest() {
 	inspector "$@"
 	[[ -z "${GENTOOLATEST}" || -z "${GENTOOLATESTASC}" ]] && die "Wrong Parameters" && return 1
 	mkdir -p "${CDISTDIR}/dists"
-	if [[ -n "$(echo "$@" | grep 'fetch_new')" ]]; then
+	if [[ -n "${_flag_fetch}" ]] || echo "$@" | grep -q 'force'; then
 		echo -e "[\e[34m*\e[0m] Marking stage3-${ARCH}-latest.tar.bz2 for purging"
 		burn "${CDISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2"
 		echo -e "[\e[34m*\e[0m] Marking stage3-${ARCH}-latest.tar.bz2.DIGESTS.asc for purging"
@@ -496,30 +489,30 @@ _call_fetch_new() {
 }
 
 _seed_net() {
-	if [[ $(echo "${_flag_network}") == 0 ]]; then
-		if [[ "$(awk -F '=' '/SEED/{ print $2 }' < "${CLOCALLG}/sinprog")" == 0 ]] || echo "$@" | grep -q 'force'; then
-			_fetch_new "$@" || die "FAILED"
-		else
-			if [[ -n "$(echo "${_lawful_args[@]}" | grep 'gseed')" ]]; then
-				_e_report_back "Fetch: Lawful entry detected, proceeding..."
-			else
+	if [[ -n "$(echo "${_lawful_args[@]}" | grep 'gseed')" ]]; then
+		_e_report_back "Fetch: Lawful entry detected, proceeding..."
+	else	
+		if [[ $(echo "${_flag_network}") == 0 ]]; then
+			if [[ "$(awk -F '=' '/SEED/{ print $2 }' < "${CLOCALLG}/sinprog")" == 0 ]] || echo "$@" | grep -q 'force' || echo "${_enforce_args[@]}" | grep 'gseed'; then
 				if echo "${_enforce_args[@]}" | grep 'gseed'; then
 					_e_report_back "Fetch: Enforce entry detected, forcing..."
 					_fetch_new "$@" "force" || die "FAILED"
 				else
-					if _repeat_subpart "Tarball" "fetched"; then
-						_fetch_new "$@" || die "FAILED"
-					else	
-						_e_report_back "Proceeding on next part..."
-					fi
+					_fetch_new "$@" || die "FAILED"
+				fi
+			else
+				if _repeat_subpart "Tarball" "fetched"; then
+					_fetch_new "$@" || die "FAILED"
+				else	
+					_e_report_back "Proceeding on next part..."
 				fi
 			fi
+		elif [[ ! -e "${CDISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2" ]]; then
+			die "No local tarball is present. Please enable network connection and try again"
+		elif [[ -e "${CDISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2" ]]; then
+			_e_report_back "Stage3 tarball located"
+			_e_report_back "Calling catalyst"
 		fi
-	elif [[ ! -e "${CDISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2" ]]; then
-		die "No local tarball is present. Please enable network connection and try again"
-	elif [[ -e "${CDISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2" ]]; then
-		_e_report_back "Stage3 tarball located"
-		_e_report_back "Calling catalyst"
 	fi
 }
 
@@ -544,8 +537,16 @@ _call_force_new() {
 _fetch_new() {
 	# CHECK FOR THE POSITIONAL PARAMETERS AND BAILOUT IF THEY ARE MISSING
 	[[ -z "$@" ]] && die "Wrong parameters"
-	if echo "$@" | grep -q 'force'; then
-		echo -e "\e[33mSearching for tarball...\e[0m"
+	echo -e "\e[33mSearching for tarball...\e[0m"
+	if [[ -n "${_flag_fetch}" ]] || echo "$@" | grep -q 'force'; then
+		_export_latest
+		# FETCH THE KEYS FOR THE CRYPTOGRAPHIC AUTHENTICATION
+		_gentoo_key
+		# GET LATEST STAGE3 TARBALL, .DIGEST && .DIGEST.asc
+		_get_latest "$@"
+		# VERIFY THE AUTHENTICATION OF THE DOWNLOADED FILES
+		_verify_download
+	else
 		_export_latest
 		# GET LATEST STAGE3 TARBALL, .DIGEST && .DIGEST.asc
 		local_stage3="$(cat "${CDISTDIR}/dists/latest.info")"
@@ -555,34 +556,9 @@ _fetch_new() {
 			# FETCH THE KEYS FOR THE CRYPTOGRAPHIC AUTHENTICATION
 			_gentoo_key
 			# GET LATEST STAGE3 TARBALL, .DIGEST && .DIGEST.asc
-			_get_latest "$@"
+			_get_latest "$@" "fetch_new"
 			# VERIFY THE AUTHENTICATION OF THE DOWNLOADED FILES
 			_verify_download
-		fi
-	else
-		echo -e "\e[33mSearching for tarball...\e[0m"
-		if [[ -n "${_flag_fetch}" || "$1" == 'fetch_new' ]]; then
-			_export_latest
-			# FETCH THE KEYS FOR THE CRYPTOGRAPHIC AUTHENTICATION
-			_gentoo_key
-			# GET LATEST STAGE3 TARBALL, .DIGEST && .DIGEST.asc
-			_get_latest "$@"
-			# VERIFY THE AUTHENTICATION OF THE DOWNLOADED FILES
-			_verify_download
-		else
-			_export_latest
-			# GET LATEST STAGE3 TARBALL, .DIGEST && .DIGEST.asc
-			local_stage3="$(cat "${CDISTDIR}/dists/latest.info")"
-			if [[ "${local_stage3}" == "${STAGE3TB}" ]]; then
-				echo -e "[\e[32m*\e[0m] Latest stage3 is already present locally"
-			else
-				# FETCH THE KEYS FOR THE CRYPTOGRAPHIC AUTHENTICATION
-				_gentoo_key
-				# GET LATEST STAGE3 TARBALL, .DIGEST && .DIGEST.asc
-				_get_latest "$@"
-				# VERIFY THE AUTHENTICATION OF THE DOWNLOADED FILES
-				_verify_download
-			fi
 		fi
 	fi
 }
@@ -737,6 +713,14 @@ _prepare_chroot() {
 		echo -e "[\e[32m*\e[0m] List empty"
 	fi
 
+# COPY THE SCRIPTS AND DOSCRIPTS AT CHROOTDIR
+	if [[ -n "${_flag_sdir}" ]]; then
+		mkdir -p "$1/sinit.d/cscripts"
+		rsync -aAXhrvq "${_flag_sdir_path}/" "$1/sinit.d/cscripts/"
+		chmod +x "$1/sinit.d/cscripts/"*
+		cp -r "${CLOCALLG}/doscripts" "$1/sinit.d/cscripts/doscripts"
+	fi
+
 	echo -e "\e[34mChrooting at new system\e[0m"
 	sleep 0.5
 	# PASS ALL PP AND INITIATE CHROOT
@@ -842,6 +826,8 @@ _case_args() {
 			_on_eargs+=("$1");;
 		ginitrd		)
 			_on_eargs+=("$1");;
+		gdes		)
+			_on_eargs+=("$1");;
 		gpartb		)
 			_on_eargs+=("$1");;
 		*			)
@@ -859,7 +845,7 @@ _export_args() {
 			die "No arguments were set for $2. Aborting..."
 		else
 			declare -a _ARGARRAY=("gfund" "gseed" "gcat" "gextr" "gprec" "gparta" \
-				"gupdate" "gportage" "grebuild" "gconfigure" "ginst" "grun" "gkernel" "ginitrd" "gpartb")	
+				"gupdate" "gportage" "grebuild" "gconfigure" "ginst" "grun" "gkernel" "ginitrd" "gpartb" "gdes" "gclean")	
 
 			_on_eargs=()
 			if [[ $(echo "${_check_args}" | cut -d ',' -f 1) == $(echo "${_check_args}" | cut -d ',' -f 2) ]]; then
@@ -906,6 +892,9 @@ librarium() {
 	_flag_silent=''
 	_flag_network=''
 	_flag_mm=''
+	_flag_do=''
+	_flag_g=''
+	_flag_sdir=''
 	while true; do
 		[[ -z "$@" ]] && return 0
 		case "$1" in
@@ -932,11 +921,13 @@ librarium() {
 						case "${_base_method}" in
 							catalyst 	)
 								_flag_base="catalyst"
-								_e_report_back "Base: catalyst"
+								_e_report_back "Selected Base "
+								_o_report_back "catalyst"
 								export _flag_base;;
 							precomp 	)
 								_flag_base="precomp"
-								_e_report_back "Base: precomp"
+								_e_report_back "Selected Base "
+								_o_report_back "precomp"
 								export _flag_base;;
 							*			)
 								die "Wrong target base. Choose either catalyst or precomp"
@@ -1002,7 +993,6 @@ librarium() {
 				export _flag_minimal;;
 		
 			--enforce*					)
-				echo "$1"
 				_export_args "$1" "enforce"
 				_enforce_args=()
 				for i in "${_on_eargs[@]}"; do
@@ -1013,7 +1003,7 @@ librarium() {
 				_flag_enforce=0
 				export _flag_enforce
 				_e_report_back "The following enforcer arguments have been enabled"
-				_e_report_back "${_enforce_args[@]}"
+				_o_report_back "${_enforce_args[@]}"
 				;;
 		
 			--lawful-good*				)
@@ -1027,7 +1017,7 @@ librarium() {
 				_flag_lawful=0
 				export _flag_lawful
 				_e_report_back "The following lawful arguments have been enabled"
-				_e_report_back "${_lawful_args[@]}"
+				_o_report_back "${_lawful_args[@]}"
 				;;
 
 			--verbose|-v 				)
@@ -1041,8 +1031,84 @@ librarium() {
 				export _flag_quiet;;
 			-mm 						)
 				_flag_mm=0
-				export _flag_m;;
-		
+				export _flag_mm;;
+			--sdir*)
+				if [[ -z "$(echo "$1" | grep '=')" ]]; then
+					die "Missing argument for script's dir path"
+				else
+					_flag_sdir_path="${1#*=}"
+					[[ ${_flag_sdir_path:0:1} != "/" ]] && _flag_sdir_path="/${_flag_sdir_path}"
+					if [[ -d "${_flag_sdir_path}" ]]; then
+						_flag_sdir=0
+						export _flag_sdir
+						export _flag_sdir_path
+						_e_report_back "Script's dir flag enabled"
+					else
+						die "Error: script's dir target is not a directory"
+					fi
+				fi
+				
+				if [[ -z "$(echo "$2" | grep '\--do')" ]]; then
+					die "Missing --do flag"
+				fi
+
+				if [[ -z "$(echo "$2" | grep '=')" ]]; then
+					die "Missing --do arguments"
+				fi
+
+				if [[ -z "$(echo "$3" | grep '\-g')" ]]; then
+					die "Missing -g flag"
+				fi
+
+				if [[ -z "$(echo "$3" | grep '=')" ]]; then
+					die "Missing argument after -g"
+				fi
+				
+				_flag_doargs="${2#*=}"
+				_flag_gargs="${3#*=}"
+
+				echo "# Requested Scripts" > "${CLOCALLG}/doscripts"
+				echo "# SCRIPT'S PATH" >> "${CLOCALLG}/doscripts"
+				echo "SCP:${_flag_sdir_path}" >> "${CLOCALLG}/doscripts"
+				echo "# Hook:Script" >> "${CLOCALLG}/doscripts"
+				for i in {1..14}; do
+					if [[ -n "$(echo "${_flag_doargs}" | awk -v j="$i" -F ' ' '{print $j}')" ]]; then
+						if [[ -n "$(echo "${_flag_gargs}" | awk -v j="$i" -F ',' '{print $j}')" ]]; then
+							GVAR0="$(echo "${_flag_gargs}" | awk -v j="$i" -F ',' '{print $j}')"
+							if [[ "$(echo "${GVAR0:0:1}")" == '+' || "$(echo "${GVAR0:0:1}")" == '-' ]]; then
+								GVAR1="${GVAR0:1}"
+								if _case_args "${GVAR1}"; then
+									:
+								fi
+							else
+								die "Missing + or - from $(echo "${_flag_gargs}" | awk -v j="$i" -F ',' '{print $j}')"
+							fi
+						else
+							die "Missing hook point for ${DOVAR1}"
+						fi
+
+						DOVAR0="$(echo "${_flag_doargs}" | awk -v j="$i" -F ' ' '{print $j}')"
+						l=1
+						while true; do
+							if [[ -n "$(echo "${DOVAR0}" | awk -v k="$l" -F ',' '{print $k}')" ]]; then
+								DOVAR1="$(echo "${DOVAR0}" | awk -v k="$l" -F ',' '{print $k}')"
+								if [[ ! -e "${_flag_sdir_path}/${DOVAR1}" ]]; then
+									die "There is no such a ${DOVAR1} file"
+								fi
+								echo "${GVAR0}:${DOVAR1}" >> "${CLOCALLG}/doscripts"
+							else
+								break
+							fi
+							((++l))
+						done
+					else
+						break
+					fi
+				done
+				_e_report_back "With hooked scripts at: "
+				_o_report_back "$(cat "${CLOCALLG}/doscripts")"
+				shift 2
+				;;
 			--test						)
 				_e_report_back "Test flag is enabled"
 				_flag_test=0
@@ -1100,7 +1166,7 @@ witch_hunt() {
 
 	# CHECK FOR SUPERUSER PRIVILAGES
 	if _am_i_root "$UID"; then
-		_e_report_back "Superuser detected"
+		_o_report_back "Superuser detected"
 	else
 		die "User is not superuser. Aborting"
 	fi
@@ -1108,15 +1174,15 @@ witch_hunt() {
 	# PRIORITY CHECK FOR THE SCRIPT'S PID
 	if [[ "$(ps -fl $$ | tail -n +2 | awk -F ' ' '{ print $8}')" -le 0 ]]; then
 		_e_report_back "The priority of $0 is not high, and currently greater or equal to 0"
-		_e_report_back "Changing priority to -5"
+		_o_report_back "Changing priority to -5"
 		renice -n -5 -p "$$" >/dev/null
 	fi
 
 	# ISSUE WARNING IF CONNECTION SEEMS TO BE FROM SSHD
 	if [[ -n "${SSH_CLIENT}" || -n "${SSH_TTY}" ]]; then
 		if [[ "$(echo "${TERM}")" == "screen" ]]; then
-			_e_report_back "Session detected: ssh"
-			_e_report_back "Tmux/Screen detected"
+			_o_report_back "Session detected: ssh"
+			_o_report_back "Tmux/Screen detected"
 			_flag_tty="sshd"
 			export _flag_tty
 		else
@@ -1234,6 +1300,12 @@ warp() {
 	# FILTER AND EXPORT ALL FLAGS AND ARGUMENTS. DIE UNLESS CONDITIONS ARE EXACT
 	librarium "$@"
 
+	if [[ -z "${_flag_base}" ]]; then
+		_e_report_back "You must choose a base if your run gse without main menu. Aborting..."
+		_e_report_back "See man 1 gse for base options."
+		die "Aborting actions..."
+	fi
+
 	# THIS FUNCTION WILL ISSUE ESSENTIAL SYSTEM CHECKS, BEFORE PROCEEDING.
 	inquisitor "$@"
 
@@ -1258,37 +1330,43 @@ warp() {
 	# STAGE A
 
 	# THIS LIST WILL BE EXPORTED TO THE SOURCED SINIT BUILDER SCRIPT
+	_flags_stagea=()
+
+	_flags_listA=("_flag_fetch" \
+		"_flag_force_new" \
+		"_flag_keep" \
+		"_flag_minimal" \
+		"_flag_enforce" \
+		"_enforce_args" \
+		"_flag_lawful" \
+		"_lawful_args" \
+		"_flag_verbose" \
+		"_flag_quiet" \
+		"_flag_test" \
+		"_flag_network" \
+		"_flag_base")
+
+	for i in "${_flags_listA[@]}"; do
+		if [[ "$(echo ${!i})" == 0 ]]; then
+			_flags_stagea+=("${i}")
+		fi
+	done
+	
 	if [[ -n "${_flag_base}" ]]; then
-		_flags_stagea=()
-
-		_flags_listA=("_flag_fetch" \
-			"_flag_force_new" \
-			"_flag_keep" \
-			"_flag_minimal" \
-			"_flag_enforce" \
-			"_enforce_args" \
-			"_flag_lawful" \
-			"_lawful_args" \
-			"_flag_verbose" \
-			"_flag_quiet" \
-			"_flag_test" \
-			"_flag_network" \
-			"_flag_base")
-
-		for i in "${_flags_listA[@]}"; do
-			if [[ "$(echo ${!i})" == 0 ]]; then
-				_flags_stagea+=("${i}")
-			fi
-		done
-
 		source "${CWORKDIR}/scripts/sinit" "${_flags_stagea[@]}"
-	else
-		_fetch_new "fetch_new"
+	elif [[ -z "${_flag_base}" && -n "${_flag_fetch}" ]]; then
+		_call_fetch_new "$@"
 	fi
+
 	# STAGE B
 
 	# STAGE C
 
 }
 
+_do_rs() {
+	while read -r s;do
+		source "${_flag_sdir_path}/$s"
+	done < <(grep "$1" "${CLOCALLG}/doscripts" | sed '/^#/ d' | sed '/^\s*$/d' | awk -F ':' '{ print $2 }')
+}
 

@@ -6,6 +6,12 @@ if echo "${_flag_tty}" | grep -q 'sshd'; then
 	LC_CTYPE="en_US.UTF-8"
 fi
 
+if [[ -z "${_flag_base}" ]]; then
+	_e_report_back "You must choose a base if your run gse without main menu. Aborting..."
+	_e_report_back "See man 1 gse for base options."
+	die "Aborting actions..."
+fi
+echo "$@"
 # STAGE A
 # CHECK POSITIONAL PARAMETERS
 inspector "$@"
@@ -18,7 +24,6 @@ echo -e "[\e[32m*\e[0m] \e[34mInitializing\e[0m"
 source "${CWORKDIR}/etc/gentoo.conf" >/dev/null 2>&1 \
 && echo -e "[\e[32m*\e[0m] \e[35mExporting variables\e[0m" \
 || { echo -e "[\e[31m*\e[0m] \e[35mExporting variables\e[0m"; echo -e "\e[31mAborting\e[0m..."; sleep 2; return 1; }
-
 
 # PART A FUNDAMENTALS
 _part_a() {
@@ -41,49 +46,73 @@ _part_a() {
 	case "${_flag_base}" in
 		catalyst)
 
+			if grep -q '\-gseed' "${CLOCALLG}/doscripts"; then
+				_e_report_back "Sourcing scripts before gseed"
+				_do_rs '\-gseed'
+			fi
+
 			if _seed_net "$@"; then
 				sinit_flow_monitor "SEED"
 			fi
 
-			if [[ "$(awk -F '=' '/CATALYST/{ print $2 }' < "${CLOCALLG}/sinprog")" == 0 ]] || echo "$@" | grep -q 'force'; then
-				_callying_catalyst "$@" || die "Catalyst failed"
-				sinit_flow_monitor "CATALYST"
+			if grep -q '\+gseed' "${CLOCALLG}/doscripts"; then
+				_e_report_back "Sourcing scripts after gseed"
+				_do_rs '\+gseed'
+			fi
+
+			if grep -q '\-gcat' "${CLOCALLG}/doscripts"; then
+				_e_report_back "Sourcing scripts before catalyst"
+				_do_rs '\-gcat'
+			fi
+
+			if echo "${_lawful_args[@]}" | grep -q 'gcat'; then
+				_e_report_back "Catalyst: Lawful entry detected, proceeding..."
 			else
-				if echo "${_lawful_args[@]}" | grep -q 'gcat'; then
-					_e_report_back "Catalyst: Lawful entry detected, proceeding..."
-				else
+				if [[ "$(awk -F '=' '/CATALYST/{ print $2 }' < "${CLOCALLG}/sinprog")" == 0 ]] || echo "$@" | grep -q 'force' || echo "${_enforce_args[@]}" | grep -q 'gcat'; then
 					if echo "${_enforce_args[@]}" | grep -q 'gcat'; then
 						_e_report_back "Catalyst: Enforce entry detected, forcing..."
 						_callying_catalyst "$@" "force" || die
 						sinit_flow_monitor "CATALYST"
 					else
-						if _repeat_subpart "Catalyst" "configured"; then
-							_callying_catalyst "$@" || die
-						else	
-							echo -e "\e[33mProceeding with extraction...\e[0m"
-						fi
+						_callying_catalyst "$@" || die
+						sinit_flow_monitor "CATALYST"
+					fi
+				else 
+					if _repeat_subpart "Catalyst" "configured"; then
+						_callying_catalyst "$@" || die
+					else	
+						echo -e "\e[33mProceeding with extraction...\e[0m"
 					fi
 				fi
 			fi
 
-		
-			if [[ "$(awk -F '=' '/EXTRACTION/{ print $2 }' < "${CLOCALLG}/sinprog")" == 0 ]] || echo "$@" | grep -q 'force'; then
-				_extracting_catalyst "$@" || die "Extraction failed"
-				sinit_flow_monitor "EXTRACTION"
+			if grep -q '\+gcat' "${CLOCALLG}/doscripts"; then
+				_e_report_back "Sourcing scripts after catalyst"
+				_do_rs '\+gcat'
+			fi
+
+			if grep -q '\-gextr' "${CLOCALLG}/doscripts"; then
+				_e_report_back "Sourcing scripts before extraction"
+				_do_rs '\-gextr'
+			fi
+
+			if echo "${_lawful_args[@]}" | grep -q 'gextr'; then
+				_e_report_back "Extraction: Lawful entry detected, proceeding..."
 			else
-				if echo "${_lawful_args[@]}" | grep -q 'extr'; then
-					_e_report_back "Extraction: Lawful entry detected, proceeding..."
-				else
-					if echo "${_enforce_args[@]}" | grep -q 'extr'; then
+				if [[ "$(awk -F '=' '/EXTRACTION/{ print $2 }' < "${CLOCALLG}/sinprog")" == 0 ]] || echo "$@" | grep -q 'force'; then
+					if echo "${_enforce_args[@]}" | grep -q 'gextr'; then
 						_e_report_back "Extraction: Enforce entry detected, forcing..."
 						_extracting_catalyst "$@" "force" || die
 						sinit_flow_monitor "EXTRACTION"
 					else
-						if _repeat_subpart "Extraction" "completed"; then
-							_extracting_catalyst "$@" || die
-						else
-							echo -e "\e[33mProceeding to Part: B...\e[0m"
-						fi
+						_extracting_catalyst "$@" || die
+						sinit_flow_monitor "EXTRACTION"
+					fi
+				else
+					if _repeat_subpart "Extraction" "completed"; then
+						_extracting_catalyst "$@" || die
+					else
+						echo -e "\e[33mProceeding to Part: B...\e[0m"
 					fi
 				fi
 			fi
@@ -92,60 +121,93 @@ _part_a() {
 			unset TARGETNAME
 			unset TARGETPATH
 			unset TARGETSTAMP
-			;;
+
+			if grep -q '\+gextr' "${CLOCALLG}/doscripts"; then
+				_e_report_back "Sourcing scripts after extraction"
+				_do_rs '\+gextr'
+			fi;;
+
 		precomp)
+			
+			if grep -q '\-gseed' "${CLOCALLG}/doscripts"; then
+				_e_report_back "Sourcing scripts before gseed"
+				_do_rs '\-gseed'
+			fi
 
 			if _seed_net "$@"; then
 				sinit_flow_monitor "SEED"
 			fi
 
-			if [[ "$(awk -F '=' '/PRECOMP/{ print $2 }' < "${CLOCALLG}/sinprog")" == 0 ]] || echo "$@" | grep -q 'force'; then
-				_workdir_check "${CDISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2" \
-				"${CDISTDIR}/workdir-precomp" "$@" || die
+			if grep -q '\+gseed' "${CLOCALLG}/doscripts"; then
+				_e_report_back "Sourcing scripts after gseed"
+				_do_rs '\+gseed'
+			fi
+
+			if grep -q '\-gprec' "${CLOCALLG}/doscripts"; then
+				_e_report_back "Sourcing scripts before precomp extraction"
+				_do_rs '\-gprec'
+			fi
+
+			if echo "${_lawful_args[@]}" | grep -q 'gprec'; then
+				_e_report_back "Precomp: Lawful entry detected, proceeding..."
 			else
-				if echo "${_lawful_args[@]}" | grep -q 'gprec'; then
-					_e_report_back "Precomp: Lawful entry detected, proceeding..."
-				else
+				if [[ "$(awk -F '=' '/PRECOMP/{ print $2 }' < "${CLOCALLG}/sinprog")" == 0 ]] || echo "$@" | grep -q 'force'; then
 					if echo "${_enforce_args[@]}" | grep -q 'gprec'; then
 						_e_report_back "Precomp: Enforce entry detected, forcing..."
-						_extracting_catalyst "$@" "force" || die
+						_workdir_check "${CDISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2" \
+						"${CDISTDIR}/workdir-precomp" "$@" "force" || die
+						sinit_flow_monitor "PRECOMP"
 					else
-						if _repeat_subpart "Precomp Extraction" "completed"; then
-							_workdir_check
-							"${CDISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2" \
-							"${CDISTDIR}/workdir-precomp" "$@"
-						else
-							echo -e "\e[33mProceeding to Part: B...\e[0m"
-						fi
+						_workdir_check "${CDISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2" \
+						"${CDISTDIR}/workdir-precomp" "$@" || die
+						sinit_flow_monitor "PRECOMP"
+					fi
+				else
+					if _repeat_subpart "Precomp Extraction" "completed"; then
+						_workdir_check "${CDISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2" \
+						"${CDISTDIR}/workdir-precomp" "$@" || die
+					else
+						echo -e "\e[33mProceeding to Part: B...\e[0m"
 					fi
 				fi
+			fi
+			
+			if grep -q '\+gprec' "${CLOCALLG}/doscripts"; then
+				_e_report_back "Sourcing scripts after precomp extraction"
+				_do_rs '\+gprec'
 			fi;;
 	esac
 }
 
+if grep -q '\-gparta' "${CLOCALLG}/doscripts"; then
+	_e_report_back "Sourcing scripts before Part: A"
+	_do_rs '\-gparta'
+fi
 
-if [[ "$(awk -F '=' '/PARTA/{ print $2 }' < "${CLOCALLG}/sinprog")" == 0 || -n $(echo "${_flag_force_new}") ]] || echo "${_enforce_args[@]}" | grep -q 'gparta'; then
-	if 	[[ -n $(echo "${_flag_force_new}") ]] || echo "${_enforce_args[@]}" | grep -q 'gparta'; then
-		_part_a "$@" "force" || die
-		sinit_flow_monitor "PARTA"
-	else
-		_part_a "$@" || die
-		sinit_flow_monitor "PARTA"
-	fi
-else
-	if echo "${_lawful_args[@]}" | grep -q 'gparta'; then
-		_e_report_back "Lawful entry detected on parta, proceeding..."
-	else		
-		if echo "${_enforce_args[@]}" | grep 'gparta'; then
-			_e_report_back "Enforce entry detected on parta, forcing..."
+if echo "${_lawful_args[@]}" | grep -q 'gparta'; then
+	_e_report_back "Lawful entry detected on parta, proceeding..."
+else	
+	if [[ "$(awk -F '=' '/PARTA/{ print $2 }' < "${CLOCALLG}/sinprog")" == 0 || -n "${_flag_force_new}" ]] || echo "${_enforce_args[@]}" | grep -q 'gparta'; then
+		if 	[[ -n "${_flag_force_new}" ]] || echo "${_enforce_args[@]}" | grep -q 'gparta'; then
+			_e_report_back "Force entry detected on part a, forcing..."
 			_part_a "$@" "force" || die
 			sinit_flow_monitor "PARTA"
 		else
-			if repeat_parta "A"; then
-				_part_a "$@"
-			fi
+			_part_a "$@" || die
+			sinit_flow_monitor "PARTA"
+		fi
+	else
+		if repeat_part "A"; then
+			_part_a "$@"
+		else
+			_e_report_back "Proceeding with part b"
 		fi
 	fi
+fi
+
+if grep -q '\+gparta' "${CLOCALLG}/doscripts"; then
+	_e_report_back "Sourcing scripts after Part: A"
+	_do_rs '\+gparta'
 fi
 
 case "${_flag_base}" in
@@ -162,33 +224,70 @@ echo "==========================================================================
 _am_i_root "$UID" && echo -e "[\e[32m*\e[0m] Requesting root privileges" \
 || { echo -e "[\e[31m*\e[0m] Requesting root privileges"; exit 1; }
 
+_part_b() {
+	if _prepare_chroot "$@"; then
+		if grep -q '\-gclean' "${CLOCALLG}/doscripts"; then
+			_e_report_back "Sourcing scripts before cleanup"
+			_do_rs '\-gclean'
+		fi		
+				
+		_clean_target "$@" || die
+
+		if grep -q '\+gclean' "${CLOCALLG}/doscripts"; then
+			_e_report_back "Sourcing scripts after cleanup"
+			_do_rs '\+gclean'
+		fi
+
+		sinit_flow_monitor "PARTB"
+	else
+		die "Cleaning failed"
+	fi
+}
+
+if grep -q '\-gpartb' "${CLOCALLG}/doscripts"; then
+	_e_report_back "Sourcing scripts before Part: B"
+	_do_rs '\-gpartb'
+fi
+
+if echo "${_lawful_args[@]}" | grep -q 'gpartb'; then
+	_e_report_back "Lawful entry detected on part b, proceeding..."
+else	
+	if [[ "$(awk -F '=' '/PARTB/{ print $2 }' < "${CLOCALLG}/sinprog")" == 0 || -n "${_flag_start_new}" ]] || echo "${_enforce_args[@]}" | grep 'gpartb'; then
+		if 	[[ -n "${_flag_force_new}" ]] || echo "${_enforce_args[@]}" | grep -q 'gparta'; then
+			_e_report_back "Force entry detected on partb, forcing..."
+			_part_b "${BWORKDIR}" "$@" "${_flag_base}" 'cforce'
+		else
+			_part_b "${BWORKDIR}" "$@" "${_flag_base}"
+		fi
+	else
+		if repeat_part "B"; then
+			_part_b "${BWORKDIR}" "$@" "${_flag_base}"
+		else
+			_e_report_back "Proceeding..."
+		fi
+	fi
+fi
+
+if grep -q '\+gpartb' "${CLOCALLG}/doscripts"; then
+	_e_report_back "Sourcing scripts after Part: B"
+	_do_rs '\+gpartb'
+fi
+
+umount -l "${BWORKDIR}/"*
+umount -l "${BWORKDIR}/"*
+umount -l "${BWORKDIR}/"*
+umount -l "${BWORKDIR}/"*
+umount -l "${BWORKDIR}/"*
+
 TARGETSTAMP="$(grep 'version_stamp' "${CCONFDIR}/system/catalyst/stage3.spec" \
 | sed '/^#/ d' | awk -F ' ' '{ print $2 }' | sed  -e "s_\"__g")"
 
-if [[ -n "${_flag_start_new}" ]] || echo "${_enforce_args[@]}" | grep 'gpartb'; then
-	if _prepare_chroot "${BWORKDIR}" "$@" 'cforce'; then
-		_clean_target "${BWORKDIR}" "$@" || die
-	else
-		die "Cleaning failed"
-	fi
-else
-	if _prepare_chroot "${BWORKDIR}" "$@"; then
-		_clean_target "${BWORKDIR}" "$@" || die
-	else
-		die "Cleaning failed"
-	fi
-fi
-umount -l "${BWORKDIR}/"*
-umount -l "${BWORKDIR}/"*
-umount -l "${BWORKDIR}/"*
-umount -l "${BWORKDIR}/"*
-umount -l "${BWORKDIR}/"*
 SUBBUILD=0
 GVEX="${GSEVER}.${SUBBUILD}"
 while true; do
 	if ! ls "${CDISTDIR}/stage3-amd64-${GVEX}.tar.bz2" >/dev/null 2>&1; then
 		(cd "${BWORKDIR}"
-		tar -cjpP --ignore-failed-read "${CDISTDIR}/stage3-amd64-${GVEX}.tar.bz2" . >/dev/null 2>&1; ) \
+		tar -cjpP --ignore-failed-read "${CDISTDIR}/stage3-amd64-${TARGETSTAMP}-${GVEX}.tar.bz2" . >/dev/null 2>&1; ) \
 		&& { _o_report_back "Archived" && echo -e "\e[34mYou can find your system @ ${CDISTDIR}\e[0m"
 		echo -e "\e[34mWith version extension: ${GVEX}\e[0m"; } \
 		|| die "Failed"
@@ -202,7 +301,7 @@ done
 exit
 
 gpg --armor --export email > "${FINALDIST}/key.asc" # THIS WILL BE ADDED TO THE HOSTS
-gpg --detach-sign -o ${GSE_VER}.gpg "${FINALDIST}/${IMAGE}"
+gpg --detach-sign -o "${GSE_VER}".gpg "${FINALDIST}/${IMAGE}"
 #rm -rf "$1/sinit.d"
 unset CATDIR
 unset TARGETPATH

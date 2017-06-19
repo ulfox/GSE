@@ -391,7 +391,7 @@ _portage_subpart() {
 
 _part_c() {
 	echo "============================================================================"
-	echo -e "\e[35m 		Part C: Syncing Portage\e[0m"
+	echo -e "\e[35m 			Part C: Syncing Portage\e[0m"
 	echo "============================================================================"
 	echo -e "\e[34mUpdating the database\e[0m"
 	_portage_subpart "$@"
@@ -927,4 +927,10 @@ while true; do
 			break;;
 	esac
 done
+}
+
+_do_rs() {
+	while read -r s;do
+		source "${CHDIR}/cscripts/$s"
+	done < <(grep "$1" "${CHDIR}/cscripts/doscripts" | sed '/^#/ d' | sed '/^\s*$/d' | awk -F ':' '{ print $2 }')
 }
