@@ -3,7 +3,9 @@
 when it is done in the future.}}
 
 '''GSE''': Gentoo Stateless Environment is a set of scripts and configuration files that take special advantage of catalyst and other
-Gentoo features for to purpose of creating a Gentoo system that can function under stateless conditions.
+Gentoo features for the purpose of creating a Gentoo system that can function under stateless conditions.
+
+The project aims to automate the building and configuration process of a Gentoo system that will produce a flexible system that can be transformed to anything one wishes. Because the foundation is Gentoo, such a flexibility can easily be achieved and the process itself represents a way of unlimited possibilities and configurations, since Gentoo provides the means for those. 
 
 === Installation ===
 === USE Flags ===
@@ -48,7 +50,7 @@ The optional part's are included if someone wishes to built a system using the g
 This disables the functions provided by the controller.
  
 Before initiating a build sequence, one has to edit the configuration files at /usr/lib64/gse/config.d. The files can be edited from
-the GSE main menu, which is recommended, since all are listed there, under special categories, which gives a more condensed view and assures that no configuration area will be missed.
+the GSE main menu, which is recommended, since all are listed there, under special categories, which gives a more condensed view and assures that no configuration areas will be missed.
 
 To bring up the GSE main menu script, run:
 {{RootCmd|gse -mm}}
@@ -82,12 +84,57 @@ The differences of --lawful-good and --enforce are two. First one is that they e
 then, gse will automatically pass all parts of partA. For more information about parts and stages see gse manpage(5):
 {{RootCmd|man 5 gse}}
 
+
+==== Building with distcc, ccache ====
+
+Given that gse has been emerged with distcc flag, the process can take advantage of those during the chrooting phase. To initiate gse build with distcc, run:
+{{RootCmd|gse --base{{=}}catalyst --distcc{{=}}on --ccache{{=}}on}}
+
+The above command will instruct gse to read the distcc/ccache configuration files and use distcc for the process.
+
+If one wishes to use distcc with pump mode, then the command becomes
+{{RootCmd|gse --base{{=}}catalyst --distcc{{=}}pump --ccache{{=}}on}}
+
+''Pump'' implies distcc, therefore there is no need to use the ''on'' argument.
+
+==== Requested Commands ====
+
+Gse provides a way to execute user specific commands during the each part. If ''--do'' flag is passed, then a set of functions is enabled that ''take over the indicated parts''.
+
+For example someone could wish to execute cmd0,cmd1,cmd2 commands, exactly after the portage update has finished, inside the chroot stage.
+To do this, run:
+{{RootCmd|gse --base{{=}}catalyst --do{{==}}</path/to/file> -g{{=}}<&plusmn;hook point>}}
+
+The file can be any file with text. The file will be read line by line and commends will be excluded. Each line is considered a command.
+{{RootCmd|cat <path/to/mycommands>|output=<pre># Comment for cmd0
+cmd0
+# Comment for cmd1
+# Some extra comments
+cmd1
+# Many comments
+# .
+# .
+# .
+cmd2</pre>}}
+
+The hook points are the same with the --lawful-good/--enforce arguments. Therefore for our example (after portage update), the hook point
+would be gupd with a + sign. The mines sign indicates that the command or chain of commands will be executed before the specific part is activated.
+
+This feature is probably one of gse most important features, since it can transform gse from a predetermined building process, to a completely different process.
+
+The next example will further reveal how strong this feature can be.
+{{RootCmd|gse --base{{=}}catalyst --do{{=}}"file0,file1,file2" -g{{=}}"-gupd,-gins,-gcon" --lawful-good{{=}}"gupd,gins,gcon"}}
+
+What is happening here is that, gse is instructed to automatically pass the portage update, installation and configuration parts. At the same time gse is instructed to execute the commands in file0 at the portage update part, the commands in file1 at the installation part and last the commands from file 2 at the configuration part.
+
+Each of these commands could source other scripts, and the customization can go on and on. You can even go completely gse building process free while only using the hook points that are provided.
+
 ==== Stage A ====
 
 ===== Part: A Fundamentals =====
 
-From partA the only configuration files that are used, are the spec files that catalyst will use for building the stage3 tarball. Apart from those, the rest of the process will try to locate the portage snapshot or create it (for catalyst option) then build the stages. When
-done, extraction sub-part is enabled and a "${CDISTDIR}/workdir-catalyst" is created to host the extracted tarball. For precomp base, the process simply downloads the latest stag3 tarball, verifies the origin and the file's integrity before extracting the tarball to "${CDISTDIR}/workdir-precomp". 
+From part A the only configuration files that are used, are the spec files that catalyst will use for building the stage3 tarball. Apart from those, the rest of the process will try to locate the portage snapshot or create it (for catalyst option) then build the stages. When
+done, extraction sub-part is enabled and a "${CDISTDIR}/workdir-catalyst" is created to host the extracted tarball. For precomp base, the process simply downloads the latest stag3 tarball, verifies the origin and the file's integrity before extracting the tarball to "${CDISTDIR}/workdir-precomp".
 
 ===== PART: B Preparing to enter the new system =====
 
@@ -95,7 +142,7 @@ Here, the chroot preparation function is enabled. This function create all the m
 
 ==== Stage B ====
 
-===== Part:C Syncing Portage =====
+===== Part: C Syncing Portage =====
 
 Chroot has happen, and the chroot_init script has been enabled. This part read the imported environmental variables and proceeds with probably the most important part of the script, updating portage.
 
@@ -111,7 +158,119 @@ The above functions are called by a function which checks the exit code of each 
 
 ===== Part Portage =====
 
-This part is a sub-part of Part: C. Here the only entry worth mentioning is the GSE Profile creation.
+This part is a sub-part of Part: C. Here the only entries worth mentioning are the GSE Profile creation and the apply new. The apply new entry will apply all the custom USE Flags and then emerge those changes.
 
 ====== The GSE Profile ======
+
+The GSE profile is a custom experimental profile. The aim of the profile is to collect useful flags and packages for aiding systems intended to be used on Research labs and University computer labs. For more details about the flags and the packages it enables, see 
+man 5 gse (GSE Profile section).
+
+===== Part: D Rebuilding the system =====
+
+This part simply prompts for a ''emerge -eq @system'' command, in case the precomp base is detected.
+
+===== Part: E Configuration =====
+
+This part enables the functions to read all and apply all configuration files. Locales, timeszone, consolefonts, fstab entries, ssh-pub keys and more configuration files under /etc are configured here.
+
+===== Part: F Emerge Essentials =====
+
+Here, packages indicated in the configuration files are emerged. Optional to those are genkernel, gentoo-sources, dracut, grub:2 since those parts are optional too.
+
+===== Part: G Runlevels =====
+
+This part belongs to the configuration Part: E, however it has been left as a separate entry because of the importancy the runlevels play in the systems boot and functionality.
+
+===== Parts: H/I Kernel/Initramfs =====
+
+The entries on these parts prompt for a kernel/initramfs build. If force is active on this part, the prompt becomes a yes and genkernel builds a general modular kernel. For manual configuration --enforce=gker should be avoided.
+
+You can tell gse to use an already built kernel if one wishes to. To include a pre-built kernel, run:
+{{RootCmd|gse --base{{=}}catalyst --kernel{{=}}<path/to/image>}}
+
+Same holds for initramfs
+{{RootCmd|gse --base{{=}}catalyst --initrd{{=}}<path/to/image>}}
+
+===== Part: J Chroot cleanup =====
+
+Deselection of tools that were used during the chroot configuration process.
+
+==== Stage 3 ====
+
+===== Part: K Cleanup =====
+
+The chroot has exited with 0 and everything looks fine. The last cleanup function is called. It will further clean the systems /var /tmp /usr/share/{requested entries}. If --build-minimal is enabled, this part will remove many more entries. For more information about 
+--build-minimal see man 1 gse. After the cleanup returns 0, the system is put back in a tarball, sha512sum is created and last the tarball is signed.
+
+===== Part: L Mark for Distribution =====
+
+The generated archive is marked as completed and a prompt asks to either mark it as default or simply exit. Marking the system as default, instructs gse to create a new version related with the above system. Now all clients asking for version, will fetch this one and prompted to sync the new image.
+
+=== The Controller ===
+
+The controller consists from a set of scripts, functions and files that lie inside the initramfs. The concept of it, derives from the need to control and make changes to multiple systems that host the images created from the builder. By names definition, the controller is responsible making decisions before the system begins booting, that is, before the initramfs handles the control to the main system.
+
+The most important part of the initramfs apart from the config.d directory, which is a way of indirect server-client communication, is the _etc_misc script, which is responsible for mounting /etc as tmpfs and other entries requested from the configuration files.
+
+To build the controller, run: 
+{{RootCmd|gse --build-controller{{=}}"path to modir"}}
+
+==== Structure ====
+
+Controller's functions {as described in man 1 gse}
+              
+* Read /config.d/sources configuration files and export them
+* Check for network connection
+* Attempt to establish connection with the server
+* Fetch new /config.d files {if any} from the server
+* Export the newly fetched files
+* Check the health integrity of SYSFS and BACKUPFS
+* Apply new configuration files to the SYSFS
+* Update runlevels
+* Create new drive interfaces
+* Create filesystems
+* Create and modify LABELS
+* Switch bootflags
+* Mount /etc and other directories as tmpfs
+* Decide which partition will be named SYSFS
+* Create,delete and modify subvolumes
+* Even wipe the whole setup and start new
+
+
+The above features can be accessed and modified, while not recommended from the controller modules. The modules are located at "$GSE/config.d/controller/modules" and are organized by categories.
+
+==== Boot Process ====
+
+===== Export config.d =====
+
+At the very beginning of the init script, the first controller's script is sourced. This script will simply read the indicated configuration files inside /config.d directory and export important environmental variables for the rest of the process. Some of the most
+important variables are the gse sources {server's name, keys,...} and the devices labels. The last are probably the most important variables, since they indicate which partition is holding the real system and which the backup system.
+
+===== Networking part =====
+
+On this part the networking check/fetch scripts are sourced in the written order. The network check script will simply check if there is a network connection available. This step is quite crucial, since the return value will completely change the order of the sourced scripts to come. For example a return value of 1 means that there is no network connection, hence the fetch script, version check script and export new script will never be sourced. However a return value of 0 will enable the above scripts.
+
+With network established, the client requests new configuration files from the server. Each time a new configuration file is fetched, it is immediately read and exported. After that, a version check script will compare the version that was fetched from the server and compare it with the one that lies in the SYSFS partition. A miss match will prompt for a new fetch.
+
+Fetching a new system will wipe the SYSFS partition, create a new filesystem if it's indicated by the configuration files and last move the new system in it.
+
+===== Health check =====
+
+For this part, we will assume that the version check returned 0 or the answer for a fetch new was set to no. The health check script is a list of conditions that check whenever the system completed a healthy life cycle the last time. 
+
+Since the system is stateless, a life cycle for gse is considered the set of healthy startup and healthy shutdown. If all conditions return 0, then the last life cycle is marked as a healthy and the process continues. However if a condition fails, then the life cycle is marked as unhealthy. 
+
+An unhealthy mark will instantly enable new functions which will rename the SYSFS label of the rootfs to a DEPRIVED label. Since there is no system to be mounted, the BACKUPFS is renamed to SYSFS and the process resumes. The backup filesystem is the last cloned filesystem of the old system, which completed a healthy cycle.
+
+===== Configurations =====
+
+All (system) configuration files that were fetched during the network phase are applied here. The SYSFS is mounted as rw and changes are applied.
+
+===== Clean up =====
+
+After the configuration has finished, a clean up script is sourced. This script will clear the workdirs and remount SYSFS as ro.
+
+===== Mount Directories =====
+
+This is the last and final phase. The last script is sourced, which mounts /etc, /var/log, /tmp and any other indicated directories, as tmpfs and finally resumes the process of the initramfs.
 
