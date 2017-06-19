@@ -539,8 +539,9 @@ lppar=()
 for i in "$@"; do
 	lppar+=("$i")
 done
+
 if [[ -z "$@" ]] || echo "$@" | grep -q '\-mm'; then
-mainlp_f "MM" "${lppar[@]}" && unset BACKTO && exit 0
+	mainlp_f "MM" "${lppar[@]}" && unset BACKTO && exit 0
 else
 	warp "$@"
 fi
