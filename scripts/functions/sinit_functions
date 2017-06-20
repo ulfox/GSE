@@ -100,7 +100,7 @@ _keep(){
 	_e_report_back "The keep flag has been detected."
 	_e_report_back "Making backup of, $1 before proceeding with purging"
 	if [[ -d "$2" ]]; then
-		tar czvf "/var/tmp/gse/${_date_var}/$1.tar.bz2" "$2" >/dev/null 2>&1 \
+		eval tar czvf "/var/tmp/gse/${_date_var}/$1.tar.bz2" "$2" "${_flag_silence}" \
 		&& return 0 || return 1
 	elif [[ ! -d "$2" ]]; then
 		cp "$2" "/var/tmp/gse/${_date_var}/$1"
@@ -135,20 +135,6 @@ print_inf_f() {
 	echo
 	echo -e "\e[31mExiting...\e[0m"
 	exit 1
-}
-
-repeat_part() {
-	while true; do
-		echo -e "\e[33mPart $1: Has been completed\e[0m"
-		echo "Run again? Y/N: "
-		read -rp "Input :: <= " YN
-		case "${YN}" in
-			[yN])
-				return 0;;
-			[nN])
-				return 1;;
-		esac
-	done
 }
 
 help_f() {
@@ -191,20 +177,6 @@ _extracting_catalyst() {
 	"${CDISTDIR}/workdir-catalyst" \
 	"${CATDIR}/snapshots/portage-${SNAPSHOTNAME}.tar.bz2" "$@" \
 	|| return 1
-}
-
-_repeat_subpart() {
-	while true; do
-		echo -e "\e[33m$1: Has been $2\e[0m"
-		echo "Run again? Y/N: "
-		read -rp "Input :: <= " YN
-		case "${YN}" in
-			[yN])
-				return 0;;
-			[nN])
-				return 1;;
-			esac
-	done
 }
 
 _clean_target() {
@@ -311,8 +283,8 @@ _pseudo_check_purge(){
 	[[ -n "$(grep "dist.d/workdir-" "/proc/mounts" | awk -F ' ' '{ print $2 }')" ]] \
 	&& while true; do
 		while read -r i; do
-			umount -l "$i"/* >/dev/null 2>&1 >/dev/null 2>&1
-			umount -l "$i" >/dev/null 2>&1 >/dev/null 2>&1
+			eval umount -l "$i"/* "${_flag_silence}"
+			eval umount -l "$i" "${_flag_silence}"
 		done < <(grep 'dist.d/workdir-' "/proc/mounts" | awk -F ' ' '{ print $2 }')
 		
 		[[ -z $(grep "dist.d/workdir-" "/proc/mounts" | awk -F ' ' '{ print $2 }') ]] \
@@ -362,12 +334,12 @@ _extract_tarball() {
 	mkdir -p "$2"
 
 	echo -e "\e[34mExtracting tarball\e[0m"
-	if tar xvjpf "$1" -C "$2" --xattrs --numeric-owner >/dev/null 2>&1; then
+	if eval tar xvjpf "$1" -C "$2" --xattrs --numeric-owner "${_flag_silence}"; then
 		echo -e "[\e[32m*\e[0m] Extracted"
 		
 		if echo "${_flag_base}" | grep -q 'catalyst'; then
 			echo -e "\e[34mExtracting portage\e[0m"
-			if tar xvjpf "$3" --xattrs --numeric-owner -C "$2/usr/" >/dev/null 2>&1; then
+			if eval tar xvjpf "$3" --xattrs --numeric-owner -C "$2/usr/" "${_flag_silence}"; then
 				echo -e "[\e[32m*\e[0m] Extracted"
 			else
 				die "Extracting portage FAILED"
@@ -436,7 +408,7 @@ _export_latest() {
 
 _gentoo_key() {
 	[[ -z "${GENTOOKEY}" ]] && die "Wrong Parameters" && return 1
-	gpg --keyserver hkps.pool.sks-keyservers.net --recv-keys >/dev/null 2>&1 ${GENTOOKEY} \
+	eval gpg --keyserver hkps.pool.sks-keyservers.net --recv-keys "${_flag_silence}" ${GENTOOKEY} \
 	&& echo -e "[\e[32m*\e[0m]\e[32m Fetching Key\e[0m" \
 	|| { echo -e "[\e[31m*\e[0m]\e[31m Fetching Key\e[0m"; return 1; }
 }
@@ -453,7 +425,7 @@ _get_latest() {
 		echo -e "[\e[34m*\e[0m] Marking stage3-${ARCH}-latest.tar.bz2.DIGESTS for purging"
 		burn "${CDISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2.DIGESTS"
 		echo -e "[\e[32m*\e[0m] Fetching \e[34m${STAGE3TB}\e[0m"
-		wget -c -O "${CDISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2" "${GENTOOLATEST}" >/dev/null 2>&1 \
+		eval wget -c -O "${CDISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2" "${GENTOOLATEST}" "${_flag_silence}" \
 		&& echo "${STAGE3TB}" > "${CDISTDIR}/dists/latest.info" \
 		&& pass || die "FAILED"
 	else
@@ -462,17 +434,17 @@ _get_latest() {
 		&& echo "${STAGE3TB}" > "${CDISTDIR}/dists/latest.info" \
 		&& pass || die "FAILED"
 	fi
-	wget -c -O "${CDISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2.DIGESTS.asc" "${GENTOOLATESTASC}" >/dev/null 2>&1 \
+	eval wget -c -O "${CDISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2.DIGESTS.asc" "${GENTOOLATESTASC}" "${_flag_silence}" \
 	&& echo -e "[\e[32m*\e[0m] Fetching \e[34m${GENTOOLATEST}\e[0m" \
 	|| { echo -e "[\e[31m*\e[0m] \e[31mFAILD\e[0m: Fetching \e[34m${GENTOOLATEST}\e[0m"; exit 1; }
 
-	wget -c -O "${CDISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2.DIGESTS" "${GENTOOLATEST}.DIGESTS" >/dev/null 2>&1 \
+	eval wget -c -O "${CDISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2.DIGESTS" "${GENTOOLATEST}.DIGESTS" "${_flag_silence}" \
 	&& echo -e "[\e[32m*\e[0m] Fetching \e[34m${GENTOOLATEST}.DIGESTS\e[0m" \
 	|| { echo -e "[\e[31m*\e[0m] \e[31mFAILD\e[0m: Fetching $\e[34m${GENTOOLATEST}.DIGESTS\e[0m"; exit 1; }
 }
 
 _verify_download() {
-	gpg --verify "${CDISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2.DIGESTS.asc" >/dev/null 2>&1 \
+	eval gpg --verify "${CDISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2.DIGESTS.asc" "${_flag_silence}" \
 	&& echo -e "[\e[32m*\e[0m] Verifying \e[35mcryptographic signature\e[0m" \
 	|| { echo -e "[\e[31m*\e[0m] \e[31mFAILD\e[0m: Verifying \e[31mcryptographic signature\e[0m"; exit 1; }
 
@@ -486,34 +458,6 @@ _call_fetch_new() {
 	source "${CWORKDIR}/scripts/functions/catalyst_functions" || { echo -e "\e[32mMissing scripts\e[0m" && exit 1; }
 	_fetch_new "$@"
 	_get_latest_snapshot "$@"
-}
-
-_seed_net() {
-	if [[ -n "$(echo "${_lawful_args[@]}" | grep 'gseed')" ]]; then
-		_e_report_back "Fetch: Lawful entry detected, proceeding..."
-	else	
-		if [[ $(echo "${_flag_network}") == 0 ]]; then
-			if [[ "$(awk -F '=' '/SEED/{ print $2 }' < "${CLOCALLG}/sinprog")" == 0 ]] || echo "$@" | grep -q 'force' || echo "${_enforce_args[@]}" | grep 'gseed'; then
-				if echo "${_enforce_args[@]}" | grep 'gseed'; then
-					_e_report_back "Fetch: Enforce entry detected, forcing..."
-					_fetch_new "$@" "force" || die "FAILED"
-				else
-					_fetch_new "$@" || die "FAILED"
-				fi
-			else
-				if _repeat_subpart "Tarball" "fetched"; then
-					_fetch_new "$@" || die "FAILED"
-				else	
-					_e_report_back "Proceeding on next part..."
-				fi
-			fi
-		elif [[ ! -e "${CDISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2" ]]; then
-			die "No local tarball is present. Please enable network connection and try again"
-		elif [[ -e "${CDISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2" ]]; then
-			_e_report_back "Stage3 tarball located"
-			_e_report_back "Calling catalyst"
-		fi
-	fi
 }
 
 _call_force_new() {
@@ -569,8 +513,8 @@ _unmount() {
 	[[ -n "$(grep "dist.d/workdir-"$2 "/proc/mounts" | awk -F ' ' '{ print $2 }')" ]] \
 	&& while true; do
 		while read -r i; do
-			umount -l "$i"/* >/dev/null 2>&1 >/dev/null 2>&1
-			umount -l "$i" >/dev/null 2>&1 >/dev/null 2>&1
+			eval umount -l "$i"/* "${_flag_silence}"
+			eval umount -l "$i" "${_flag_silence}"
 		done < <(grep 'dist.d/workdir-' "/proc/mounts" | awk -F ' ' '{ print $2 }')
 		
 		[[ -z $(grep "dist.d/workdir-"$2 "/proc/mounts" | awk -F ' ' '{ print $2 }') ]] \
@@ -598,136 +542,6 @@ _mount_proc() {
 	|| { echo -e "[\e[31m*\e[0m] Mounting proc"; die "Failed"; }
 }
 
-# PREPARE THE BUILDERDIR AND INITIATE CHROOT, DIE IF ANYENTRY FAILS
-_prepare_chroot() {
-	inspector "$@"
-
-	rm -f "$1/etc/resolv.conf"
-	cp -L /etc/resolv.conf "$1/etc/" || die "Failed"
-
-	if [[ -n $(echo "$@" | grep 'catalyst') ]]; then
-		# CHECK IF PSEUDOS ARE MOUNTED
-		if [[ -n $(cat /proc/mounts | grep 'dist.d/workdir-catalyst' | awk -F ' ' '{ print $1 }') ]]; then
-			echo -e "\e[31mPseudos possibly mounted at target directory\e[0m"
-			echo -e "\e[33mResolving the issue...\e[0m"
-			_unmount "catalyst" || die
-		fi
-		echo -e "\e[34mMounting pseudo\e[0m"
-		[[ -z $(grep 'dist.d/workdir-catalyst' /proc/mounts | awk -F ' ' '{ print $1 }') ]] \
-		&& _mount_proc "$1" || die
-	elif [[ -n $(echo "$@" | grep 'precomp') ]]; then
-		if [[ -n $(cat /proc/mounts | grep 'dist.d/workdir-precomp' | awk -F ' ' '{ print $1 }') ]]; then
-			echo -e "\e[31mPseudos possibly mounted at target directory\e[0m"
-			echo -e "\e[33mResolving the issue...\e[0m"
-			_unmount "precomp" || die
-		fi
-		echo -e "\e[34mMounting pseudo\e[0m"
-		[[ -z $(grep 'dist.d/workdir-precomp' /proc/mounts | awk -F ' ' '{ print $1 }') ]] \
-		&& _mount_proc "$1" || die
-	fi \
-	&& _mount_dev_sys "$1" "dev" \
-	&& _mount_dev_sys "$1" "sys" \
-	|| die "Something went wrong"
-
-	mkdir -p "$1/sinit.d"
-
-	[[ ! -e "$1/sinit.d/chsinprog" ]] && rsync -aAXr "${CWORKDIR}/scripts/chroot_scripts/" "$1/sinit.d/" >/dev/null 2>&1 \
-	|| rsync -aAXr --exclude="chsinprog" "${CWORKDIR}/scripts/chroot_scripts/" "$1/sinit.d/" >/dev/null 2>&1 \
-	&& rsync -aAXr "${CCONFDIR}/system/portage/" "$1/sinit.d/" >/dev/null 2>&1 \
-	&& rsync -aAXr --exclude="portage" "${CCONFDIR}/system/" "$1/sinit.d/" >/dev/null 2>&1 \
-	&& echo -e "[\e[32m*\e[0m] Copying \e[34mbuilder's\e[0m files to new system" \
-	|| { echo -e "[\e[31m*\e[0m] Copying \e[34mbuilder's\e[0m files to new system"; die "Failed"; }
-
-	# CREATE REPOS.CONF DIRECOTRY & AND COPY REPOS.CONF TO IT
-	mkdir -p "$1/etc/portage/repos.conf"
-	cp "$1/usr/share/portage/config/repos.conf" "$1/etc/portage/repos.conf/gentoo.conf" || die
-
-	# Set local timezone if set
-	if [[ -n $(cat /etc/timezone) ]]; then
-		TIMEZONE=$(cat /etc/timezone)
-		sed -i -e "s_TMZ_${TIMEZONE}_g" "$1/sinit.d/chinit.conf"
-		unset TIMEZONE
-	fi
-
-	echo -e "[\e[32m*\e[0m] Copying requested files"
-	if [[ -n $(cat ${CCONFDIR}/system/inject_files | sed '/^#/ d' | sed '/^\s*$/d') ]]; then
-
-		while read -r INJFL; do
-			f1="$(echo $INJFL | awk -F ' ' '{ print $1 }')"
-			f2="${BWORKDIR}/(echo $INJFL | awk -F ' ' '{ print $2 }')"
-			echo "Copying $f1 to $f2"
-			rsync -aAXPhrv "$f1" "$f2" >/dev/null 2>&1 \
-			&& pass || { mapfile -t INJFLERR < <($INJFL | awk -F ' ' '{ print $1 }'); }
-		done < <(cat "${CCONFDIR}/system/inject_files" | sed '/^#/ d' | sed '/^\s*$/d')
-		unset INJFL
-
-		if [[ -n "${INJFLERR}" ]]; then
-			echo "Failed to copy the following packages: "
-			echo "${INJFLERR[@]}"
-			while true; do
-				echo "You can list the failed files again, continue, request terminal or exit"
-				echo "Please choose: LIST/CONTINUE/TERMINAL/EXIT"
-				read -rp "Input :: <= " INJFLANS
-				case "$INJFLANS" in
-					LIST)
-						clear; echo "${INJFLERR[@]}";;
-					CONTINUE)
-						while true; do
-							echo "Are you sure? Y/N "
-							read -p "Input :: <= " YN
-							case $YN in
-								[yY])
-									echo "Proceeding"
-									INJFLESC=0
-									break;;
-								[nN])
-									INJFLESC=1
-									;;
-							esac
-						done;;
-					TERMINAL)
-						_subshell
-						INJFLESC=0;;
-					EXIT)
-						while true; do
-							echo "Are you sure? Y/N "
-							read -p "Input :: <= " YN
-							case $YN in
-								[yY])
-									echo "Aborting..."
-									exit 0;;
-								[nN])
-									INJFLESC=1
-									break;;
-							esac
-						done;;
-				esac
-				[[ "$INJFLESC" == 0 ]] && break
-			done
-		fi
-		unset YN
-		unset INJFLESC
-		unset INJFLANS
-		unset INJFLERR
-	else
-		echo -e "[\e[32m*\e[0m] List empty"
-	fi
-
-# COPY THE SCRIPTS AND DOSCRIPTS AT CHROOTDIR
-	if [[ -n "${_flag_sdir}" ]]; then
-		mkdir -p "$1/sinit.d/cscripts"
-		rsync -aAXhrvq "${_flag_sdir_path}/" "$1/sinit.d/cscripts/"
-		chmod +x "$1/sinit.d/cscripts/"*
-		cp -r "${CLOCALLG}/doscripts" "$1/sinit.d/cscripts/doscripts"
-	fi
-
-	echo -e "\e[34mChrooting at new system\e[0m"
-	sleep 0.5
-	# PASS ALL PP AND INITIATE CHROOT
-	chroot "$1" "sinit.d/chroot_init" "$@" || { echo -e "[\e[31m*\e[0m] Chrooting configuration failed"; die; } \
-	&& sinit_flow_monitor "PARTB"
-}
-
 # THIS SCRIPT IS SOURCED AT THE BEGINING FOR CHECKING THE BUILDER'S RUNTIME DEPENDENCIES
 _lcreq() {
 	CRDPENDS=''
@@ -746,7 +560,7 @@ _lcreq() {
 			|| { echo -e "[\e[33m*\e[0m] \e[35mPlease install eix to proceed!\e[0m" \
 			&& { _am_i_root_sub "$UID" && echo -e "[\e[32m*\e[0m] Root privileges found" \
 			&& emerge -aq eix && echo -e "[\e[33m*\e[0m] \e[35mUpdating database\e[0m" \
-			&& eix-sync -a >/dev/null 2>&1; } \
+			&& eval eix-sync -a "${_flag_silence}"; } \
 			|| { echo -e "[\e[31m*\e[0m] Could not get root privileges" \
 			&& echo "Please resolve this issue and start again" && exit 1; }; }
 
@@ -754,7 +568,7 @@ _lcreq() {
 
 			for i in "${lreq[@]}"; do
 				sleep 0.1
-				if eix --installed "$i" >/dev/null 2>&1; then
+				if eval eix --installed "$i" "${_flag_silence}"; then
 					echo -e "[\e[32m*\e[0m] Searching for \e[32m$i\e[0m"
 				else
 					echo -e "[\e[31m*\e[0m] Searching for $i"
@@ -771,7 +585,7 @@ _lcreq() {
 
 			for i in "${lreq[@]}"; do
 				sleep 0.1
-				if command -v "$i" >/dev/null 2>&1; then
+				if eval command -v "$i" "${_flag_silence}"; then
 					echo -e "[\e[32m*\e[0m] Searching for \e[32m$i\e[0m"
 				else
 					echo -e "[\e[31m*\e[0m] Searching for $i"
@@ -889,7 +703,7 @@ librarium() {
 	_flag_verbose=''
 	_flag_quiet=''
 	_flag_test=''
-	_flag_silent=''
+	_flag_silence=''
 	_flag_network=''
 	_flag_mm=''
 	_flag_do=''
@@ -1327,7 +1141,7 @@ warp() {
 		"$_flag_quiet" \
 		"$_flag_test"
 		"$_flag_network")
-	# STAGE A
+	# STAGE A & B
 
 	# THIS LIST WILL BE EXPORTED TO THE SOURCED SINIT BUILDER SCRIPT
 	_flags_stagea=()
@@ -1344,24 +1158,38 @@ warp() {
 		"_flag_quiet" \
 		"_flag_test" \
 		"_flag_network" \
-		"_flag_base")
+		"_flag_sdir")
 
 	for i in "${_flags_listA[@]}"; do
 		if [[ "$(echo ${!i})" == 0 ]]; then
 			_flags_stagea+=("${i}")
 		fi
 	done
-	
+
+	if [[ "${_silence}" == 0 ]]; then
+		_flag_silence='>/dev/null 2>&1'
+		export _flag_silence
+	elif [[ "${_silence}" == 1 ]]; then
+		_flag_silence=''
+		set -x
+		export _flag_silence
+	elif [[ "${_silence}" == 9 ]]; then
+		_flag_silence=''
+		export _flag_silence
+	fi
+
+	_flags_stagea+=("${_flag_base}")
 	if [[ -n "${_flag_base}" ]]; then
-		source "${CWORKDIR}/scripts/sinit" "${_flags_stagea[@]}"
+		if [[ -n "${_flag_sdir}" ]]; then
+			source "${CWORKDIR}/scripts/sinit" "${_flags_stagea[@]}" 
+		else
+			source "${CWORKDIR}/scripts/sinit" "${_flags_stagea[@]}"
+		fi
 	elif [[ -z "${_flag_base}" && -n "${_flag_fetch}" ]]; then
 		_call_fetch_new "$@"
 	fi
 
-	# STAGE B
-
 	# STAGE C
-
 }
 
 _do_rs() {
@@ -1370,3 +1198,184 @@ _do_rs() {
 	done < <(grep "$1" "${CLOCALLG}/doscripts" | sed '/^#/ d' | sed '/^\s*$/d' | awk -F ':' '{ print $2 }')
 }
 
+_do_hs() {
+	if grep -q "$1" "${CLOCALLG}/doscripts" && [[ -n "${_flag_sdir}" ]]; then
+		_e_report_back "Sourcing scripts $2 $3"
+		_do_rs "$1"
+	fi
+}
+
+_repeat_part() {
+	while true; do
+		echo -e "\e[33m$1: Has been completed\e[0m"
+		echo "Run again? Y/N: "
+		read -rp "Input :: <= " YN
+		case "${YN}" in
+			[yN])
+				return 0;;
+			[nN])
+				return 1;;
+			esac
+	done
+}
+
+_call_hook_points() {
+	if echo "${_lawful_args[@]}" | grep -q "$2"; then
+		_e_report_back "Lawful entry detected on $2, proceeding..."
+	else	
+		if [[ "$(grep "$1" "${CLOCALLG}/sinprog" | awk -F '=' '{ print $2 }')" == 0 || -n "${_flag_force_new}" ]] || echo "${_enforce_args[@]}" | grep -q "$2"; then
+			if 	[[ -n "${_flag_force_new}" ]] || echo "${_enforce_args[@]}" | grep -q "$2"; then
+				_e_report_back "Force entry detected on $3, forcing..."
+				eval "$4" "${@:5}" "force" || die
+			else
+				eval "$4" "${@:5}" || die
+			fi
+		else
+			if _repeat_part "$3"; then
+				eval "$4" "${@:5}"
+			else
+				_e_report_back "Proceeding"
+			fi
+		fi
+	fi
+}
+
+# PREPARE THE BUILDERDIR AND INITIATE CHROOT, DIE IF ANYENTRY FAILS
+_prepare_chroot() {
+	inspector "$@"
+
+	if [[ ! -e "$1" ]]; then
+		_e_report_back "No workdir can be detected. Seems like $1 does not exist."
+		_e_report_back "This can occur when Part: A is skipped."
+		_e_report_back "If that's not the case, please submit a bug report, otherwise repeat the process without skipping Part: A"
+		die "No workdir detected"
+	fi
+	
+	rm -f "$1/etc/resolv.conf"
+	cp -L /etc/resolv.conf "$1/etc/" || die "Failed"
+
+	if [[ -n $(echo "$@" | grep 'catalyst') ]]; then
+		# CHECK IF PSEUDOS ARE MOUNTED
+		if [[ -n $(cat /proc/mounts | grep 'dist.d/workdir-catalyst' | awk -F ' ' '{ print $1 }') ]]; then
+			echo -e "\e[31mPseudos possibly mounted at target directory\e[0m"
+			echo -e "\e[33mResolving the issue...\e[0m"
+			_unmount "catalyst" || die
+		fi
+		echo -e "\e[34mMounting pseudo\e[0m"
+		[[ -z $(grep 'dist.d/workdir-catalyst' /proc/mounts | awk -F ' ' '{ print $1 }') ]] \
+		&& _mount_proc "$1" || die
+	elif [[ -n $(echo "$@" | grep 'precomp') ]]; then
+		if [[ -n $(cat /proc/mounts | grep 'dist.d/workdir-precomp' | awk -F ' ' '{ print $1 }') ]]; then
+			echo -e "\e[31mPseudos possibly mounted at target directory\e[0m"
+			echo -e "\e[33mResolving the issue...\e[0m"
+			_unmount "precomp" || die
+		fi
+		echo -e "\e[34mMounting pseudo\e[0m"
+		[[ -z $(grep 'dist.d/workdir-precomp' /proc/mounts | awk -F ' ' '{ print $1 }') ]] \
+		&& _mount_proc "$1" || die
+	fi \
+	&& _mount_dev_sys "$1" "dev" \
+	&& _mount_dev_sys "$1" "sys" \
+	|| die "Something went wrong"
+
+	mkdir -p "$1/sinit.d"
+
+	[[ ! -e "$1/sinit.d/chsinprog" ]] && eval rsync -aAXr "${CWORKDIR}/scripts/chroot_scripts/" "$1/sinit.d/" "${_flag_silence}" \
+	|| rsync -aAXr --exclude="chsinprog" "${CWORKDIR}/scripts/chroot_scripts/" "$1/sinit.d/" "${_flag_silence}" \
+	&& eval rsync -aAXr "${CCONFDIR}/system/portage/" "$1/sinit.d/" "${_flag_silence}" \
+	&& eval rsync -aAXr --exclude="portage" "${CCONFDIR}/system/" "$1/sinit.d/" "${_flag_silence}" \
+	&& echo -e "[\e[32m*\e[0m] Copying \e[34mbuilder's\e[0m files to new system" \
+	|| { echo -e "[\e[31m*\e[0m] Copying \e[34mbuilder's\e[0m files to new system"; die "Failed"; }
+
+	# CREATE REPOS.CONF DIRECOTRY & AND COPY REPOS.CONF TO IT
+	mkdir -p "$1/etc/portage/repos.conf"
+	cp "$1/usr/share/portage/config/repos.conf" "$1/etc/portage/repos.conf/gentoo.conf" || die
+
+	# Set local timezone if set
+	if [[ -n $(cat /etc/timezone) ]]; then
+		TIMEZONE=$(cat /etc/timezone)
+		sed -i -e "s_TMZ_${TIMEZONE}_g" "$1/sinit.d/chinit.conf"
+		unset TIMEZONE
+	fi
+
+	echo -e "[\e[32m*\e[0m] Copying requested files"
+	if [[ -n $(cat ${CCONFDIR}/system/inject_files | sed '/^#/ d' | sed '/^\s*$/d') ]]; then
+
+		while read -r INJFL; do
+			f1="$(echo $INJFL | awk -F ' ' '{ print $1 }')"
+			f2="${BWORKDIR}/(echo $INJFL | awk -F ' ' '{ print $2 }')"
+			echo "Copying $f1 to $f2"
+			eval rsync -aAXPhrv "$f1" "$f2" "${_flag_silence}" \
+			&& pass || { mapfile -t INJFLERR < <($INJFL | awk -F ' ' '{ print $1 }'); }
+		done < <(cat "${CCONFDIR}/system/inject_files" | sed '/^#/ d' | sed '/^\s*$/d')
+		unset INJFL
+
+		if [[ -n "${INJFLERR}" ]]; then
+			echo "Failed to copy the following packages: "
+			echo "${INJFLERR[@]}"
+			while true; do
+				echo "You can list the failed files again, continue, request terminal or exit"
+				echo "Please choose: LIST/CONTINUE/TERMINAL/EXIT"
+				read -rp "Input :: <= " INJFLANS
+				case "$INJFLANS" in
+					LIST)
+						clear; echo "${INJFLERR[@]}";;
+					CONTINUE)
+						while true; do
+							echo "Are you sure? Y/N "
+							read -p "Input :: <= " YN
+							case $YN in
+								[yY])
+									echo "Proceeding"
+									INJFLESC=0
+									break;;
+								[nN])
+									INJFLESC=1
+									;;
+							esac
+						done;;
+					TERMINAL)
+						_subshell
+						INJFLESC=0;;
+					EXIT)
+						while true; do
+							echo "Are you sure? Y/N "
+							read -p "Input :: <= " YN
+							case $YN in
+								[yY])
+									echo "Aborting..."
+									exit 0;;
+								[nN])
+									INJFLESC=1
+									break;;
+							esac
+						done;;
+				esac
+				[[ "$INJFLESC" == 0 ]] && break
+			done
+		fi
+		unset YN
+		unset INJFLESC
+		unset INJFLANS
+		unset INJFLERR
+	else
+		echo -e "[\e[32m*\e[0m] List empty"
+	fi
+
+	# COPY THE SCRIPTS AND DOSCRIPTS AT CHROOTDIR
+	if [[ -n "${_flag_sdir}" ]]; then
+		mkdir -p "$1/sinit.d/cscripts"
+		rsync -aAXhrvq "${_flag_sdir_path}/" "$1/sinit.d/cscripts/"
+		chmod +x "$1/sinit.d/cscripts/"*
+		cp -r "${CLOCALLG}/doscripts" "$1/sinit.d/cscripts/doscripts"
+	fi
+
+	echo -e "\e[34mChrooting at new system\e[0m"
+	sleep 0.5
+	# PASS ALL PP AND INITIATE CHROOT
+	if chroot "$1" "sinit.d/chroot_init" "$@"; then
+		_o_report_back "Chroot staged finished"
+	else
+		die "Chrooting configuration failed"
+	fi
+}

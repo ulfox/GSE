@@ -717,6 +717,27 @@ _initramfs_builder() {
 	fi
 }
 
+_des_c() {
+	eclean-dist -d
+	eclean-pkg -d
+
+	if [[ -n "${_flag_minimal}" ]]; then
+		rm -f /var/lib/portage/world
+		touch /var/lib/portage/world
+	else
+		emerge --deselect sys-kernel/gentoo-sources
+		emerge --deselect sys-kernel/genkernel
+		emerge --deselect sys-boot/grub:2
+		emerge --deselect sys-kernel/dracut
+		emerge --deselect dev-util/ccache
+		emerge --deselect sys-devel/distcc
+		emerge --deselect app-portage/eix
+		emerge --deselect app-portage/gentoolkit
+	fi
+
+	_emerge_depclear
+}
+
 # RUNLEVEL UPDATE FUNCTION
 _runlevel_configuration() {
 	echo
@@ -913,24 +934,52 @@ chroot_master_loop() {
 }
 
 # REPEAT PART X.
-repeat_part() {
-while true; do
-	echo -e "\e[33mPart $1: Has been completed\e[0m"
-	echo -e "\e[33mRun again? Y/N: \e[0m"
-	read -rp "Input :: <= " YN
-	case "${YN}" in
-		[yN])
-			return 0
-			break;;
-		[nN])
-			return 1
-			break;;
-	esac
-done
+_repeat_part() {
+	while true; do
+		echo -e "\e[33mPart $1: Has been completed\e[0m"
+		echo -e "\e[33mRun again? Y/N: \e[0m"
+		read -rp "Input :: <= " YN
+		case "${YN}" in
+			[yN])
+				return 0
+				break;;
+			[nN])
+				return 1
+				break;;
+		esac
+	done
 }
 
 _do_rs() {
 	while read -r s;do
 		source "${CHDIR}/cscripts/$s"
 	done < <(grep "$1" "${CHDIR}/cscripts/doscripts" | sed '/^#/ d' | sed '/^\s*$/d' | awk -F ':' '{ print $2 }')
+}
+
+_do_hs() {
+	if grep -q "$1" "${CHDIR}/cscripts/doscripts" && [[ -n "${_flag_sdir}" ]]; then
+		_e_report_back "Sourcing scripts $2 $3"
+		_do_rs "$1"
+	fi
+}
+
+_call_hook_points() {
+	if echo "${_lawful_args[@]}" | grep -q "$2"; then
+		_e_report_back "Lawful entry detected on $2, proceeding..."
+	else	
+		if [[ "$(grep "$1" "${CHDIR}/chsinprog" | awk -F '=' '{ print $2 }')" == 0 || -n "${_flag_force_new}" ]] || echo "${_enforce_args[@]}" | grep -q "$2"; then
+			if 	[[ -n "${_flag_force_new}" ]] || echo "${_enforce_args[@]}" | grep -q "$2"; then
+				_e_report_back "Force entry detected on $3, forcing..."
+				eval "$4" "${@:5}" "cforce" || die
+			else
+				eval "$4" "${@:5}" || die
+			fi
+		else
+			if _repeat_part "$3"; then
+				eval "$4" "${@:5}"
+			else
+				_e_report_back "Proceeding"
+			fi
+		fi
+	fi
 }

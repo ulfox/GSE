@@ -6,13 +6,16 @@
 # PLEASE DO NOT MODIFY THIS FILE, BUT REFEREE AT CONFIGURATION SUBMENU
 # IF YOU NEED TO ADD EXTRA FEATURES TO YOUR SYSTEM.
 # 
-
+set -x
 if echo "${_flag_tty}" | grep -q 'sshd'; then
 	LC_COLLATE="C"
 	LC_ALL="en_US.UTF-8"
 	LC_CTYPE="en_US.UTF-8"
 fi
+# ENVIROMENTAL ECHO FOR TESTING PHASE
 echo "$@"
+
+# EXPORT IMPORTANT VARIABLES BEFORE GOING ON
 source /etc/profile && export PS1="( 'Part C: Preparing to bootstrap' ) $PS1"
 export CHDIR="/sinit.d"
 export PATH=${PATH}:${CHDIR}
@@ -21,74 +24,29 @@ source "${CHDIR}/chinit.conf" \
 [[ ! -e "${CHDIR}/emergeresume" ]] && echo "#####" >> "${CHDIR}/emergeresume" \
 || sed -i "/#####/d" "${CHDIR}/emergeresume"
 
+# CHECK POSITIONAL PARAMETERS
 inspector "$@"
 
-if grep -q '\-gupdate' "${CHDIR}/cscripts/doscripts"; then
-	_e_report_back "Sourcing scripts before Part: Portage Update"
-	_do_rs '\-gupdate'
-fi
-
 # PART C BEGINS
-if echo "${_lawful_args[@]}" | grep -q 'gupdate'; then
-	_e_report_back "Update and prepare system: Lawful entry detected, proceeding..."
+_do_hs '\-gupdate' "before" "Part: Portage Update"
+if _call_hook_points 'UPDATE' 'gupdate' 'Part: Portage Update' '_part_c' "$@"; then
+	_monitor_chroot_flow "UPDATE"
 else
-	if [[ "$(awk -F '=' '/UPDATE/{ print $2 }' <"${CHDIR}/chsinprog")" == 0 || -n "${_flag_force_new}" ]] || echo "${_enforce_args[@]}" | grep -q 'gupdate'; then
-		if echo "${_enforce_args[@]}" | grep -q 'gupdate'; then
-			_e_report_back "Update and prepare system: Force entry detected, forcing..."
-			_part_c "$@" "cforce" || die "Part C FAILED"
-		else
-			_part_c "$@" || die "Part C FAILED"
-		fi
-	else
-		if repeat_part "Portage Update"; then
-			_part_c "$@" || die "Part C FAILED"
-		else
-			_e_report_back "Proceeding to sub portage part"
-		fi
-	fi
+	die "Part: Update Failed"
 fi
-
-if grep -q '\+gupdate' "${CHDIR}/cscripts/doscripts"; then
-	_e_report_back "Sourcing scripts after Part: Portage Update"
-	_do_rs '\+gupdate'
-fi
-
-if grep -q '\-gportage' "${CHDIR}/cscripts/doscripts"; then
-	_e_report_back "Sourcing scripts before Part: Portage"
-	_do_rs '\-gportage'
-fi
-
+_do_hs '\+gupdate' "after" "Part: Portage Update"
+sleep 20
 # PART PORTAGE, PROFILE AND FEATURES UPDATE
-if echo "${_lawful_args[@]}" | grep -q 'gportage'; then
-	_e_report_back "Portage Configuration: Lawful entry detected, proceeding..."
+_do_hs '\-gportage' "before" "Part: Portage"
+if _call_hook_points 'PORTAGE' 'gportage' 'Part: Portage' 'part_portage' "$@"; then
+	_monitor_chroot_flow "PORTAGE"
 else
-	if [[ "$(awk -F '=' '/UPDATE/{ print $2 }' < "${CHDIR}/chsinprog")" == 0 || -n "${_flag_force_new}" ]] || echo "${_enforce_args[@]}" | grep -q 'gportage'; then
-		if echo "${_enforce_args[@]}" | grep -q 'gportage'; then
-			_e_report_back "Portage configuration: Force entry detected, forcing..."
-			part_portage "$@" "cforce" && _monitor_chroot_flow "PORTAGE"
-		else
-			part_portage "$@" && _monitor_chroot_flow "PORTAGE"
-		fi		
-	else
-		if repeat_part "Portage Configuration"; then
-			part_portage "$@" && _monitor_chroot_flow "PORTAGE"
-		else
-			_e_report_back "Proceeding"
-		fi
-	fi
+	die "Part: Portage FAILED"
 fi
-
-if grep -q '\+gportage' "${CHDIR}/cscripts/doscripts"; then
-	_e_report_back "Sourcing scripts after Part:Portage"
-	_do_rs '\+gportage'
-fi
-
-if grep -q '\-grebuild' "${CHDIR}/cscripts/doscripts"; then
-	_e_report_back "Sourcing scripts before Part: System Rebuild"
-	_do_rs '\-grebuild'
-fi
+_do_hs '\+gportage' "after" "Part: Portage"
 
 # Part D Begins
+_do_hs '\-grebuild' "before" "Part: System Rebuild"
 _sreb() {
 	echo -e "\e[35mPart D: Rebuilding system\e[0m"
 	env-update > /dev/null 2>&1 && source /etc/profile && export PS1="( 'Part D: Rebuilding system' ) $PS1"
@@ -107,200 +65,74 @@ else
 			_sreb
 	fi
 fi
-
-if grep -q '\+grebuild' "${CHDIR}/cscripts/doscripts"; then
-	_e_report_back "Sourcing scripts after Part: System Rebuild"
-	_do_rs '\+grebuild'
-fi
-
-if grep -q '\-gconfigure' "${CHDIR}/cscripts/doscripts"; then
-	_e_report_back "Sourcing scripts before Part: Emerge Packages"
-	_do_rs '\-gconfigure'
-fi
+_do_hs '\+grebuild' "after" "Part: System Rebuild"
 
 # PART E BEGINS
-if echo "${_lawful_args[@]}" | grep -q 'gconfigure'; then
-	_e_report_back "System Configuration: Lawful entry detected, proceeding..."
+_do_hs '\-gconfigure' "before" "Part: System Configuration"
+if _call_hook_points 'CONFIGURE' 'gconfigure' 'Part: System Configuration' 'configure_system_f' "$@"; then
+	_monitor_chroot_flow "CONFIGURE"
 else
-	if [[ "$(awk -F '=' '/CONFIGURE/{ print $2 }' <"${CHDIR}/chsinprog")" == 0 || -n "${_flag_force_new}" ]] || echo "${_enforce_args[@]}" | grep -q 'gconfigure'; then
-		if echo "${_enforce_args[@]}" | grep -q 'gconfigure'; then
-			_e_report_back "System Configuration: Force entry detected, forcing..."
-			configure_system_f "$@" "cforce"
-		else
-			configure_system_f "$@"
-		fi
-	else
-		if repeat_part "System Configuration"; then
-			configure_system_f "$@"
-		else
-			_e_report_back "Proceeding to emerging packages"
-		fi	
-	fi
+	die "Part: System Configuration FAILED"
 fi
-
-if grep -q '\+gconfigure' "${CHDIR}/cscripts/doscripts"; then
-	_e_report_back "Sourcing scripts after Part: Emerge Packages"
-	_do_rs '\+gconfigure'
-fi
-
-if grep -q '\-ginst' "${CHDIR}/cscripts/doscripts"; then
-	_e_report_back "Sourcing scripts before Part: Configuration"
-	_do_rs '\-ginst'
-fi
+_do_hs '\+gconfigure' "after" "Part: System Configuration"
 
 # PART F BEGINS
-if echo "${_lawful_args[@]}" | grep -q 'ginst'; then
-	_e_report_back "Emerge packages: Lawful entry detected, proceeding..."
+_do_hs '\-ginst' "before" "Part: Emerge requested packages"
+if _call_hook_points 'INSTALL' 'ginst' 'Part: Emerge requested packages' 'emerge_requested' "$@"; then
+	_monitor_chroot_flow "INSTALL"
 else
-	if [[ "$(awk -F '=' '/INSTALL/{ print $2 }' <"${CHDIR}/chsinprog")" == 0 || -n "${_flag_force_new}" ]] || echo "${_enforce_args[@]}" | grep -q 'ginst'; then
-		if echo "${_enforce_args[@]}" | grep -q 'ginst'; then
-			_e_report_back "Emerge packages: Force entry detected, forcing..."
-			emerge_requested "$@" "cforce"
-		else
-			emerge_requested "$@"
-		fi			
-	else
-		if repeat_part "Installing Packages"; then
-			emerge_requested "$@"
-		else
-			_e_report_back "Proceeding to runlevel update"
-		fi
-	fi
+	die "Part: Emerge Requested Packages FAILED"
 fi
 unset YN
-
-if grep -q '\+ginst' "${CHDIR}/cscripts/doscripts"; then
-	__e_report_back "Sourcing scripts after Part: Configuration"
-	_do_rs '\+ginst'
-fi
-
-if grep -q '\-grun' "${CHDIR}/cscripts/doscripts"; then
-	_e_report_back "Sourcing scripts before Part: Runlevels"
-	_do_rs '\-grun'
-fi
+_do_hs '\+ginst' "after" "Part: Emerge requested packages"
 
 # PART G BEGINS
-if echo "${_lawful_args[@]}" | grep -q 'grun'; then
-	_e_report_back "Runlevel: Lawful entry detected, proceeding..."
+_do_hs '\-grun' "before" "Part: Runlevel Configurations"
+if _call_hook_points 'RUNLEVEL' '\-grun' 'Part: Runlevel Configurations' '_runlevel_configuration' "$@"; then
+	_monitor_chroot_flow "RUNLEVEL"
 else
-	if [[ "$(awk -F '=' '/RUNLEVEL/{ print $2 }' <"${CHDIR}/chsinprog")" == 0 || -n "${_flag_force_new}" ]] || echo "${_enforce_args[@]}" | grep -q 'grun'; then
-		if echo "${_enforce_args[@]}" | grep -q 'grun'; then
-			_e_report_back "Runlevel: Force entry detected, forcing..."
-		fi
-			_runlevel_configuration
-	else
-		if repeat_part "Runlevel Configuration"; then
-			_runlevel_configuration
-		else
-			_e_report_back "Proceeding"
-		fi
-	fi
+	die "Part: Runlevel Configurations FAILED"
 fi
 unset YN
-
-if grep -q '\+grun' "${CHDIR}/cscripts/doscripts"; then
-	_e_report_back "Sourcing scripts after Part: Runlevels"
-	_do_rs '\+grun'
-fi
-
-if grep -q '\-gkernel' "${CHDIR}/cscripts/doscripts"; then
-	_e_report_back "Sourcing scripts before Part: kernel"
-	_do_rs '\-gkernel'
-fi
+_do_hs '\+grun' "after" "Part: Runlevel Configurations"
 
 # PART H BEGINS
+_do_hs '\-gkernel' "before" "Part: Kernel build"
 if [[ -n "${_flag_kernel}" ]] || [[ -n "${_flag_minimal}" ]]; then
 	:
 else
-	if echo "${_lawful_args[@]}" | grep -q 'gkernel'; then
-		_e_report_back "Kernel: Lawful entry detected, proceeding..."
+	if _call_hook_points 'KERNEL' 'gkernel' 'Part: Kernel build' '_kernel_build'; then
+		_monitor_chroot_flow "KERNEL"
 	else
-		if [[ "$(awk -F '=' '/KERNEL/{ print $2 }' <"${CHDIR}/chsinprog")" == 0 || -n $(echo "${_flag_force_new}") ]] || echo "${_enforce_args[@]}" | grep -q 'gkernel'; then
-			if echo "${_enforce_args[@]}" | grep -q 'gkernel'; then
-				_e_report_back "Kernel: Force entry detected, forcing..."
-				_kernel_build "cforce"
-			else
-				_kernel_build
-			fi
-		else
-			if repeat_part "Kernel Configuration"; then
-				_kernel_build
-			else
-				_e_report_back "Proceeding"
-			fi
-		fi
+		die "Part: Kernel build FAILED"
 	fi
 	unset YN
 fi
-
-if grep -q '\+gkernel' "${CHDIR}/cscripts/doscripts"; then
-	_e_report_back "Sourcing scripts after Part: Kernel"
-	_do_rs '\+gkernel'
-fi
-
-if grep -q '\-ginitrd' "${CHDIR}/cscripts/doscripts"; then
-	_e_report_back "Sourcing scripts before Part: Initrd"
-	_do_rs '\-ginitrd'
-fi
+_do_hs '\+gkernel' "after" "Part: Kernel build"
 
 # PART I BEGINS
+_do_hs '\-ginitrd' "before" "Part: Initramfs build"
 if [[ -n "${_flag_kernel}" ]] || [[ -n "${_flag_minimal}" ]] || [[ -n "${_flag_initrd}" ]]; then
 	:
 else
-	if echo "${_lawful_args[@]}" | grep -q 'ginitrd'; then
-		_e_report_back "Initramfs: Lawful entry detected, proceeding..."
+	if _call_hook_points 'INITRAMFS' 'ginitrd' 'Part: Initramfs build' '_initramfs_builder'; then
+		_monitor_chroot_flow "INITRAMFS"
 	else
-		if [[ "$(awk -F '=' '/INITRAMFS/{ print $2 }' <"${CHDIR}/chsinprog")" == 0 || -n "${_flag_force_new}" ]] || echo "${_enforce_args[@]}" | grep -q 'ginitrd'; then
-			if echo "${_enforce_args[@]}" | grep -q 'ginitrd'; then
-				_e_report_back "Initramfs: Force entry detected, forcing..."
-				_initramfs_builder "cforce"
-			else
-				_initramfs_builder
-			fi
-		else
-			if repeat_part "Initramfs Configuration"; then
-				_initramfs_builder
-			else
-				_e_report_back "Proceeding"
-			fi
-		fi
+		die "Part: Initramfs build FAILED"
 	fi
 	unset YN
 fi
+_do_hs '\+ginitrd' "after" "Part: Initramfs build"
 
-if grep -q '\+ginitrd' "${CHDIR}/cscripts/doscripts"; then
-	_e_report_back "Sourcing scripts after Part: Initrd"
-	_do_rs '\+ginitrd'
-fi
-
-if grep -q '\-gdes' "${CHDIR}/cscripts/doscripts"; then
-	_e_report_back "Sourcing scripts before Part: Deselect packages"
-	_do_rs '\-gdes'
-fi
-
-eclean-dist -d
-eclean-pkg -d
-
-if [[ -n "${_flag_minimal}" ]]; then
-	rm -f /var/lib/portage/world
-	touch /var/lib/portage/world
+# PART DESELECT BEGINS
+_do_hs '\-gdes' "before" "Part: Deselect packages"
+if _call_hook_points 'DESP' 'gdes' 'Part: Deselect packages' '_des_c' "$@"; then
+	_monitor_chroot_flow "DESP"
 else
-	emerge --deselect sys-kernel/gentoo-sources
-	emerge --deselect sys-kernel/genkernel
-	emerge --deselect sys-boot/grub:2
-	emerge --deselect sys-kernel/dracut
-	emerge --deselect dev-util/ccache
-	emerge --deselect sys-devel/distcc
-	emerge --deselect app-portage/eix
-	emerge --deselect app-portage/gentoolkit
+	die "Part: Deselect packages FAILED"
 fi
-
-_emerge_depclear
-
-if grep -q '\+gdes' "${CHDIR}/cscripts/doscripts"; then
-	_e_report_back "Sourcing scripts after Part: Deselect packages"
-	_do_rs '\+gdes'
-fi
+unset YN
+_do_hs '\+gdes' "after" "Part: Deselect packages"
 
 # Creating user-data dir-tree
 mkdir -p /user-data/persistent/{etc,var,logs,config.d,local,rmount}
