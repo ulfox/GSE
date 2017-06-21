@@ -13,8 +13,8 @@ if [[ -z "${_flag_base}" ]]; then
 fi
 
 # ENVIROMENTAL ECHO FOR TESTING
-# echo "$@"
-
+echo "$@"
+exit 1
 # STAGE A
 clear
 echo "============================================================================"

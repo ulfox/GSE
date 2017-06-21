@@ -24,12 +24,16 @@ parameters_check() {
 		sleep 2
 	fi
 
+	if [[ -n "$(echo "$@" | grep '\--verbose')" || -n "$(echo "$@" | grep '\-v')" ]] && [[ -n "$(echo "$@" | grep '\--auto=yes')" ]]; then
+		die "Error: verbose & interactive mode (auto=yes) can not be set at the same time"
+	fi
+
 	if [[ -n "$(echo "$@" | grep '\--quiet')" || -n "$(echo "$@" | grep '\-q')" ]] && [[ -n "$(echo "$@" | grep '\--verbose')" || -n "$(echo "$@" | grep '\-v')" ]]; then
 		die "Error: verbose & quiet can not be set at the same time"
 	fi
 
 	if [[ -n $(echo "$@" | grep '\--lawful-good') && -n $(echo "$@" | grep '\--enforce') ]]; then
-		die "Warning: --lawful-good suppresses --enforce"
+		_e_report_back "Warning: --lawful-good suppresses --enforce"
 	fi
 
 	if [[ -n $(echo "$@" | grep '\--force-new') && -n $(echo "$@" | grep '\--keep') ]]; then
@@ -1164,23 +1168,30 @@ inquisitor() {
 
 }
 
-warp() {
-	# DIE IF PP ARE NULL
-	inspector "$@"
-
-	# FILTER AND EXPORT ALL FLAGS AND ARGUMENTS. DIE UNLESS CONDITIONS ARE EXACT
-	librarium "$@"
-	
-	# TIME WARP
-	if [[ -n "${_flag_time_warp}" ]]; then
-		CCONFDIR="${_flag_time_warp}/config.d"
-		export CCONFDIR
-		echo "${CCONFDIR}"
-		
-
+_auto_def_silence_def() {
+	if ! echo "$@" | grep -q '\--auto=yes'; then
+		_flag_auto=1
+		export _flag_auto
 	fi
 
-	# TIME STATE
+	if [[ "${_silence}" == 0 ]]; then
+		_flag_silence='>/dev/null 2>&1'
+		_flag_chroot_silence=0
+		export _flag_silence
+	elif [[ "${_silence}" == 1 ]]; then
+		_flag_silence=''
+		_flag_chroot_silence=1
+		set -x
+		export _flag_silence
+	elif [[ "${_silence}" == 9 ]]; then
+		_flag_silence=''
+		_flag_chroot_silence=1
+		export _flag_silence
+	fi
+}
+
+# TIME STATE
+_time_state() {
 	if [[ "${_flag_time_state}" == 0 && -n "${state_name}" ]]; then
 		k=1
 		mkdir -p "${CLOCALLG}/states"
@@ -1192,34 +1203,136 @@ warp() {
 			fi
 			((++k))
 		done
-
 		echo "state_name:${state_name}" > "${CLOCALLG}/states/${k}_${state_name}/main_flags"
+		echo "_flag_base:${_flag_base}" >> "${CLOCALLG}/states/${k}_${state_name}/main_flags"
 		for i in "${_flags_listA[@]}"; do
 			echo "$i:${!i}" >> "${CLOCALLG}/states/${k}_${state_name}/main_flags"
 		done
-		rm -f "${CLOCALLG}/states/${k}_${state_name}/${state_name}_enforce"
-		rm -f "${CLOCALLG}/states/${k}_${state_name}/${state_name}_lawful"
-		echo "enforce_args:${_enforce_args[@]}" >> "${CLOCALLG}/states/${k}_${state_name}/${state_name}_enforce"
-		echo "lawful_args:${_lawful_args[@]}" >> "${CLOCALLG}/states/${k}_${state_name}/${state_name}_lawful"
+		if [[ -e "${CLOCALLG}/states/${k}_${state_name}/${state_name}_enforce" ]]; then
+			rm -f "${CLOCALLG}/states/${k}_${state_name}/${state_name}_enforce"
+		fi
+
+		if [[ -e "${CLOCALLG}/states/${k}_${state_name}/${state_name}_lawful" ]]; then
+			rm -f "${CLOCALLG}/states/${k}_${state_name}/${state_name}_lawful"
+		fi
+
+		for i in "${_enforce_args[@]}"; do
+			echo "$i" >> "${CLOCALLG}/states/${k}_${state_name}/${state_name}_enforce"
+		done
+
+		for i in "${_lawful_args[@]}"; do
+			echo "$i" >> "${CLOCALLG}/states/${k}_${state_name}/${state_name}_lawful"
+		done
+
 		if [[ -n "${_flag_sdir}" ]]; then
 			rm -f "${CLOCALLG}/states/${k}_${state_name}/doscripts"
-			cp "${CLOCALLG}/doscripts"  "${CLOCALLG}/states/${k}_${state_name}"
+			if [[ "${CLOCALLG}/doscripts" ]]; then
+				cp "${CLOCALLG}/doscripts"  "${CLOCALLG}/states/${k}_${state_name}"
+			fi
 		fi
 		cp -r "${CCONFDIR}" "${CLOCALLG}/states/${k}_${state_name}"
 	fi
+	_e_report_back "==========================================================================================="
+	_e_report_back "State has been saved. To refer at this state in the future, use --time-warp=[state's mark]"
+	_e_report_back "==========================================================================================="
+	exit 0
+}
 
-	if [[ -z "${_flag_base}" ]]; then
-		_e_report_back "You must choose a base if your run gse without main menu. Aborting..."
-		_e_report_back "See man 1 gse for base options."
-		die "Aborting actions..."
+# TIME WARP
+_warping_time() {
+	if [[ -n "${_flag_time_warp}" ]]; then
+		# EXPORT STORED CONFIG.D LOCATION
+		CCONFDIR="${_flag_time_warp}/config.d"
+		export CCONFDIR
+		if [[ -e "${CLOCALLG}/states/${k}_${state_name}/doscripts" ]]; then
+			_flag_sdir=0
+			cp "${CLOCALLG}/states/${k}_${state_name}/doscripts"  "${CLOCALLG}/doscripts"
+			_flag_sdir_path="$(grep SCP "${CLOCALLG}/doscripts" | awk -F 'SCP:' '{ print $2 }')"
+			export _flag_sdir
+			export _flag_sdir_path
+		fi
+
+		# EXPORT THE STATE'S NAME, AND SAVED FLAGS
+		while read -r s; do
+			eval "${s%:*}"="${s#*:}"
+			export "${s%:*}"
+		done < <(cat "${_flag_time_warp}/main_flags" | grep '_')
+		
+		for i in "${_flags_listA[@]}"; do
+		if [[ "$(echo ${!i})" == 0 ]]; then
+			_flags_stagea+=("${i}")
+		fi
+		done
+
+		# EXPORT ENFORCE SAVED ARGS
+		_enforce_args=()
+		while read -r s; do
+			_enforce_args+=("${s}")
+		done < <(cat "${_flag_time_warp}/${state_name}_enforce")
+
+		# EXPORT LAWFUL SAVED ARGS
+		_lawful_args=()
+		while read -r s; do
+			_lawful_args+=("${s}")
+		done < <(cat "${_flag_time_warp}/${state_name}_lawful")
+
+		export _enforce_args
+		export _lawful_args
+
+		_auto_def_silence_def "$@"
+
+		_flags_stagea+=("${_flag_base}")
+
+		source "${CWORKDIR}/scripts/sinit" "${_flags_stagea[@]}"
 	fi
+}
 
-	if ! echo "$@" | grep -q '\--auto=yes'; then
-		_e_report_back "Automatic mode has been disabled"
-		_flag_auto=1
-		export _flag_auto
-	fi
+warp() {
+	# DIE IF PP ARE NULL
+	inspector "$@"
 
+	# FILTER AND EXPORT ALL FLAGS AND ARGUMENTS. DIE UNLESS CONDITIONS ARE EXACT
+	librarium "$@"
+
+	# STAGE A & B
+
+	# THE ITEMS IN THIS LIST THAT ARE NOT NULL, WILL BE EXPORTED
+	_flags_stagea=()
+
+	_flags_listA=("_flag_fetch" \
+		"_flag_force_new" \
+		"_flag_keep" \
+		"_flag_minimal" \
+		"_flag_enforce" \
+		"_flag_controller_path" \
+		"_enforce_args" \
+		"_flag_lawful" \
+		"_flag_controller" \
+		"_flag_initrd" \
+		"_lawful_args" \
+		"_flag_verbose" \
+		"_flag_quiet" \
+		"_flag_replace" \
+		"_flag_test" \
+		"_flag_health" \
+		"_flag_network" \
+		"_flag_sdir" \
+		"_flag_auto" \
+		"_flag_silence" \
+		"_flag_verbose" \
+		"_flag_chroot_silence")
+
+	_warping_time "$@"
+
+	# SAVE ENABLED FLAGS
+	for i in "${_flags_listA[@]}"; do
+		if [[ "$(echo ${!i})" == 0 ]]; then
+			_flags_stagea+=("${i}")
+		fi
+	done
+	
+	_time_state "$@"
+	
 	# THIS FUNCTION WILL ISSUE ESSENTIAL SYSTEM CHECKS, BEFORE PROCEEDING.
 	inquisitor "$@"
 
@@ -1241,60 +1354,20 @@ warp() {
 		"$_flag_quiet" \
 		"$_flag_test"
 		"$_flag_network")
-	# STAGE A & B
 
-	# THIS LIST WILL BE EXPORTED TO THE SOURCED SINIT BUILDER SCRIPT
-	_flags_stagea=()
-
-	_flags_listA=("_flag_fetch" \
-		"_flag_force_new" \
-		"_flag_keep" \
-		"_flag_minimal" \
-		"_flag_enforce" \
-		"$_flag_controller_path" \
-		"_enforce_args" \
-		"_flag_lawful" \
-		"$_flag_controller" \
-		"$_flag_initrd" \
-		"_lawful_args" \
-		"_flag_verbose" \
-		"_flag_quiet" \
-		"$_flag_replace" \
-		"_flag_test" \
-		"$_flag_health" \
-		"_flag_network" \
-		"_flag_sdir" \
-		"_flag_auto" \
-		"_flag_silence" \
-		"_flag_verbose" \
-		"_flag_chroot_silence")
-
-	for i in "${_flags_listA[@]}"; do
-		if [[ "$(echo ${!i})" == 0 ]]; then
-			_flags_stagea+=("${i}")
-		fi
-	done
-
-	if [[ "${_silence}" == 0 ]]; then
-		_flag_silence='>/dev/null 2>&1'
-		_flag_chroot_silence=0
-		export _flag_silence
-	elif [[ "${_silence}" == 1 ]]; then
-		_flag_silence=''
-		_flag_chroot_silence=1
-		set -x
-		export _flag_silence
-	elif [[ "${_silence}" == 9 ]]; then
-		_flag_silence=''
-		_flag_chroot_silence=1
-		export _flag_silence
+	if [[ -z "${_flag_base}" ]]; then
+		_e_report_back "You must choose a base if your run gse without main menu. Aborting..."
+		_e_report_back "See man 1 gse for base options."
+		die "Aborting actions..."
 	fi
+
+	_auto_def_silence_def "$@"
 
 	_flags_stagea+=("${_flag_base}")
 
 	if [[ -n "${_flag_base}" ]]; then
 		if [[ -n "${_flag_sdir}" ]]; then
-			source "${CWORKDIR}/scripts/sinit" "${_flags_stagea[@]}" 
+			source "${CWORKDIR}/scripts/sinit" "${_flags_stagea[@]}"
 		else
 			source "${CWORKDIR}/scripts/sinit" "${_flags_stagea[@]}"
 		fi
