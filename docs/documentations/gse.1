@@ -47,6 +47,40 @@ See --lawful-good, for examples. The only difference is that this option instruc
 target part instead of being passive. Note that --enforce=all, implies --force-new.
 .fi
 .TP
+\fB\-\-time-state\fR \fI\ [?/=state_name]\fR
+Time state is the gse option for saving or viewing already saved states. A saved state is a folder that contains
+all the configuration files, flags and their arguments for a given build. This state can be used again and again
+and always will reproduce the same output, given no unexpected issues pupup during the process.
+.fi
+.TP
+\fB\-\-time-warp=N\fR
+Time warp enables time states. If this and only this option is passed on gse, then gse will search for the inidcated
+state, export it and initiate the process.
+.fi
+.TP
+\fB\-\-distcc\fR \fI\ [=on/pump]\fR
+With this option, gse in instructed to enable distcc on the chroot stage. This option alone does nothing. One has to configure
+the distcc files (the gse distcc files, not the server's config files).
+.fi
+.TP
+\fB\-\-ccache\fR \fI\ [=yes/no]\fR
+This option instructs gse to enable ccache for the chroot stage.
+.fi
+.TP
+\fB\-\-kernel\fR \fI\ [=kern_image]\fR
+With this option, gse is instructed that a kernel image already exists and so, a new kernel build should not be initiated.
+.fi
+.TP
+\fB\-\-initramfs\fR \fI\ [=initrd_image]\fR
+With this option, gse is instructed that an initramfs image already exists and so, a new initramfs build should not be initiated.
+Please note, that --kernel and --initramfs options, will disable the controller functions. These options exist for builds that wish to
+go controller free, hence no stateless.
+.fi
+.TP
+\fB\-\-auto\fR \fI\ [=yes/no]\fR
+This option enables/disables the gse interactive mode. By default it's on.
+.fi
+.TP
 \fB\-\-base\fR \fB\-b\fR
 This option instructs gse about the method that should be used for the fundations of the system to be built.
 Currently there are 2 options which gse supports. The one is 'catalyst', while the other is 'precomp'. The
@@ -100,7 +134,16 @@ the entries that your clients will require to function and not to remove any of
 {overlayFS, tmpfs, nfs, fuser} entries.
 .fi
 .TP
-\fB\-\-build-minimal\fR \fB\-\-bm\fR
+\fB\-\-verbose\fR \fB\-v\fR
+Verbose option will enable set -x on all scripts. This option should be used only fore debugging.
+.fi
+.TP
+\fB\-\-quiet\fR \fB\-q\fR
+The quiet option will disable almost all terminal output. For each part a message regarding the part
+will be displayed instead. For example "Updating protage" or "Building stage1"
+.fi
+.TP
+\fB\-\-build-minimal\fR \fB\-bm\fR
 This option forces gse to exclude all extra packages that are found at chinit.conf, which is
 located at /scripts/chroot_scripts. This option implies --no-kernel --no-initramfs. The GSE
 profile is also excluded from the system. Minimal system is ideal for creating a simple, small
@@ -131,7 +174,16 @@ wish to apply new configuration options in the chroot stage. Then you could run:
 Note: Remeber hat --lawful-good supresses --enforce. Thereforce --lawful-good="gparta" --enforce="gparta" will
 read only --lawful-good="gparta"
 .fi
-
+.PP
+Saving a state for future use, with sourced custom scripts before the catalyst part.
+.fi
+gse --base=catalyst --sdir=/home/myscripts --do="script1,script2" -g="-gcat" --time-state="custom_scripts"
+.fi
+.PP
+Enabling the state from the above example. gse --time-warp=1. It is assume that the custom_script state has a mark of 1.
+If other states existed prior to this, then 1 is not true. To see the related mark, run: gse --time-state?
+.fi
+.PP
 To build a minimal system ( see --build-minimal for informations ): gse --base=catalyst --build-minimal.
 .fi
 .SH "SEE ALSO"
