@@ -14,7 +14,7 @@ fi
 
 # ENVIROMENTAL ECHO FOR TESTING
 echo "$@"
-exit 1
+
 # STAGE A
 clear
 echo "============================================================================"

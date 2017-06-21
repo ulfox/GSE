@@ -1232,6 +1232,7 @@ _time_state() {
 		fi
 		cp -r "${CCONFDIR}" "${CLOCALLG}/states/${k}_${state_name}"
 	fi
+
 	_e_report_back "==========================================================================================="
 	_e_report_back "State has been saved. To refer at this state in the future, use --time-warp=[state's mark]"
 	_e_report_back "==========================================================================================="
@@ -1244,9 +1245,10 @@ _warping_time() {
 		# EXPORT STORED CONFIG.D LOCATION
 		CCONFDIR="${_flag_time_warp}/config.d"
 		export CCONFDIR
-		if [[ -e "${CLOCALLG}/states/${k}_${state_name}/doscripts" ]]; then
+		ls "${_flag_time_warp}/doscripts"
+		if [[ -e  "${_flag_time_warp}/doscripts" ]]; then
 			_flag_sdir=0
-			cp "${CLOCALLG}/states/${k}_${state_name}/doscripts"  "${CLOCALLG}/doscripts"
+			cp "${_flag_time_warp}/doscripts"  "${CLOCALLG}/doscripts"
 			_flag_sdir_path="$(grep SCP "${CLOCALLG}/doscripts" | awk -F 'SCP:' '{ print $2 }')"
 			export _flag_sdir
 			export _flag_sdir_path
@@ -1282,6 +1284,10 @@ _warping_time() {
 		_auto_def_silence_def "$@"
 
 		_flags_stagea+=("${_flag_base}")
+		echo "base:$_flag_base"
+		echo "auto:$_flag_auto"
+		echo "sdir:$_flag_sdir"
+		echo "sdir_path:$_flag_sdir_path"
 
 		source "${CWORKDIR}/scripts/sinit" "${_flags_stagea[@]}"
 	fi
