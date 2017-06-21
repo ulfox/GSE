@@ -266,17 +266,18 @@ _call_stagex() {
 		_stagex "$1" "$2"
 	else
 		if [[ -e "${CATDIR}/builds/${TARGETPATH}/stage$2-${ARCH}-${TARGETSTAMP}.tar.bz2" ]]; then
-
-			echo -e "\e[32mStage$2 located\e[0m"
-			while read -p "Do you wish to build new? Y/N :: <= " ANS; do
-				case $ANS in
-					[yY])
-						_stagex "$1" "$2"
-						break;;
-					[nN])
-						break;;
-				esac
-			done
+			if ! echo "$@" | grep -q '_flag_auto'; then
+				echo -e "\e[32mStage$2 located\e[0m"
+				while read -p "Do you wish to build new? Y/N :: <= " ANS; do
+					case $ANS in
+						[yY])
+							_stagex "$1" "$2"
+							break;;
+						[nN])
+							break;;
+					esac
+				done
+			fi
 		else
 			_stagex "$1" "$2"
 		fi

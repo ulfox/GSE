@@ -359,27 +359,29 @@ _workdir_check() {
 		_extract_tarball "$@"
 	else
 		if [[ -d "$2" ]]; then
-			while true; do
-				echo -e "Seems that there already has been done some work at the \e[34mbuilderdir\e[0m"
-				echo "You could either continue from where you left, or backup/purge then start anew"
-				echo -e "Give one of: \e[32mCONTINUE\e[0m/\e[34mOLD\e[0m/\e[31mPURGE\e[0m "
-				read -rp "Input :: <= " ANS
-				case $ANS in
-					OLD)
-						echo "Backing up..."
-						mv "$2" "$2.old"
-						_extract_tarball "$@"
-						break;;
-					PURGE)
-						_e_report_back "This may take some time"
-						_e_report_back "Checking..."
-						_pseudo_check_purge "$2"
-						_extract_tarball "$@"
-						break;;
-					CONTINUE)
-						break;;
-				esac
-			done
+			if ! echo "$@" | grep -q '_flag_auto'; then
+				while true; do
+					echo -e "Seems that there already has been done some work at the \e[34mbuilderdir\e[0m"
+					echo "You could either continue from where you left, or backup/purge then start anew"
+					echo -e "Give one of: \e[32mCONTINUE\e[0m/\e[34mOLD\e[0m/\e[31mPURGE\e[0m "
+					read -rp "Input :: <= " ANS
+					case $ANS in
+						OLD)
+							echo "Backing up..."
+							mv "$2" "$2.old"
+							_extract_tarball "$@"
+							break;;
+						PURGE)
+							_e_report_back "This may take some time"
+							_e_report_back "Checking..."
+							_pseudo_check_purge "$2"
+							_extract_tarball "$@"
+							break;;
+						CONTINUE)
+							break;;
+					esac
+				done
+			fi
 		else
 			_extract_tarball "$@"
 		fi
@@ -709,6 +711,9 @@ librarium() {
 	_flag_do=''
 	_flag_g=''
 	_flag_sdir=''
+	_flag_auto=''
+	_flag_time_warp=''
+	_flag_time_state=''
 	while true; do
 		[[ -z "$@" ]] && return 0
 		case "$1" in
@@ -795,7 +800,28 @@ librarium() {
 					fi
 				fi
 				;;
-		
+			--auto*						)
+				if [[ -z "$(echo "$1" | grep '=')" ]]; then
+					die "Missing = for --auto"
+				fi
+
+				if [[ "$(echo "${1#*=}")" == '' ]]; then
+					die "No argument specified"
+				fi
+
+				if [[ "$(echo "${1#*=}")" == 'yes' ]]; then
+					_e_report_back "Automatic mode has been enabled"
+					_flag_auto=0
+					export _flag_auto
+				elif [[ "$(echo "${1#*=}")" == 'no' ]]; then
+					_e_report_back "Automatic mode has been disabled"
+					_flag_auto=1
+					export _flag_auto
+				else
+					die "Wrong input for --auto"
+				fi
+				;;
+
 			--build-minimal|-bm 		)
 				_flag_minimal=0
 				_e_report_back "Minimal build detected"
@@ -832,6 +858,37 @@ librarium() {
 				export _flag_lawful
 				_e_report_back "The following lawful arguments have been enabled"
 				_o_report_back "${_lawful_args[@]}"
+				;;
+
+			--time-warp*				)
+				if [[ -z "$(echo "$1" | grep '=')" ]]; then
+					die "Missing = for --time-warp"
+				fi
+
+				if [[ "$(echo "${1#*=}")" == '' ]]; then
+					die "No argument was given"
+				fi
+				
+				echo -e "\e[35mTime warp enabled for $(ls "${CLOCALLG}/states" | grep "^${1#*=}_")\e[0m"
+				_flag_time_warp="${CLOCALLG}/states/$(ls "${CLOCALLG}/states" | grep "^${1#*=}_")"
+				export _flag_time_warp
+				;;
+
+			--time-state*				)
+				if [[ "$(echo "${1#*=}")" == '' ]]; then
+					die "No name was given"
+				fi
+
+				if [[ "$(echo "${1#*=}")" == '-' ]]; then
+					[[ -z "${CLOCALLG}/states" ]] && die
+					rm -rf "${CLOCALLG}/states/$(ls "${CLOCALLG}/states" | grep "^${1#*=}_")"
+				elif [[ "$(echo "${1#*--time-state}")" == '?' ]]; then
+					_o_report_back "Time States"
+					echo -e "\e[35m$(ls "${CLOCALLG}/states")\e[0m"
+				else
+					_flag_time_state=0
+					state_name="${1#*=}"
+				fi
 				;;
 
 			--verbose|-v 				)
@@ -1113,11 +1170,54 @@ warp() {
 
 	# FILTER AND EXPORT ALL FLAGS AND ARGUMENTS. DIE UNLESS CONDITIONS ARE EXACT
 	librarium "$@"
+	
+	# TIME WARP
+	if [[ -n "${_flag_time_warp}" ]]; then
+		CCONFDIR="${_flag_time_warp}/config.d"
+		export CCONFDIR
+		echo "${CCONFDIR}"
+		
+
+	fi
+
+	# TIME STATE
+	if [[ "${_flag_time_state}" == 0 && -n "${state_name}" ]]; then
+		k=1
+		mkdir -p "${CLOCALLG}/states"
+
+		while true; do
+			if [[ -z "$(find "${CLOCALLG}/states" -name "${k}_*")" ]]; then
+				mkdir -p "${CLOCALLG}/states/${k}_${state_name}"
+				break
+			fi
+			((++k))
+		done
+
+		echo "state_name:${state_name}" > "${CLOCALLG}/states/${k}_${state_name}/main_flags"
+		for i in "${_flags_listA[@]}"; do
+			echo "$i:${!i}" >> "${CLOCALLG}/states/${k}_${state_name}/main_flags"
+		done
+		rm -f "${CLOCALLG}/states/${k}_${state_name}/${state_name}_enforce"
+		rm -f "${CLOCALLG}/states/${k}_${state_name}/${state_name}_lawful"
+		echo "enforce_args:${_enforce_args[@]}" >> "${CLOCALLG}/states/${k}_${state_name}/${state_name}_enforce"
+		echo "lawful_args:${_lawful_args[@]}" >> "${CLOCALLG}/states/${k}_${state_name}/${state_name}_lawful"
+		if [[ -n "${_flag_sdir}" ]]; then
+			rm -f "${CLOCALLG}/states/${k}_${state_name}/doscripts"
+			cp "${CLOCALLG}/doscripts"  "${CLOCALLG}/states/${k}_${state_name}"
+		fi
+		cp -r "${CCONFDIR}" "${CLOCALLG}/states/${k}_${state_name}"
+	fi
 
 	if [[ -z "${_flag_base}" ]]; then
 		_e_report_back "You must choose a base if your run gse without main menu. Aborting..."
 		_e_report_back "See man 1 gse for base options."
 		die "Aborting actions..."
+	fi
+
+	if ! echo "$@" | grep -q '\--auto=yes'; then
+		_e_report_back "Automatic mode has been disabled"
+		_flag_auto=1
+		export _flag_auto
 	fi
 
 	# THIS FUNCTION WILL ISSUE ESSENTIAL SYSTEM CHECKS, BEFORE PROCEEDING.
@@ -1151,14 +1251,23 @@ warp() {
 		"_flag_keep" \
 		"_flag_minimal" \
 		"_flag_enforce" \
+		"$_flag_controller_path" \
 		"_enforce_args" \
 		"_flag_lawful" \
+		"$_flag_controller" \
+		"$_flag_initrd" \
 		"_lawful_args" \
 		"_flag_verbose" \
 		"_flag_quiet" \
+		"$_flag_replace" \
 		"_flag_test" \
+		"$_flag_health" \
 		"_flag_network" \
-		"_flag_sdir")
+		"_flag_sdir" \
+		"_flag_auto" \
+		"_flag_silence" \
+		"_flag_verbose" \
+		"_flag_chroot_silence")
 
 	for i in "${_flags_listA[@]}"; do
 		if [[ "$(echo ${!i})" == 0 ]]; then
@@ -1168,17 +1277,21 @@ warp() {
 
 	if [[ "${_silence}" == 0 ]]; then
 		_flag_silence='>/dev/null 2>&1'
+		_flag_chroot_silence=0
 		export _flag_silence
 	elif [[ "${_silence}" == 1 ]]; then
 		_flag_silence=''
+		_flag_chroot_silence=1
 		set -x
 		export _flag_silence
 	elif [[ "${_silence}" == 9 ]]; then
 		_flag_silence=''
+		_flag_chroot_silence=1
 		export _flag_silence
 	fi
 
 	_flags_stagea+=("${_flag_base}")
+
 	if [[ -n "${_flag_base}" ]]; then
 		if [[ -n "${_flag_sdir}" ]]; then
 			source "${CWORKDIR}/scripts/sinit" "${_flags_stagea[@]}" 
@@ -1220,23 +1333,28 @@ _repeat_part() {
 }
 
 _call_hook_points() {
-	if echo "${_lawful_args[@]}" | grep -q "$2"; then
-		_e_report_back "Lawful entry detected on $2, proceeding..."
-	else	
-		if [[ "$(grep "$1" "${CLOCALLG}/sinprog" | awk -F '=' '{ print $2 }')" == 0 || -n "${_flag_force_new}" ]] || echo "${_enforce_args[@]}" | grep -q "$2"; then
-			if 	[[ -n "${_flag_force_new}" ]] || echo "${_enforce_args[@]}" | grep -q "$2"; then
-				_e_report_back "Force entry detected on $3, forcing..."
-				eval "$4" "${@:5}" "force" || die
+
+	if ! echo "$@" | grep -q '_flag_auto'; then
+		if echo "${_lawful_args[@]}" | grep -q "$2"; then
+			_e_report_back "Lawful entry detected on $2, proceeding..."
+		else	
+			if [[ "$(grep "$1" "${CLOCALLG}/sinprog" | awk -F '=' '{ print $2 }')" == 0 || -n "${_flag_force_new}" ]] || echo "${_enforce_args[@]}" | grep -q "$2"; then
+				if 	[[ -n "${_flag_force_new}" ]] || echo "${_enforce_args[@]}" | grep -q "$2"; then
+					_e_report_back "Force entry detected on $3, forcing..."
+					eval "$4" "${@:5}" "force" || die
+				else
+					eval "$4" "${@:5}" || die
+				fi
 			else
-				eval "$4" "${@:5}" || die
-			fi
-		else
-			if _repeat_part "$3"; then
-				eval "$4" "${@:5}"
-			else
-				_e_report_back "Proceeding"
+				if _repeat_part "$3"; then
+					eval "$4" "${@:5}"
+				else
+					_e_report_back "Proceeding"
+				fi
 			fi
 		fi
+	else
+		eval "$4" "${@:5}" || die
 	fi
 }
 
@@ -1279,13 +1397,22 @@ _prepare_chroot() {
 	|| die "Something went wrong"
 
 	mkdir -p "$1/sinit.d"
-
-	[[ ! -e "$1/sinit.d/chsinprog" ]] && eval rsync -aAXr "${CWORKDIR}/scripts/chroot_scripts/" "$1/sinit.d/" "${_flag_silence}" \
-	|| rsync -aAXr --exclude="chsinprog" "${CWORKDIR}/scripts/chroot_scripts/" "$1/sinit.d/" "${_flag_silence}" \
-	&& eval rsync -aAXr "${CCONFDIR}/system/portage/" "$1/sinit.d/" "${_flag_silence}" \
-	&& eval rsync -aAXr --exclude="portage" "${CCONFDIR}/system/" "$1/sinit.d/" "${_flag_silence}" \
-	&& echo -e "[\e[32m*\e[0m] Copying \e[34mbuilder's\e[0m files to new system" \
-	|| { echo -e "[\e[31m*\e[0m] Copying \e[34mbuilder's\e[0m files to new system"; die "Failed"; }
+	
+	set -e
+	if [[ ! -e "$1/sinit.d/chsinprog" ]] ; then
+		eval rsync -aAXr "${CWORKDIR}/scripts/chroot_scripts/" "$1/sinit.d/" "${_flag_silence}"
+	else
+		eval rsync -aAXr --exclude="chsinprog" "${CWORKDIR}/scripts/chroot_scripts/" "$1/sinit.d/" "${_flag_silence}"
+	fi
+	
+	if eval rsync -aAXr "${CCONFDIR}/system/portage/" "$1/sinit.d/" "${_flag_silence}"; then
+		if eval rsync -aAXr --exclude="portage" "${CCONFDIR}/system/" "$1/sinit.d/" "${_flag_silence}"; then
+			echo -e "[\e[32m*\e[0m] Copying \e[34mbuilder's\e[0m files to new system"
+		else
+			echo -e "[\e[31m*\e[0m] Copying \e[34mbuilder's\e[0m files to new system"
+		fi
+	fi
+	set +e
 
 	# CREATE REPOS.CONF DIRECOTRY & AND COPY REPOS.CONF TO IT
 	mkdir -p "$1/etc/portage/repos.conf"

@@ -182,15 +182,22 @@ fi
 unset BRKVAR	
 }
 
-if echo "$@" | grep -q 'force'; then
+if echo "$@" | grep -q 'force' ||  echo "$@" | grep -q '_flag_auto'; then
 	echo -e "\e[33mSearching for portage snapshot...\e[0m"
 	if [[ ! -e "${CATDIR}/snapshots/portage-${SNAPSHOTNAME}.tar.bz2" ]]; then
 		echo -e "\e[31mForce is active!\e[0m"
 		echo -e "\e[33mCould not locate snapshot\e[0m"
 		echo -e "\e[33mAttempting to fetch new...\e[0m"
-		_get_latest_snapshot "$@" \
-		|| { echo -e "\e[34mCreating snapshot...\e[0m"
-		catalyst -s "${SNAPSHOTNAME}" && pass || die "FAILED"; }
+		if _get_latest_snapshot "$@"; then
+			_o_report_back "Fetched"
+		else
+			echo -e "\e[34mCreating snapshot...\e[0m"
+			if catalyst -s "${SNAPSHOTNAME}"; then
+				_o_report_back "Created" 
+			else
+				die "FAILED"
+			fi
+		fi
 	fi
 else
 	check_portage_snap

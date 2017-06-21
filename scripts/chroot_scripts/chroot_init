@@ -6,14 +6,25 @@
 # PLEASE DO NOT MODIFY THIS FILE, BUT REFEREE AT CONFIGURATION SUBMENU
 # IF YOU NEED TO ADD EXTRA FEATURES TO YOUR SYSTEM.
 # 
-set -x
+
 if echo "${_flag_tty}" | grep -q 'sshd'; then
 	LC_COLLATE="C"
 	LC_ALL="en_US.UTF-8"
 	LC_CTYPE="en_US.UTF-8"
 fi
+
 # ENVIROMENTAL ECHO FOR TESTING PHASE
 echo "$@"
+
+if echo "$@" | grep -q '_flag_verbose'; then
+	set -x
+fi
+
+if echo "$@" | grep -q '_flag_chroot_silence'; then
+	_chroot_silence='>/dev/null 2>&1'
+else
+	_chroot_silence=''
+fi
 
 # EXPORT IMPORTANT VARIABLES BEFORE GOING ON
 source /etc/profile && export PS1="( 'Part C: Preparing to bootstrap' ) $PS1"

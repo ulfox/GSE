@@ -13,7 +13,7 @@ if [[ -z "${_flag_base}" ]]; then
 fi
 
 # ENVIROMENTAL ECHO FOR TESTING
-echo "$@"
+# echo "$@"
 
 # STAGE A
 clear
@@ -48,8 +48,8 @@ _part_a() {
 
 	# CALL CATALYST BUILD OR PRECOMPILED BUILD
 	case "${_flag_base}" in
-		catalyst)
-			
+		catalyst 		)
+			echo "$@"
 			# PART NETWORK SEED
 			_do_hs '\-gseed' "before" "seed part"
 			_seed_net() {
@@ -66,6 +66,7 @@ _part_a() {
 					_e_report_back "Calling catalyst"
 				fi
 			}
+			_seed_net "$@"
 			_do_hs '\+gseed' "after" "seed part"
 
 			# PART CATALYST
@@ -92,7 +93,7 @@ _part_a() {
 			unset TARGETSTAMP
 			;;
 
-		precomp)
+		precomp 		)
 			
 			# PART NETWORK SEED
 			_do_hs '\-gseed' "before" "seed part"
@@ -110,6 +111,7 @@ _part_a() {
 					_e_report_back "Calling catalyst"
 				fi
 			}
+			_seed_net "$@"
 			_do_hs '\+gseed' "after" "seed part"
 
 			# PART PRECOMP STAGE3 EXTRACTION

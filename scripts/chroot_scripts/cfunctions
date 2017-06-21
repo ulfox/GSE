@@ -15,7 +15,7 @@ _subshell() {
 die() {
 	echo "$@" 1>&2 ; exit 1
 }
-
+	
 pass() {
 	echo -e "[\e[34mDone\e[0m]"
 }
@@ -217,7 +217,7 @@ part_portage() {
 		exit 1
 	fi
 
-	if echo "$@" | grep -q 'cforce'; then
+	if echo "$@" | grep -q 'cforce' || ! echo "$@" | grep -q '_flag_auto'; then
 		echo -e "\e[34mEnabling basic profile\e[0m]"
 		eselect profile set 1 && echo -e "\e[34mEnabled\e[0m"  \
 		|| ask_for_shell "Could not enable basic profile"
@@ -268,28 +268,30 @@ _apply_new() {
 
 build_the_world() {
 	# EMERGIN WORLD
-	while true; do
-		echo "----------------------------------------------------------------------------"
-		echo "Do you wish to rebuild the system?"
-		echo "If catalyst built this system, simply say no"
-		echo "Answer Yes or No: "
-		read -rp "Input :: <= " YN
-		case "${YN}" in
-			[yY][eE][sS]|[yY])
-				if emerge -eq @world; then
-					_e_report_back "World rebuild has been completed"
-					_monitor_chroot_flow "REBUILD"; break
-				else
-					echo "emerge -eq @world" > LAST_FAILED_COMMAND
-					combat_medic
-				fi;;
-			[nN][oO]|[nN])
-				echo "Exiting Rebuilding Part"
-				sleep 1
-				_monitor_chroot_flow "REBUILD"; break;;
-		esac
-	done
-	unset YN
+	if ! echo "$@" | grep -q '_flag_auto'; then
+		while true; do
+			echo "----------------------------------------------------------------------------"
+			echo "Do you wish to rebuild the system?"
+			echo "If catalyst built this system, simply say no"
+			echo "Answer Yes or No: "
+			read -rp "Input :: <= " YN
+			case "${YN}" in
+				[yY][eE][sS]|[yY])
+					if emerge -eq @world; then
+						_e_report_back "World rebuild has been completed"
+						_monitor_chroot_flow "REBUILD"; break
+					else
+						echo "emerge -eq @world" > LAST_FAILED_COMMAND
+						combat_medic
+					fi;;
+				[nN][oO]|[nN])
+					echo "Exiting Rebuilding Part"
+					sleep 1
+					_monitor_chroot_flow "REBUILD"; break;;
+			esac
+		done
+		unset YN
+	fi
 }
 
 
@@ -647,7 +649,7 @@ _kernel_build() {
 	env-update > /dev/null 2>&1 && source /etc/profile && export PS1="( 'Part H: Building the Kernel' ) $PS1"
 	export PATH=${PATH}:${CHDIR}
 	MKPS=$(grep MAKEOPTS "/etc/portage/make.conf" | sed '/^#/ d' | sed  -e "s_\"__g" | awk -F '-j' '{print $2}' | sed '/^\s*$/d')
-	if echo "$@" | grep -q 'cforce'; then
+	if echo "$@" | grep -q 'cforce' || ! echo "$@" | grep -q '_flag_auto'; then
 		echo -e "The \e[34mBuilding kernel\e[0m"
 		if genkernel --install kernel --kernel-config="${CHDIR}/kernel-conf" \
 			--makeopts="-j${MKPS}" --btrfs --postclear --e2fsprogs; then
@@ -964,22 +966,26 @@ _do_hs() {
 }
 
 _call_hook_points() {
-	if echo "${_lawful_args[@]}" | grep -q "$2"; then
-		_e_report_back "Lawful entry detected on $2, proceeding..."
-	else	
-		if [[ "$(grep "$1" "${CHDIR}/chsinprog" | awk -F '=' '{ print $2 }')" == 0 || -n "${_flag_force_new}" ]] || echo "${_enforce_args[@]}" | grep -q "$2"; then
-			if 	[[ -n "${_flag_force_new}" ]] || echo "${_enforce_args[@]}" | grep -q "$2"; then
-				_e_report_back "Force entry detected on $3, forcing..."
-				eval "$4" "${@:5}" "cforce" || die
+	if ! echo "$@" | grep -q '_flag_auto'; then
+		if echo "${_lawful_args[@]}" | grep -q "$2"; then
+			_e_report_back "Lawful entry detected on $2, proceeding..."
+		else	
+			if [[ "$(grep "$1" "${CHDIR}/chsinprog" | awk -F '=' '{ print $2 }')" == 0 || -n "${_flag_force_new}" ]] || echo "${_enforce_args[@]}" | grep -q "$2"; then
+				if 	[[ -n "${_flag_force_new}" ]] || echo "${_enforce_args[@]}" | grep -q "$2"; then
+					_e_report_back "Force entry detected on $3, forcing..."
+					eval "$4" "${@:5}" "cforce" || die
+				else
+					eval "$4" "${@:5}" || die
+				fi
 			else
-				eval "$4" "${@:5}" || die
-			fi
-		else
-			if _repeat_part "$3"; then
-				eval "$4" "${@:5}"
-			else
-				_e_report_back "Proceeding"
+				if _repeat_part "$3"; then
+					eval "$4" "${@:5}"
+				else
+					_e_report_back "Proceeding"
+				fi
 			fi
 		fi
+	else
+		eval "$4" "${@:5}"
 	fi
 }
