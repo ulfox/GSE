@@ -158,28 +158,40 @@ port_prof_f() {
 	if mkdir -p /usr/local/portage/{metadata,profiles}; then
 		chown -R portage:portage /usr/local/portage || return 1
 		echo 'gse' > /usr/local/portage/profiles/repo_name || return 1
+		
 		cp "${CHDIR}/localrepo/layout.conf" "/usr/local/portage/metadata/layout.conf" || return 1
 		cp "${CHDIR}/localrepo/localrepo.conf" "/etc/portage/repos.conf/localrepo.conf" || return 1
 		
-		mkdir -p "/usr/local/portage/profiles/gse" \
-		&& mkdir -p "/usr/local/portage/profiles/default/linux/${ARCH}/13.0/gse" \
-		&& cp "${CHDIR}/profiles/parent-gse/eapi" \
-		"/usr/local/portage/profiles/gse/eapi" \
-		&& cp "${CHDIR}/profiles/parent-gse/make.defaults" \
-		"/usr/local/portage/profiles/gse/make.defaults" \
-		&& cp "${CHDIR}/profiles/parent-gse/package.use" \
-		"/usr/local/portage/profiles/gse/package.use" \
-		&& cp "${CHDIR}/profiles/parent-gse/package.use.force" \
-		"/usr/local/portage/profiles/gse/package.use.force" \
-		&& cp "${CHDIR}/profiles/child-gse/eapi" \
-		"/usr/local/portage/profiles/default/linux/${ARCH}/13.0/gse/eapi" \
-		&& cp "${CHDIR}/profiles/child-gse/parent" \
-		"/usr/local/portage/profiles/default/linux/${ARCH}/13.0/gse/parent" \
-		&& echo "# Local profile" > "/usr/local/portage/profiles/profiles.desc" \
-		&& echo "amd64           default/linux/amd64/13.0/gse                            exp" \
-		>> "/usr/local/portage/profiles/profiles.desc" \
-		&& echo -e "[\e[32m*\e[0m] Creating [\e[34mprofile\e[0m]" \
-		|| { echo -e "[\e[31m*\e[0m] Creating [\e[34profile\e[0m]"; return 1; }
+		if mkdir -p "/usr/local/portage/profiles/gse"; then
+			if mkdir -p "/usr/local/portage/profiles/default/linux/${ARCH}/13.0/gse"; then
+				cp "${CHDIR}/profiles/parent-gse/eapi" \
+				"/usr/local/portage/profiles/gse/eapi" || return 1
+
+				cp "${CHDIR}/profiles/parent-gse/make.defaults" \
+				"/usr/local/portage/profiles/gse/make.defaults" || return 1
+
+				cp "${CHDIR}/profiles/parent-gse/package.use" \
+				"/usr/local/portage/profiles/gse/package.use" || return 1
+
+				cp "${CHDIR}/profiles/parent-gse/package.use.force" \
+				"/usr/local/portage/profiles/gse/package.use.force" || return 1
+
+				cp "${CHDIR}/profiles/child-gse/eapi" \
+				"/usr/local/portage/profiles/default/linux/${ARCH}/13.0/gse/eapi" || return 1
+
+				cp "${CHDIR}/profiles/child-gse/parent" \
+				"/usr/local/portage/profiles/default/linux/${ARCH}/13.0/gse/parent" || return 1
+
+				echo "# Local profile" > "/usr/local/portage/profiles/profiles.desc" || return 1
+				echo "amd64           default/linux/amd64/13.0/gse                            exp" \
+				>> "/usr/local/portage/profiles/profiles.desc" || return 1
+			else
+				echo -e "[\e[31m*\e[0m] Creating [\e[34profile\e[0m]"; return 1
+			fi
+		else
+			echo -e "[\e[31m*\e[0m] Creating [\e[34profile\e[0m]"
+			return 1
+		fi
 	else
 		echo -e "[\e[31m*\e[0m] Creating [\e[34profile\e[0m]"
 		return 1
@@ -207,7 +219,11 @@ part_portage() {
 
 			dist_ccashe_f || return 1
 			_emerge_depclear
-			port_prof_f || return 1
+			if port_prof_f; then
+				echo -e "[\e[32m*\e[0m] Creating [\e[34mprofile\e[0m]"
+			else
+				ask_for_shell "Creating GSE profile failed"
+			fi
 		else
 			echo -e "\e[31mFaild\e[0m Configuring [\e[32mpackage.use\e[0m]"
 			ask_for_shell "Could not configure package.use files"
@@ -217,7 +233,7 @@ part_portage() {
 		exit 1
 	fi
 
-	if echo "$@" | grep -q 'cforce' || ! echo "$@" | grep -q '_flag_auto'; then
+	if echo "$@" | grep -q 'cforce' || echo "$@" | grep -q '_flag_auto'; then
 		echo -e "\e[34mEnabling basic profile\e[0m]"
 		eselect profile set 1 && echo -e "\e[34mEnabled\e[0m"  \
 		|| ask_for_shell "Could not enable basic profile"
@@ -317,9 +333,10 @@ _update_eix() {
 	if eix-update >LAST_ACTION 2>&1; then
 		_e_report_back "Update of eix was successful"
 		_monitor_chroot_flow "UPDATE"
+		return 0
 	else
 		echo "eix-update" > LAST_FAILED_COMMAND
-		ask_for_shell "Updating eix failed"
+		ask_for_shell "Updating eix failed"	
 	fi
 }
 
@@ -342,11 +359,21 @@ _portage_subpart() {
 
 	if [[ -n $(echo "$@" | grep 'catalyst') ]]; then
 		#emerge --sync >LAST_ACTION 2>&1 && pass || { echo "emerge --sync" > LAST_FAILED_COMMAND; combat_medic; }
-		rsync -aAXhrv root@192.168.2.2:/usr/portage/ /usr/portage/ >LAST_ACTION 2>&1 && pass || { echo "emerge--webrsync" > LAST_FAILED_COMMAND; combat_medic; }
+		fi rsync -aAXhrv root@192.168.2.2:/usr/portage/ /usr/portage/ >LAST_ACTION 2>&1; then
+			pass
+		else
+			echo "rsync -aAXhrv root@192.168.2.2:/usr/portage/ /usr/portage/" > LAST_FAILED_COMMAND
+			combat_medic
+		fi
 		env-update >LAST_ACTION 2>&1
 	elif [[ -n $(echo "$@" | grep 'precomp') ]]; then
-		#emerge-webrsync >LAST_ACTION 2>&1 && pass || { echo "emerge--webrsync" > LAST_FAILED_COMMAND; combat_medic; }
-		rsync -aAXhrv root@192.168.2.2:/usr/portage/ /usr/portage/ >LAST_ACTION 2>&1 && pass || { echo "emerge--webrsync" > LAST_FAILED_COMMAND; combat_medic; }
+		#emerge-webrsync >LAST_ACTION 2>&1 && pass || { echo "emerge-webrsync" > LAST_FAILED_COMMAND; combat_medic; }
+		if rsync -aAXhrv root@192.168.2.2:/usr/portage/ /usr/portage/ >LAST_ACTION 2>&1; then
+			pass
+		else
+			echo "rsync -aAXhrv root@192.168.2.2:/usr/portage/ /usr/portage/" > LAST_FAILED_COMMAND
+			combat_medic
+		fi
 		env-update >LAST_ACTION 2>&1
 	fi
 
@@ -359,7 +386,7 @@ _portage_subpart() {
 		_emerge_eix
 		echo -e "\e[34mUpdating eix database\e[0m"
 		if _update_eix; then
-			:
+			_o_report_back "Updated"
 		else
 			combat_medic
 		fi
@@ -367,7 +394,7 @@ _portage_subpart() {
 		echo -e "\e[33meix located\e[0m"
 		echo -e "\e[34mUpdating eix database\e[0m"
 		if _update_eix; then
-			:
+			_o_report_back "Updated"
 		else
 			combat_medic
 		fi	
@@ -409,26 +436,38 @@ _configure_timezone() {
 	fi
 
 	if emerge --config sys-libs/timezone-data | grep "invalid" >LAST_ACTION 2>&1; then
-		echo "UTC" >/etc/timezone; emerge --config sys-libs/timezone-data \
-		&& echo -e "[\e[32m*\e[0m] Resetting to UTC" \
-		|| { echo -e "[\e[31m*\e[0m] Resetting to UTC"; combat_medic; }
+		if echo "UTC" >/etc/timezone; emerge --config sys-libs/timezone-data; then
+			echo -e "[\e[32m*\e[0m] Resetting to UTC"
+		else
+			echo -e "[\e[31m*\e[0m] Resetting to UTC"
+			combat_medic
+		fi
 	fi
 }
 
 _configure_locale() {
 	if [[ -z $(cat "${CHDIR}/locale.gen" | sed '/^#/ d' | sed '/^\s*$/d') ]]; then
 		sed -i '/en_US.UTF-8/d' /etc/locale.gen
-		echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen && echo -e "[\e[32m*\e[0m] Configuring [\e[34mlocale\e[0m]" \
-		|| echo -e "[\e[31m*\e[0m] Configuring [\e[34mlocale\e[0m]"
+		
+		if echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen; then
+			echo -e "[\e[32m*\e[0m] Configuring [\e[34mlocale\e[0m]"
+		else
+			echo -e "[\e[31m*\e[0m] Configuring [\e[34mlocale\e[0m]"
+		fi
 	else
 		echo "$(cat "${CHDIR}/locale.gen")" > /etc/locale.gen
 		sed -i '/en_US.UTF-8/d' /etc/locale.gen
-		echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen && echo -e "[\e[32m*\e[0m] Configuring \e[34mlocale\e[0m" \
-		|| echo -e "[\e[31m*\e[0m] Configuring [\e[34mlocale\e[0m]"
+		
+		if echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen; then
+			echo -e "[\e[32m*\e[0m] Configuring \e[34mlocale\e[0m"
+		else
+			echo -e "[\e[31m*\e[0m] Configuring [\e[34mlocale\e[0m]"
+		fi
 	fi
 
 	locale-gen
 	export LC_ALL="en_US.UTF-8"
+	
 	SETLOC=$(eselect locale list | grep en_US | awk -F ' ' '{ print $1 }' \
 	| awk -F '[' '{ print $2 }' | awk -F ']' '{ print $1 }')
 
@@ -518,18 +557,19 @@ _configure_fstab() {
 }
 
 _copy_function() {
-	[[ -n $(cat "${CHDIR}/$1" | sed '/^#/ d' | sed '/^\s*$/d') ]] \
-	&& if cp "${CHDIR}/$1" /etc/conf.d/"$2"; then
-		echo -e "[\e[32m*\e[0m] Configuring [\e[34m$3\e[0m]"
-	else
-		echo -e "[\e[31m*\e[0m] Configuring [\e[34m$3\e[0m]"
-		echo "###################################" >> issues.info
-		echo "Issue: $3 $(date)" >> issues.info
-		echo "Command: ${CHDIR}/$1 /etc/conf.d/$2" >> issues.info
-		echo "Items --->" >> issues.info
-		cat /etc/conf.d/"$2" >> issues.info
-		echo "###################################" >> issues.info
-		ask_for_shell "Failed configuring $3"
+	if [[ -n $(cat "${CHDIR}/$1" | sed '/^#/ d' | sed '/^\s*$/d') ]]
+		if cp "${CHDIR}/$1" /etc/conf.d/"$2"; then
+			echo -e "[\e[32m*\e[0m] Configuring [\e[34m$3\e[0m]"
+		else
+			echo -e "[\e[31m*\e[0m] Configuring [\e[34m$3\e[0m]"
+			echo "###################################" >> issues.info
+			echo "Issue: $3 $(date)" >> issues.info
+			echo "Command: ${CHDIR}/$1 /etc/conf.d/$2" >> issues.info
+			echo "Items --->" >> issues.info
+			cat /etc/conf.d/"$2" >> issues.info
+			echo "###################################" >> issues.info
+			ask_for_shell "Failed configuring $3"
+		fi
 	fi
 }
 
@@ -649,7 +689,7 @@ _kernel_build() {
 	env-update > /dev/null 2>&1 && source /etc/profile && export PS1="( 'Part H: Building the Kernel' ) $PS1"
 	export PATH=${PATH}:${CHDIR}
 	MKPS=$(grep MAKEOPTS "/etc/portage/make.conf" | sed '/^#/ d' | sed  -e "s_\"__g" | awk -F '-j' '{print $2}' | sed '/^\s*$/d')
-	if echo "$@" | grep -q 'cforce' || ! echo "$@" | grep -q '_flag_auto'; then
+	if echo "$@" | grep -q 'cforce' || echo "$@" | grep -q '_flag_auto'; then
 		echo -e "The \e[34mBuilding kernel\e[0m"
 		if genkernel --install kernel --kernel-config="${CHDIR}/kernel-conf" \
 			--makeopts="-j${MKPS}" --btrfs --postclear --e2fsprogs; then

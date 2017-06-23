@@ -180,33 +180,13 @@ else
 fi
 _do_hs '\+gpartb' "after" "Part: B"
 
-exit
-umount -l "${BWORKDIR}/"*
-umount -l "${BWORKDIR}/"*
-umount -l "${BWORKDIR}/"*
-umount -l "${BWORKDIR}/"*
-umount -l "${BWORKDIR}/"*
+if echo "${_flag_base}" | grep -q 'catalyst'; then
+	_archive_ "${BWORKDIR}" "catalyst"
+elif echo "${_flag_base}" | grep -q 'precomp'; then 
+	_archive_ "${BWORKDIR}" "precomp"
+fi
 
-TARGETSTAMP="$(grep 'version_stamp' "${CCONFDIR}/system/catalyst/stage3.spec" \
-| sed '/^#/ d' | awk -F ' ' '{ print $2 }' | sed  -e "s_\"__g")"
-
-SUBBUILD=0
-GVEX="${GSEVER}.${SUBBUILD}"
-while true; do
-	if ! ls "${CDISTDIR}/stage3-amd64-${GVEX}.tar.bz2" >/dev/null 2>&1; then
-		(cd "${BWORKDIR}"
-		tar -cjpP --ignore-failed-read "${CDISTDIR}/stage3-amd64-${TARGETSTAMP}-${GVEX}.tar.bz2" . >/dev/null 2>&1; ) \
-		&& { _o_report_back "Archived" && echo -e "\e[34mYou can find your system @ ${CDISTDIR}\e[0m"
-		echo -e "\e[34mWith version extension: ${GVEX}\e[0m"; } \
-		|| die "Failed"
-		break
-	else
-		GVEX="${GSEVER}.${SUBBUILD}"
-		((++SUBBUILD))
-	fi
-done
-
-exit
+exit 1
 
 gpg --armor --export email > "${FINALDIST}/key.asc" # THIS WILL BE ADDED TO THE HOSTS
 gpg --detach-sign -o "${GSE_VER}".gpg "${FINALDIST}/${IMAGE}"

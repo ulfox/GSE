@@ -46,7 +46,7 @@ else
 	die "Part: Update Failed"
 fi
 _do_hs '\+gupdate' "after" "Part: Portage Update"
-sleep 20
+
 # PART PORTAGE, PROFILE AND FEATURES UPDATE
 _do_hs '\-gportage' "before" "Part: Portage"
 if _call_hook_points 'PORTAGE' 'gportage' 'Part: Portage' 'part_portage' "$@"; then

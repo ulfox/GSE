@@ -14,58 +14,58 @@ _subshell() {
 
 parameters_check() {
 
-	if [[ -n $(echo "$@" | grep '\--force-new') ]] && [[ -n $(echo "$@" | grep '\--lawful-good') || -n $(echo "$@" | grep '\-lg') ]]; then
+	if echo "$@" | grep -q '\--force-new' && ( ( echo "$@" | grep -q '\--lawful-good' || echo "$@" | grep -q '\-lg' ) ); then
 		die "Warning: --force-new suppresses --lawful-good"
 		sleep 2
 	fi
 
-	if [[ -n $(echo "$@" | grep '\--force-new') && -n $(echo "$@" | grep '\--enforce') ]]; then
+	if echo "$@" | grep -q '\--force-new' && echo "$@" | grep -q '\--enforce'; then
 		_e_report_back "Warning: --force-new implies --enforce=*"
 		sleep 2
 	fi
 
-	if [[ -n "$(echo "$@" | grep '\--verbose')" || -n "$(echo "$@" | grep '\-v')" ]] && [[ -n "$(echo "$@" | grep '\--auto=yes')" ]]; then
+	if [[ "$(echo "$@" | grep -q '\--verbose')" || "$(echo "$@" | grep -q '\-v')" ]] && echo "$@" | grep -q '\--auto=yes'; then
 		die "Error: verbose & interactive mode (auto=yes) can not be set at the same time"
 	fi
 
-	if [[ -n "$(echo "$@" | grep '\--quiet')" || -n "$(echo "$@" | grep '\-q')" ]] && [[ -n "$(echo "$@" | grep '\--verbose')" || -n "$(echo "$@" | grep '\-v')" ]]; then
+	if [[ "$(echo "$@" | grep -q '\--quiet')" || "$(echo "$@" | grep '\-q')" ]] && ((echo "$@" | grep -q '\--verbose' || echo "$@" | grep -q '\-v')); then
 		die "Error: verbose & quiet can not be set at the same time"
 	fi
 
-	if [[ -n $(echo "$@" | grep '\--lawful-good') && -n $(echo "$@" | grep '\--enforce') ]]; then
+	if echo "$@" | grep -q '\--lawful-good' && echo "$@" | grep -q '\--enforce'; then
 		_e_report_back "Warning: --lawful-good suppresses --enforce"
 	fi
 
-	if [[ -n $(echo "$@" | grep '\--force-new') && -n $(echo "$@" | grep '\--keep') ]]; then
+	if echo "$@" | grep -q '\--force-new' && echo "$@" | grep -q '\--keep'; then
 		die "Warning: --force-new suppresses --keep. This combination is know to give unexpected results."
 	fi
 
-	if [[ -n $(echo "$@" | grep '\--health-check') && "$#" != 1 ]]; then
-		die "Warning: --health-check unknown parameters ${@:2}"
+	if echo "$@" | grep -q '\--health-check' && [[ "$#" != 1 ]]; then
+		die "Warning: --health-check unknown parameters ${*:2}"
 	fi
 
-	if [[ -n $(echo "$@" | grep '\--replace-new') && "$#" != 1 ]]; then
-		die "Warning: --replace-new: unknown parameters ${@:2}"
+	if echo "$@" | grep -q '\--replace-new' && [[ "$#" != 1 ]]; then
+		die "Warning: --replace-new: unknown parameters ${*:2}"
 	fi
 
-	if [[ -n $(echo "$@" | grep '\--build-minimal') &&  -n $(echo "$" | grep '\--enforce' | grep 'gkernel') ]]; then
+	if echo "$@" | grep -q '\--build-minimal' && echo "$" | grep -q '\--enforce' | grep -q 'gkernel'; then
 		_e_report_back "Warning: --build-minimal suppresses kernel build {gkernel}"
 		sleep 2
 	fi
 
-	if [[ -n $(echo "$@" | grep '\--build-minimal') &&  -n $(echo "$@" | grep '\--enforce' | grep 'ginitrd') ]]; then
+	if echo "$@" | grep -q '\--build-minimal' && echo "$@" | grep -q '\--enforce' | grep -q 'ginitrd'; then
 		_e_report_back "Warning: --build-minimal suppresses initramfs {ginitrd}"
 		sleep 2
 	fi
 
-	if [[ -n $(echo "$@" | grep '\--build-minimal') &&  -n $(echo "$@" | grep '\--enforce' | grep 'ginst') ]]; then
+	if echo "$@" | grep -q '\--build-minimal' && echo "$@" | grep -q '\--enforce' | grep -q 'ginst'; then
 		_e_report_back "Warning: --build-minimal suppresses custom package installation {ginst}"
 		sleep 2
 	fi
 }
 
 die() {
-	echo -e "\e[31m$@\e[0m" 1>&2 ; exit 1
+	echo -e "\e[31m$*\e[0m" 1>&2 ; exit 1
 }
 
 burn() {
@@ -120,7 +120,7 @@ _o_report_back() {
 }
 
 inspector() {
-	[[ -z "$@" ]] && print_inf_f
+	[[ -z "$*" ]] && print_inf_f
 }
 
 pass() {
@@ -181,32 +181,6 @@ _extracting_catalyst() {
 	"${CDISTDIR}/workdir-catalyst" \
 	"${CATDIR}/snapshots/portage-${SNAPSHOTNAME}.tar.bz2" "$@" \
 	|| return 1
-}
-
-_clean_target() {
-	inspector "$@"
-	[[ -z "$(echo "$@" | grep 'workdir')" ]] && print_inf_f
-	
-	burn "$1/var/log"
-	burn "$1/var/tmp"
-	burn "$1/LAST_FAILED_COMMAND"
-	burn "$1/LAST_ACTION"
-	burn "$1/issues.info"
-	burn "$1/root/.bash*"
-	burn "$1/usr/src/linux*"
-	burn "$1/sinit.d"
-	# MINIMAL SYSTEM REQUEST
-	if [[ -n "${_flag_minimal}" ]]; then
-		burn "$1/usr/portage"
-		burn "$1/var/cache"
-		burn "$1/var/db"
-		burn "$1/root/.cache"
-		burn "$1/usr/local/portage"
-		mv "$1/root/.ssh" "$1/"
-		burn "$1/root"
-		mkdir -p "$1/root"
-		mv "$1/.ssh" "$1/root/.ssh"	
-	fi
 }
 
 sinit_flow_monitor() {
@@ -295,7 +269,7 @@ _pseudo_check_purge(){
 		&& break
 	done
 
-	if [[ -n "$@" && -z "$(cat /proc/mounts | grep "workdir-$2")" ]]; then
+	if [[ -n "$*" && -z "$(cat /proc/mounts | grep "workdir-$2")" ]]; then
 		if [[ -e "$1" ]]; then
 			echo -e "\e[34mMarking workdir for purge\e[0m"
 			burn "$1"
@@ -334,7 +308,7 @@ _start_again() {
 }
 
 _extract_tarball() {
-	[[ -z "$@" && -d "$2" ]] && die "Wrong Parameters"
+	[[ -z "$*" && -d "$2" ]] && die "Wrong Parameters"
 	mkdir -p "$2"
 
 	echo -e "\e[34mExtracting tarball\e[0m"
@@ -355,7 +329,7 @@ _extract_tarball() {
 }
 
 _workdir_check() {
-	[[ -z "$@" && -d "$2" ]] && die "Wrong Parameters"
+	[[ -z "$*" && -d "$2" ]] && die "Wrong Parameters"
 	if echo "$@" | grep -q 'force'; then
 		_e_report_back "This may take some time"
 		_e_report_back "Checking..."
@@ -405,18 +379,25 @@ _am_i_root() {
 }
 
 _export_latest() {
-	export GENTOOKEY="$(lynx -dump ${SIGNING_KEY} |  grep "(4096-bit RSA)" | head -1 | awk -F '(' '{ print $1}')"
-	export "GENTOOKEY"
-	export GENTOOLATEST="$DIST/$(wget -q -O- "${DIST}/latest-stage3-$ARCH.txt" | tail -n 1 | awk -F ' ' '{ print $1 }')"
-	export STAGE3TB=$(wget -q -O- "${DIST}/latest-stage3-$ARCH.txt" | tail -n 1 | awk -F ' ' '{ print $1 }' | awk -F '/' '{ print $2 }')
-	export GENTOOLATESTASC="$DIST/$(wget -q -O- "${DIST}/latest-stage3-$ARCH.txt" | tail -n 1 | awk -F ' ' '{ print $1 }').DIGESTS.asc"
+	GENTOOKEY="$(lynx -dump ${SIGNING_KEY} |  grep "(4096-bit RSA)" | head -1 | awk -F '(' '{ print $1}')"
+	export GENTOOKEY
+	GENTOOLATEST="$DIST/$(wget -q -O- "${DIST}/latest-stage3-$ARCH.txt" | tail -n 1 | awk -F ' ' '{ print $1 }')"
+	export GENTOOLATEST
+	STAGE3TB=$(wget -q -O- "${DIST}/latest-stage3-$ARCH.txt" | tail -n 1 | awk -F ' ' '{ print $1 }' | awk -F '/' '{ print $2 }')
+	export STAGE3TB
+	GENTOOLATESTASC="$DIST/$(wget -q -O- "${DIST}/latest-stage3-$ARCH.txt" | tail -n 1 | awk -F ' ' '{ print $1 }').DIGESTS.asc"
+	export GENTOOLATESTASC
 }
 
 _gentoo_key() {
 	[[ -z "${GENTOOKEY}" ]] && die "Wrong Parameters" && return 1
-	eval gpg --keyserver hkps.pool.sks-keyservers.net --recv-keys "${_flag_silence}" ${GENTOOKEY} \
-	&& echo -e "[\e[32m*\e[0m]\e[32m Fetching Key\e[0m" \
-	|| { echo -e "[\e[31m*\e[0m]\e[31m Fetching Key\e[0m"; return 1; }
+	
+	if eval gpg --keyserver hkps.pool.sks-keyservers.net --recv-keys "${GENTOOKEY}" "${_flag_silence}"; then
+		echo -e "[\e[32m*\e[0m]\e[32m Fetching Key\e[0m"
+	else
+		echo -e "[\e[31m*\e[0m]\e[31m Fetching Key\e[0m"
+		return 1
+	fi
 }
 
 _get_latest() {
@@ -431,28 +412,44 @@ _get_latest() {
 		echo -e "[\e[34m*\e[0m] Marking stage3-${ARCH}-latest.tar.bz2.DIGESTS for purging"
 		burn "${CDISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2.DIGESTS"
 		echo -e "[\e[32m*\e[0m] Fetching \e[34m${STAGE3TB}\e[0m"
-		eval wget -c -O "${CDISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2" "${GENTOOLATEST}" "${_flag_silence}" \
-		&& echo "${STAGE3TB}" > "${CDISTDIR}/dists/latest.info" \
-		&& pass || die "FAILED"
+		if eval wget -c -O "${CDISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2" "${GENTOOLATEST}" "${_flag_silence}"; then
+			echo "${STAGE3TB}" > "${CDISTDIR}/dists/latest.info"
+			pass
+		else
+			die "FAILED"
+		fi
 	else
 		echo -e "[\e[32m*\e[0m] Fetching \e[34m${STAGE3TB}\e[0m"
-		wget -c -O "${CDISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2" "${GENTOOLATEST}" \
-		&& echo "${STAGE3TB}" > "${CDISTDIR}/dists/latest.info" \
-		&& pass || die "FAILED"
+		if wget -c -O "${CDISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2" "${GENTOOLATEST}"; then
+			echo "${STAGE3TB}" > "${CDISTDIR}/dists/latest.info"
+			pass
+		else
+			die "FAILED"
+		fi
 	fi
-	eval wget -c -O "${CDISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2.DIGESTS.asc" "${GENTOOLATESTASC}" "${_flag_silence}" \
-	&& echo -e "[\e[32m*\e[0m] Fetching \e[34m${GENTOOLATEST}\e[0m" \
-	|| { echo -e "[\e[31m*\e[0m] \e[31mFAILD\e[0m: Fetching \e[34m${GENTOOLATEST}\e[0m"; exit 1; }
+	
+	if eval wget -c -O "${CDISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2.DIGESTS.asc" "${GENTOOLATESTASC}" "${_flag_silence}"; then
+		echo -e "[\e[32m*\e[0m] Fetching \e[34m${GENTOOLATEST}\e[0m"
+	else
+		echo -e "[\e[31m*\e[0m] \e[31mFAILD\e[0m: Fetching \e[34m${GENTOOLATEST}\e[0m"
+		die
+	fi
 
-	eval wget -c -O "${CDISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2.DIGESTS" "${GENTOOLATEST}.DIGESTS" "${_flag_silence}" \
-	&& echo -e "[\e[32m*\e[0m] Fetching \e[34m${GENTOOLATEST}.DIGESTS\e[0m" \
-	|| { echo -e "[\e[31m*\e[0m] \e[31mFAILD\e[0m: Fetching $\e[34m${GENTOOLATEST}.DIGESTS\e[0m"; exit 1; }
+	if eval wget -c -O "${CDISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2.DIGESTS" "${GENTOOLATEST}.DIGESTS" "${_flag_silence}"; then
+		echo -e "[\e[32m*\e[0m] Fetching \e[34m${GENTOOLATEST}.DIGESTS\e[0m"
+	else
+		echo -e "[\e[31m*\e[0m] \e[31mFAILD\e[0m: Fetching $\e[34m${GENTOOLATEST}.DIGESTS\e[0m"
+		die
+	fi
 }
 
 _verify_download() {
-	eval gpg --verify "${CDISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2.DIGESTS.asc" "${_flag_silence}" \
-	&& echo -e "[\e[32m*\e[0m] Verifying \e[35mcryptographic signature\e[0m" \
-	|| { echo -e "[\e[31m*\e[0m] \e[31mFAILD\e[0m: Verifying \e[31mcryptographic signature\e[0m"; exit 1; }
+	if eval gpg --verify "${CDISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2.DIGESTS.asc" "${_flag_silence}"; then
+		echo -e "[\e[32m*\e[0m] Verifying \e[35mcryptographic signature\e[0m"
+	else
+		echo -e "[\e[31m*\e[0m] \e[31mFAILD\e[0m: Verifying \e[31mcryptographic signature\e[0m"
+		die
+	fi
 
 	[[ $(grep -A 1 -i sha512 "${CDISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2.DIGESTS.asc" | head -n 2 | grep stage3 | awk -F ' ' '{ print $1 }') \
 	== $(sha512sum "${CDISTDIR}/dists/stage3-${ARCH}-latest.tar.bz2" |  awk -F ' ' '{ print $1 }') ]] \
@@ -486,7 +483,7 @@ _call_force_new() {
 
 _fetch_new() {
 	# CHECK FOR THE POSITIONAL PARAMETERS AND BAILOUT IF THEY ARE MISSING
-	[[ -z "$@" ]] && die "Wrong parameters"
+	[[ -z "$*" ]] && die "Wrong parameters"
 	echo -e "\e[33mSearching for tarball...\e[0m"
 	if [[ -n "${_flag_fetch}" ]] || echo "$@" | grep -q 'force'; then
 		_export_latest
@@ -534,18 +531,29 @@ _unmount() {
 # MOUNT DEV & SYS WITH RBIND THEN RSLAVE ON TARGET BUILDDIR
 _mount_dev_sys() {
 	inspector "$@"
-	mount --rbind /dev "$1/$2" \
-	&& mount --make-rslave "$1/$2" \
-	&& echo -e "[\e[32m*\e[0m] Mounting $2" \
-	|| { echo -e "[\e[31*\e[0m] Mounting $2"; die "Failed"; }
+	
+	if mount --rbind "/$2" "$1/$2"; then
+		if mount --make-rslave "$1/$2"; then
+			echo -e "[\e[32m*\e[0m] Mounting $2"
+		else
+			echo -e "[\e[31*\e[0m] Mounting $2"
+			die "Failed"
+		fi
+	else
+		die "Failed mounting $2"
+	fi
 }
 
 # MOUNT PROC ON TARGET BUILDDIR
 _mount_proc() {
 	inspector "$@" 
-	mount -t proc /proc "$1/proc" \
-	&& echo -e "[\e[32m*\e[0m] Mounting proc" \
-	|| { echo -e "[\e[31m*\e[0m] Mounting proc"; die "Failed"; }
+	
+	if mount -t proc /proc "$1/proc"; then
+		echo -e "[\e[32m*\e[0m] Mounting proc"
+	else
+		echo -e "[\e[31m*\e[0m] Mounting proc"
+		die "Failed"
+	fi
 }
 
 # THIS SCRIPT IS SOURCED AT THE BEGINING FOR CHECKING THE BUILDER'S RUNTIME DEPENDENCIES
@@ -562,13 +570,17 @@ _lcreq() {
 	# GENTOO SECTION
 	case "$1" in
 		1)
-			[[ $(command -v eix) ]] \
-			|| { echo -e "[\e[33m*\e[0m] \e[35mPlease install eix to proceed!\e[0m" \
-			&& { _am_i_root_sub "$UID" && echo -e "[\e[32m*\e[0m] Root privileges found" \
-			&& emerge -aq eix && echo -e "[\e[33m*\e[0m] \e[35mUpdating database\e[0m" \
-			&& eval eix-sync -a "${_flag_silence}"; } \
-			|| { echo -e "[\e[31m*\e[0m] Could not get root privileges" \
-			&& echo "Please resolve this issue and start again" && exit 1; }; }
+			if ! [[ $(command -v eix) ]]; then
+				echo -e "[\e[33m*\e[0m] \e[35mPlease install eix to proceed!\e[0m"
+				if _am_i_root_sub "$UID"; then
+					echo -e "[\e[32m*\e[0m] Root privileges found"
+					emerge -aq eix && echo -e "[\e[33m*\e[0m] \e[35mUpdating database\e[0m"
+					eval eix-sync -a "${_flag_silence}"
+				else
+					echo -e "[\e[31m*\e[0m] Could not get root privileges"
+					die "Please resolve this issue and start again"
+				fi
+			fi
 
 			mapfile -t lreq < <(cat "${CLOCALLG}/loc_req" | sed '/^#/ d' | sed '/^\s*$/d')
 
@@ -579,10 +591,12 @@ _lcreq() {
 				else
 					echo -e "[\e[31m*\e[0m] Searching for $i"
 					echo -e "[\e[33m*\e[0m] Attempting to resolve the missing dependency"
-					_am_i_root $UID && echo -e "[\e[32m*\e[0m] Root privileges found" \
-					&& emerge -aq "$i" \
-					|| { echo -e "[\e[31m*\e[0m] Could not get root privileges" \
-					&& echo "Please resolve this issue and start again" && exit 1; }
+					if _am_i_root $UID && echo -e "[\e[32m*\e[0m] Root privileges found"; then
+						emerge -aq "$i"
+					else
+						echo -e "[\e[31m*\e[0m] Could not get root privileges"
+					 	die"Please resolve this issue and start again"
+					 fi
 				fi
 			done;;
 		2)
@@ -719,7 +733,7 @@ librarium() {
 	_flag_time_warp=''
 	_flag_time_state=''
 	while true; do
-		[[ -z "$@" ]] && return 0
+		[[ -z "$*" ]] && return 0
 		case "$1" in
 			--fetch-new|-fn 			)	
 				_e_report_back "Fetch new is enabled"
@@ -874,8 +888,12 @@ librarium() {
 				fi
 				
 				echo -e "\e[35mTime warp enabled for $(ls "${CLOCALLG}/states" | grep "^${1#*=}_")\e[0m"
-				_flag_time_warp="${CLOCALLG}/states/$(ls "${CLOCALLG}/states" | grep "^${1#*=}_")"
-				export _flag_time_warp
+				if ls "${CLOCALLG}/states" | grep "^${1#*=}_"; then
+					_flag_time_warp="${CLOCALLG}/states/$(ls "${CLOCALLG}/states" | grep "^${1#*=}_")"
+					export _flag_time_warp
+				else
+					die "No such a mark: ${1#*=}"
+				fi
 				;;
 
 			--time-state*				)
@@ -884,7 +902,6 @@ librarium() {
 				fi
 
 				if [[ "$(echo "${1#*=}")" == '-' ]]; then
-					[[ -z "${CLOCALLG}/states" ]] && die
 					rm -rf "${CLOCALLG}/states/$(ls "${CLOCALLG}/states" | grep "^${1#*=}_")"
 				elif [[ "$(echo "${1#*--time-state}")" == '?' ]]; then
 					_o_report_back "Time States"
@@ -1150,6 +1167,21 @@ inquisitor() {
 	# MAKE CHECKS AS DESCRIBED IN WITCH HUNT
 	witch_hunt "$@"
 
+	# PERFORM RUNTIME DEPENDENCIES CHECK. ISSUE WARNING FOR ALL BUT GENTOO
+	if [[ "$(awk -F '=' '/RDEP/{ print $2 }' <"${CLOCALLG}/sinprog")" == 0 ]]; then
+		_dependencies_check && sinit_flow_monitor "RDEP"
+	fi
+
+}
+
+_auto_def_silence_def() {
+	# AUTOMODE
+	if ! echo "$@" | grep -q '\--auto=yes'; then
+		_flag_auto=1
+		export _flag_auto
+	fi
+
+	# CONFIGURE SILENCE MODE
 	if [[ "$(echo "${_flag_verbose}")" == 0 ]]; then
 		_silence=1
 		export _silence
@@ -1159,19 +1191,6 @@ inquisitor() {
 	else
 		_silence=9
 		export _silence
-	fi
-
-	# PERFORM RUNTIME DEPENDENCIES CHECK. ISSUE WARNING FOR ALL BUT GENTOO
-	if [[ "$(awk -F '=' '/RDEP/{ print $2 }' <"${CLOCALLG}/sinprog")" == 0 ]]; then
-		_dependencies_check && sinit_flow_monitor "RDEP"
-	fi
-
-}
-
-_auto_def_silence_def() {
-	if ! echo "$@" | grep -q '\--auto=yes'; then
-		_flag_auto=1
-		export _flag_auto
 	fi
 
 	if [[ "${_silence}" == 0 ]]; then
@@ -1203,11 +1222,14 @@ _time_state() {
 			fi
 			((++k))
 		done
+
 		echo "state_name:${state_name}" > "${CLOCALLG}/states/${k}_${state_name}/main_flags"
 		echo "_flag_base:${_flag_base}" >> "${CLOCALLG}/states/${k}_${state_name}/main_flags"
+		
 		for i in "${_flags_listA[@]}"; do
 			echo "$i:${!i}" >> "${CLOCALLG}/states/${k}_${state_name}/main_flags"
 		done
+		
 		if [[ -e "${CLOCALLG}/states/${k}_${state_name}/${state_name}_enforce" ]]; then
 			rm -f "${CLOCALLG}/states/${k}_${state_name}/${state_name}_enforce"
 		fi
@@ -1216,27 +1238,32 @@ _time_state() {
 			rm -f "${CLOCALLG}/states/${k}_${state_name}/${state_name}_lawful"
 		fi
 
-		for i in "${_enforce_args[@]}"; do
-			echo "$i" >> "${CLOCALLG}/states/${k}_${state_name}/${state_name}_enforce"
-		done
+		if [[ -n "$(echo "${_enforce_args[@]}")" ]]; then
+			for i in "${_enforce_args[@]}"; do
+				echo "$i" >> "${CLOCALLG}/states/${k}_${state_name}/${state_name}_enforce"
+			done
+		fi
 
-		for i in "${_lawful_args[@]}"; do
-			echo "$i" >> "${CLOCALLG}/states/${k}_${state_name}/${state_name}_lawful"
-		done
+		if [[ -n "$(echo "${_lawful_args[@]}")" ]]; then
+			for i in "${_lawful_args[@]}"; do
+				echo "$i" >> "${CLOCALLG}/states/${k}_${state_name}/${state_name}_lawful"
+			done
+		fi
 
 		if [[ -n "${_flag_sdir}" ]]; then
 			rm -f "${CLOCALLG}/states/${k}_${state_name}/doscripts"
-			if [[ "${CLOCALLG}/doscripts" ]]; then
+			if [[ "$(ls "${CLOCALLG}/doscripts")" ]]; then
 				cp "${CLOCALLG}/doscripts"  "${CLOCALLG}/states/${k}_${state_name}"
 			fi
 		fi
-		cp -r "${CCONFDIR}" "${CLOCALLG}/states/${k}_${state_name}"
-	fi
 
-	_e_report_back "==========================================================================================="
-	_e_report_back "State has been saved. To refer at this state in the future, use --time-warp=[state's mark]"
-	_e_report_back "==========================================================================================="
-	exit 0
+		cp -r "${CCONFDIR}" "${CLOCALLG}/states/${k}_${state_name}"
+	
+		_e_report_back "==========================================================================================="
+		_e_report_back "State has been saved. To refer at this state in the future, use --time-warp=[state's mark]"
+		_e_report_back "==========================================================================================="
+		exit 0
+	fi
 }
 
 # TIME WARP
@@ -1245,7 +1272,7 @@ _warping_time() {
 		# EXPORT STORED CONFIG.D LOCATION
 		CCONFDIR="${_flag_time_warp}/config.d"
 		export CCONFDIR
-		ls "${_flag_time_warp}/doscripts"
+				
 		if [[ -e  "${_flag_time_warp}/doscripts" ]]; then
 			_flag_sdir=0
 			cp "${_flag_time_warp}/doscripts"  "${CLOCALLG}/doscripts"
@@ -1261,27 +1288,32 @@ _warping_time() {
 		done < <(cat "${_flag_time_warp}/main_flags" | grep '_')
 		
 		for i in "${_flags_listA[@]}"; do
-		if [[ "$(echo ${!i})" == 0 ]]; then
-			_flags_stagea+=("${i}")
-		fi
+			if [[ "$(echo ${!i})" == 0 ]]; then
+				_flags_stagea+=("${i}")
+			fi
 		done
 
 		# EXPORT ENFORCE SAVED ARGS
-		_enforce_args=()
-		while read -r s; do
-			_enforce_args+=("${s}")
-		done < <(cat "${_flag_time_warp}/${state_name}_enforce")
+		if [[ -e "${_flag_time_warp}/${state_name}_enforce" ]]; then
+			_enforce_args=()
+			while read -r s; do
+				_enforce_args+=("${s}")
+			done < <(cat "${_flag_time_warp}/${state_name}_enforce")
+	
+			export _enforce_args
+		fi
 
 		# EXPORT LAWFUL SAVED ARGS
-		_lawful_args=()
-		while read -r s; do
-			_lawful_args+=("${s}")
-		done < <(cat "${_flag_time_warp}/${state_name}_lawful")
+		if [[ -e "${_flag_time_warp}/${state_name}_lawful" ]]; then
+			_lawful_args=()
+			while read -r s; do
+				_lawful_args+=("${s}")
+			done < <(cat "${_flag_time_warp}/${state_name}_lawful")
+		
+			export _lawful_args
+		fi
 
-		export _enforce_args
-		export _lawful_args
-
-		_auto_def_silence_def "$@"
+		_auto_def_silence_def "$@" "${_flags_stagea[@]}"
 
 		_flags_stagea+=("${_flag_base}")
 		echo "base:$_flag_base"
@@ -1289,7 +1321,11 @@ _warping_time() {
 		echo "sdir:$_flag_sdir"
 		echo "sdir_path:$_flag_sdir_path"
 
+		# MAKE CHECKS AS DESCRIBED IN WITCH HUNT
+		witch_hunt "$@"
+		
 		source "${CWORKDIR}/scripts/sinit" "${_flags_stagea[@]}"
+		exit 0
 	fi
 }
 
@@ -1297,7 +1333,7 @@ warp() {
 	# DIE IF PP ARE NULL
 	inspector "$@"
 
-	# FILTER AND EXPORT ALL FLAGS AND ARGUMENTS. DIE UNLESS CONDITIONS ARE EXACT
+	# FILTER AND EXPORT ALL FLAGS AND ARGUMENTS. DIE UNLESS CONDITIONS ARE TRUE
 	librarium "$@"
 
 	# STAGE A & B
@@ -1382,6 +1418,68 @@ warp() {
 	fi
 
 	# STAGE C
+}
+
+_clean_target() {
+	inspector "$@"
+	[[ -z "$(echo "$@" | grep 'workdir')" ]] && print_inf_f
+
+	rm -f "$1/LAST_FAILED_COMMAND"
+	rm -f "$1/LAST_ACTION"
+	rm -f "$1/issues.info"
+	rm -f "$1/root/.bash*"
+}
+
+_archive_() {
+	_o_report_back "Preparing to archive the system"
+	_e_report_back "Unbinding..."
+
+	_unmount "${_flag_base}"
+
+	TARGETSTAMP="$(grep 'version_stamp' "${CCONFDIR}/system/catalyst/stage3.spec" \
+	| sed '/^#/ d' | awk -F ' ' '{ print $2 }' | sed  -e "s_\"__g")"
+
+	SUBBUILD=0
+	GVEX="${GSEVER}.${SUBBUILD}"
+	EXCLUDE="--exclude=root/* \
+	--exclude=dev/* \
+	--exclude=proc/* \
+	--exclude=run/* \
+	--exclude=sys/* \
+	--exclude=tmp/* \
+	--exclude=usr/portage/* \
+	--exclude=usr/src/* \
+	--exclude=usr/tmp/* \
+	--exclude=var/lock/* \
+	--exclude=var/cache/* \
+	--exclude=var/tmp/* \
+	--exclude=var/db/* \
+	--exclude=var/empty/* \
+	--exclude=var/spool/*
+	--exclude=var/log/* \
+	--exclude=var/run/* \
+	--exclude=sinit.d" \
+
+	_e_report_back "Generating name..."
+	while true; do
+		if ! ls "${CDISTDIR}/stage3-amd64-${GVEX}.tar.bz2" >/dev/null 2>&1; then
+			(cd "$1"
+			_o_report_back "Creating the stage4 tarball"
+			if [[ "${_flag_base}" == 'catalyst' ]]; then
+				eval tar -cjpP --ignore-failed-read "${EXCLUDE}" -f "${CDISTDIR}/stage3-amd64-${TARGETSTAMP}-${GVEX}.tar.bz2" . "${_flag_silence}"
+			elif [[ "${_flag_base}" == 'precomp' ]]; then
+				eval tar -cjpP --ignore-failed-read "${EXCLUDE}" -f "${CDISTDIR}/stage3-amd64-prc-${GVEX}.tar.bz2" . "${_flag_silence}"
+			fi
+			) \
+			&& { _o_report_back "Archived" && echo -e "\e[34mYou can find your system @ ${CDISTDIR}\e[0m"
+			echo -e "\e[34mWith version extension: ${GVEX}\e[0m"; } \
+			|| die "Failed"
+			break
+		else
+			GVEX="${GSEVER}.${SUBBUILD}"
+			((++SUBBUILD))
+		fi
+	done
 }
 
 _do_rs() {
