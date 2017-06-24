@@ -29,7 +29,7 @@ prompt, then -sn should be used.
 Warning: This option uses force on every action and ignores any workdone. For more safe approach, see enforce.
 .fi
 .TP
-\fB\-\-lawful-good=partX\fR
+\fB\-\-lawful-good\fR \fI[="Hook Points"]
 This option instructs gse to automatically say no to a completed part. For example, if there has been
 already a successful system build and one wishes to reconfigure all parts but one, say apply new changes,
 then he could simply start gse with --lawful-good=apply-new. This command can be used multiple times,
@@ -42,7 +42,7 @@ To make gse passive for everything, simply do: gse --lawful-good=all. This optio
 the work done and sign it.
 .fi
 .TP
-\fB\-\-enforce=x\fR
+\fB\-\-enforce\fR \fI[="Hook Points"]\fR
 See --lawful-good, for examples. The only difference is that this option instructs gse to use force on the
 target part instead of being passive. Note that --enforce=all, implies --force-new.
 .fi
@@ -53,7 +53,7 @@ all the configuration files, flags and their arguments for a given build. This s
 and always will reproduce the same output, given no unexpected issues pupup during the process.
 .fi
 .TP
-\fB\-\-time-warp=N\fR
+\fB\-\-time-warp\fR \fI[=N]\fR
 Time warp enables time states. If this and only this option is passed on gse, then gse will search for the inidcated
 state, export it and initiate the process.
 .fi
@@ -81,7 +81,7 @@ go controller free, hence no stateless.
 This option enables/disables the gse interactive mode. By default it's on.
 .fi
 .TP
-\fB\-\-base\fR \fB\-b\fR
+\fB\-\-base\fR \fB\-b\fR \fI[=catalyst/precomp]\fR
 This option instructs gse about the method that should be used for the fundations of the system to be built.
 Currently there are 2 options which gse supports. The one is 'catalyst', while the other is 'precomp'. The
 catalyst opton will initiate the functions for creating a stage3 tarball, reading the spec files. The precomp
@@ -185,6 +185,15 @@ If other states existed prior to this, then 1 is not true. To see the related ma
 .fi
 .PP
 To build a minimal system ( see --build-minimal for informations ): gse --base=catalyst --build-minimal.
+.fi
+.PP
+To build the controller, run: gse --controller. Without a =[moddir], gse will look in the default modules locations.
+For a custom location, run: gse --controller=[moddir].
+.fi
+.PP
+If you have a kernel already built and you wish to use that image instead of building a new one, start gse with:
+gse --base=catalyst --kernel=[path/to/kernel]. 
+Same holds for initramfs, gse --base=catalyst --initramfs=[path/to/image]
 .fi
 .SH "SEE ALSO"
 .nf
