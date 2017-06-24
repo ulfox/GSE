@@ -13,6 +13,8 @@ if echo "${_flag_tty}" | grep -q 'sshd'; then
 	LC_CTYPE="en_US.UTF-8"
 fi
 
+#trap ask_for_shell SIGINT
+
 # ENVIROMENTAL ECHO FOR TESTING PHASE
 echo "$@"
 
@@ -37,6 +39,22 @@ source "${CHDIR}/chinit.conf" \
 
 # CHECK POSITIONAL PARAMETERS
 inspector "$@"
+
+# EXPORT ENFORCE SAVED ARGS
+if [[ -e "${CHDIR}/array_args/enforce_args" ]]; then
+	_enforce_args=()
+	while read -r s; do
+		_enforce_args+=("${s}")
+	done < <(cat "${CHDIR}/array_args/enforce_args")
+fi
+
+# EXPORT LAWFUL SAVED ARGS
+if [[ -e "${CHDIR}/array_args/lawful_args" ]]; then
+	_lawful_args=()
+	while read -r s; do
+		_lawful_args+=("${s}")
+	done < <(cat "${CHDIR}/array_args/lawful_args")
+fi
 
 # PART C BEGINS
 _do_hs '\-gupdate' "before" "Part: Portage Update"
@@ -66,14 +84,16 @@ _sreb() {
 	_monitor_chroot_flow "REBUILD"
 }
 
-if echo "${_lawful_args[@]}" | grep -q 'grebuild'; then
-	_e_report_back "Rebuild: Lawful entry detected, proceeding..."
-else
-	if [[ "$(awk -F '=' '/REBUILD/{ print $2 }' <"${CHDIR}/chsinprog")" == 0 || -n "${_flag_force_new}" ]] || echo "${_enforce_args[@]}" | grep -q 'grebuild'; then
-		if echo "${_enforce_args[@]}" | grep -q 'grebuild'; then
-			_e_report_back "System Rebuild: Force entry detected, forcing..."
+if ! [[ "${_flag_auto}" ]]; then
+	if echo "${_lawful_args[@]}" | grep -q 'grebuild'; then
+		_e_report_back "Rebuild: Lawful entry detected, proceeding..."
+	else
+		if [[ "$(awk -F '=' '/REBUILD/{ print $2 }' <"${CHDIR}/chsinprog")" == 0 || -n "${_flag_force_new}" ]] || echo "${_enforce_args[@]}" | grep -q 'grebuild'; then
+			if echo "${_enforce_args[@]}" | grep -q 'grebuild'; then
+				_e_report_back "System Rebuild: Force entry detected, forcing..."
+			fi
+				_sreb
 		fi
-			_sreb
 	fi
 fi
 _do_hs '\+grebuild' "after" "Part: System Rebuild"
@@ -99,7 +119,7 @@ _do_hs '\+ginst' "after" "Part: Emerge requested packages"
 
 # PART G BEGINS
 _do_hs '\-grun' "before" "Part: Runlevel Configurations"
-if _call_hook_points 'RUNLEVEL' '\-grun' 'Part: Runlevel Configurations' '_runlevel_configuration' "$@"; then
+if _call_hook_points 'RUNLEVEL' 'grun' 'Part: Runlevel Configurations' '_runlevel_configuration' "$@"; then
 	_monitor_chroot_flow "RUNLEVEL"
 else
 	die "Part: Runlevel Configurations FAILED"

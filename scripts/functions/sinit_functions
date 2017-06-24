@@ -28,7 +28,7 @@ parameters_check() {
 		die "Error: verbose & interactive mode (auto=yes) can not be set at the same time"
 	fi
 
-	if [[ "$(echo "$@" | grep -q '\--quiet')" || "$(echo "$@" | grep '\-q')" ]] && ((echo "$@" | grep -q '\--verbose' || echo "$@" | grep -q '\-v')); then
+	if [[ "$(echo "$@" | grep -q '\--quiet')" || "$(echo "$@" | grep '\-q')" ]] && [[ "$(echo "$@" | grep -q '\--verbose')" || "$(echo "$@" | grep -q '\-v')" ]]; then
 		die "Error: verbose & quiet can not be set at the same time"
 	fi
 
@@ -630,39 +630,7 @@ _lcreq() {
 # CREATE ARRAY OF ENABLED ARGUMENTS
 _case_args() {
 	case "$1" in
-		gfund		)
-			_on_eargs+=("$1");;
-		gseed		)
-			_on_eargs+=("$1");;
-		gcat		)
-			_on_eargs+=("$1");;
-		gextr		)
-			_on_eargs+=("$1");;
-		gprec		)
-			_on_eargs+=("$1");;
-		gparta		)
-			_on_eargs+=("$1");;
-		gupdate		)
-			_on_eargs+=("$1");;
-		gportage	)
-			_on_eargs+=("$1");;
-		grebuild	)
-			_on_eargs+=("$1");;
-		gsnap 		)
-			_on_eargs+=("$1");;
-		gconfigure	)
-			_on_eargs+=("$1");;
-		ginst		)
-			_on_eargs+=("$1");;
-		grun		)
-			_on_eargs+=("$1");;
-		gkernel		)
-			_on_eargs+=("$1");;
-		ginitrd		)
-			_on_eargs+=("$1");;
-		gdes		)
-			_on_eargs+=("$1");;
-		gpartb		)
+		gfund|gseed|gcat|gextr|gprec|gparta|gupdate|gportage|grebuild|gsnap|gconfigure|ginst|grun|gkernel|ginitrd|gdes|gpartb|gclean		)
 			_on_eargs+=("$1");;
 		*			)
 			die "Error: $2 unknown argument $1"
@@ -671,7 +639,7 @@ _case_args() {
 
 # EXPORT ARGUMENTS
 _export_args() {
-	if [[ -z "$(echo "$1" | grep '=')" ]]; then
+	if [[ "$1" != *'='* ]]; then
 		die "Missing arguments for $2"
 	else
 		_check_args="${1#*=}"
@@ -682,7 +650,7 @@ _export_args() {
 				"gupdate" "gportage" "grebuild" "gconfigure" "ginst" "grun" "gkernel" "ginitrd" "gpartb" "gdes" "gclean")	
 
 			_on_eargs=()
-			if [[ $(echo "${_check_args}" | cut -d ',' -f 1) == $(echo "${_check_args}" | cut -d ',' -f 2) ]]; then
+			if [[ "$(echo "${_check_args}" | cut -d ',' -f 1)" == "$(echo "${_check_args}" | cut -d ',' -f 2)" ]]; then
 				j="$(echo "${_check_args}" | cut -d ',' -f 1)"
 				_case_args "$j" "$2"
 			else
@@ -699,8 +667,6 @@ _export_args() {
 					fi
 				done
 			fi
-		export _on_eargs
-		
 		fi
 	fi
 	unset _ARGARRAY
@@ -748,7 +714,7 @@ librarium() {
 				_flag_help=0
 				export _flag_help;;
 			--base*|-b* 					)
-				if [[ -z "$(echo "$1" | grep '=')" ]]; then
+				if [[ "$1" != *'='* ]]; then
 					die "Missing argument for base method"
 				else
 					_base_method="${1#*=}"
@@ -799,7 +765,7 @@ librarium() {
 				export _flag_initrd;;
 		
 			--build-controller*|-bc*	)
-				if [[ -z "$(echo "$1" | grep '=')" ]]; then
+				if [[ "$1" != *'='* ]]; then
 					die "Missing argument for controller's path"
 				else
 					_flag_controller_path="${1#*=}"
@@ -819,19 +785,19 @@ librarium() {
 				fi
 				;;
 			--auto*						)
-				if [[ -z "$(echo "$1" | grep '=')" ]]; then
+				if [[ "$1" != *'='* ]]; then
 					die "Missing = for --auto"
 				fi
 
-				if [[ "$(echo "${1#*=}")" == '' ]]; then
+				if [[ "${1#*=}" == '' ]]; then
 					die "No argument specified"
 				fi
 
-				if [[ "$(echo "${1#*=}")" == 'yes' ]]; then
+				if [[ "${1#*=}" == 'yes' ]]; then
 					_e_report_back "Automatic mode has been enabled"
 					_flag_auto=0
 					export _flag_auto
-				elif [[ "$(echo "${1#*=}")" == 'no' ]]; then
+				elif [[ "${1#*=}" == 'no' ]]; then
 					_e_report_back "Automatic mode has been disabled"
 					_flag_auto=1
 					export _flag_auto
@@ -850,14 +816,14 @@ librarium() {
 				_e_report_back "Initramfs will be excluded"
 				export _flag_minimal;;
 		
-			--enforce*					)
+			--enforce*						)
 				_export_args "$1" "enforce"
 				_enforce_args=()
 				for i in "${_on_eargs[@]}"; do
 					_enforce_args+=("$i")
 				done
 				unset _on_eargs
-				export _enforce_args
+				#_enforce_args
 				_flag_enforce=0
 				export _flag_enforce
 				_e_report_back "The following enforcer arguments have been enabled"
@@ -871,7 +837,7 @@ librarium() {
 					_lawful_args+=("$i")
 				done
 				unset _on_eargs
-				export _lawful_args
+				#_lawful_args
 				_flag_lawful=0
 				export _flag_lawful
 				_e_report_back "The following lawful arguments have been enabled"
@@ -879,11 +845,11 @@ librarium() {
 				;;
 
 			--time-warp*				)
-				if [[ -z "$(echo "$1" | grep '=')" ]]; then
+				if [[ "$1" != *'='* ]]; then
 					die "Missing = for --time-warp"
 				fi
 
-				if [[ "$(echo "${1#*=}")" == '' ]]; then
+				if [[ "${1#*=}" == '' ]]; then
 					die "No argument was given"
 				fi
 				
@@ -897,13 +863,13 @@ librarium() {
 				;;
 
 			--time-state*				)
-				if [[ "$(echo "${1#*=}")" == '' ]]; then
-					die "No name was given"
+				if [[ "${1#*--time-state}" == '' ]]; then
+					die "No option was given for time state"
 				fi
 
-				if [[ "$(echo "${1#*=}")" == '-' ]]; then
+				if [[ "${1#*--time-state}" == '-' ]]; then
 					rm -rf "${CLOCALLG}/states/$(ls "${CLOCALLG}/states" | grep "^${1#*=}_")"
-				elif [[ "$(echo "${1#*--time-state}")" == '?' ]]; then
+				elif [[ "${1#*--time-state}" == '?' ]]; then
 					_o_report_back "Time States"
 					echo -e "\e[35m$(ls "${CLOCALLG}/states")\e[0m"
 				else
@@ -925,7 +891,7 @@ librarium() {
 				_flag_mm=0
 				export _flag_mm;;
 			--sdir*)
-				if [[ -z "$(echo "$1" | grep '=')" ]]; then
+				if [[ "$1" != *'='* ]]; then
 					die "Missing argument for script's dir path"
 				else
 					_flag_sdir_path="${1#*=}"
@@ -940,19 +906,19 @@ librarium() {
 					fi
 				fi
 				
-				if [[ -z "$(echo "$2" | grep '\--do')" ]]; then
+				if [[ "${2%=*}" != '--do' ]]; then
 					die "Missing --do flag"
 				fi
 
-				if [[ -z "$(echo "$2" | grep '=')" ]]; then
+				if [[ "$2" != *'='* ]]; then
 					die "Missing --do arguments"
 				fi
 
-				if [[ -z "$(echo "$3" | grep '\-g')" ]]; then
+				if [[ "${3%=*}" != '-g' ]]; then
 					die "Missing -g flag"
 				fi
 
-				if [[ -z "$(echo "$3" | grep '=')" ]]; then
+				if [[ "$3" != *'='* ]]; then
 					die "Missing argument after -g"
 				fi
 				
@@ -1300,7 +1266,6 @@ _warping_time() {
 				_enforce_args+=("${s}")
 			done < <(cat "${_flag_time_warp}/${state_name}_enforce")
 	
-			export _enforce_args
 		fi
 
 		# EXPORT LAWFUL SAVED ARGS
@@ -1309,8 +1274,6 @@ _warping_time() {
 			while read -r s; do
 				_lawful_args+=("${s}")
 			done < <(cat "${_flag_time_warp}/${state_name}_lawful")
-		
-			export _lawful_args
 		fi
 
 		_auto_def_silence_def "$@" "${_flags_stagea[@]}"
@@ -1446,6 +1409,7 @@ _archive_() {
 	--exclude=proc/* \
 	--exclude=run/* \
 	--exclude=sys/* \
+	--exclude=boot/* \
 	--exclude=tmp/* \
 	--exclude=usr/portage/* \
 	--exclude=usr/src/* \
@@ -1455,7 +1419,7 @@ _archive_() {
 	--exclude=var/tmp/* \
 	--exclude=var/db/* \
 	--exclude=var/empty/* \
-	--exclude=var/spool/*
+	--exclude=var/spool/* \
 	--exclude=var/log/* \
 	--exclude=var/run/* \
 	--exclude=sinit.d" \
@@ -1513,7 +1477,7 @@ _call_hook_points() {
 
 	if ! echo "$@" | grep -q '_flag_auto'; then
 		if echo "${_lawful_args[@]}" | grep -q "$2"; then
-			_e_report_back "Lawful entry detected on $2, proceeding..."
+			_o_report_back "Lawful entry detected on $2, proceeding..."
 		else	
 			if [[ "$(grep "$1" "${CLOCALLG}/sinprog" | awk -F '=' '{ print $2 }')" == 0 || -n "${_flag_force_new}" ]] || echo "${_enforce_args[@]}" | grep -q "$2"; then
 				if 	[[ -n "${_flag_force_new}" ]] || echo "${_enforce_args[@]}" | grep -q "$2"; then
@@ -1531,8 +1495,68 @@ _call_hook_points() {
 			fi
 		fi
 	else
-		eval "$4" "${@:5}" || die
+		if echo "${_lawful_args[@]}" | grep -q "$2"; then
+			_o_report_back "Lawful entry detected on $2, proceeding..."
+		else
+			eval "$4" "${@:5}" || die
+		fi
 	fi
+}
+
+# SUBSHELL LOOP FUNCTION
+subshell_loop() {
+	while true; do
+		_subshell
+		_e_report_back "If you fixed the issue, say CONTINUE proceed"
+		_e_report_back "You can answer SHELL to open shell again, or call die with EXIT"
+		_e_report_back "Answer? CONTINUE/SHELL/EXIT: "
+		read -rp "Input :: <= " AANS
+		case "${AANS}" in
+			CONTINUE)
+				LOOPVAR="EXITSHELL"
+				break;;
+			SHELL)
+				LOOPVAR="SHELL"
+				;;
+			EXIT)
+				die "Exit Requested";;
+		esac
+	done
+}
+
+_trap_sigs() {
+	ask_for_shell "External termination signal detected"
+}
+
+# CALL SHELL FUNCtiON
+ask_for_shell() {
+	while true; do
+		_e_report_back "$*"
+		_e_report_back "Do you wish to call shell function and fix the issues manually?"
+		_e_report_back "Answer SHELL/BREAK "
+		read -rp "Input :: <= " YN
+		case "$YN" in
+			SHELL)
+				sinit_master_loop "SHELL"
+				break;;
+			BREAK)
+				break;;
+		esac
+	done
+}
+
+# SINIT MASTER LOOP FUNCTION. CONTROLLS LOOP SUBSHELL
+sinit_master_loop() {
+	inspector "$@"
+	LOOPVAR="$1"
+	while true; do
+		case "${LOOPVAR}" in
+			SHELL)
+				subshell_loop;;
+			EXITSHELL)
+				break;;
+		esac
+	done
 }
 
 # PREPARE THE BUILDERDIR AND INITIATE CHROOT, DIE IF ANYENTRY FAILS
@@ -1674,9 +1698,26 @@ _prepare_chroot() {
 		cp -r "${CLOCALLG}/doscripts" "$1/sinit.d/cscripts/doscripts"
 	fi
 
+		mkdir -p "$1/sinit.d/array_args"
+
+	if [[ -n "${_enforce_args}" ]]; then
+		rm -f "$1/sinit.d/array_args/enforce_args"
+	
+		for i in "${_enforce_args[@]}"; do
+			echo "$i" >> "$1/sinit.d/array_args/enforce_args"
+		done
+	fi
+
+	if [[ -n "${_lawful_args}" ]]; then
+		rm -f "$1/sinit.d/array_args/lawful_args"
+		for i in "${_lawful_args[@]}"; do
+			echo "$i" >> "$1/sinit.d/array_args/lawful_args"
+		done
+	fi
+
 	echo -e "\e[34mChrooting at new system\e[0m"
-	sleep 0.5
 	# PASS ALL PP AND INITIATE CHROOT
+	#"enforce:${_enforce_args[@]}" "lawful:${_lawful_args[@]}"
 	if chroot "$1" "sinit.d/chroot_init" "$@"; then
 		_o_report_back "Chroot staged finished"
 	else

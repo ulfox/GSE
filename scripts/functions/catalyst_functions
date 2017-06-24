@@ -252,8 +252,8 @@ _stagex() {
 		cat "${CCONFDIR}/system/catalyst/stage$2.spec" | sed '/^#/ d' | sed '/^\s*$/d' \
 		> "${CATDIR}/.stage$2.spec"
 
-		catalyst -c "${CCONFDIR}/system/catalyst/catalyst.conf" -f "${CATDIR}/.stage$2.spec" \
-		&& pass || die "Failed"
+		#catalyst -c "${CCONFDIR}/system/catalyst/catalyst.conf" -f "${CATDIR}/.stage$2.spec" \
+		#&& pass || die "Failed"
 	else
 		die "Could not locate stage$2-${ARCH}-${TARGETSTAMP}.tar.bz2"
 	fi
