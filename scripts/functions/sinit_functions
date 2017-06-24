@@ -711,6 +711,7 @@ librarium() {
 	_flag_auto=''
 	_flag_time_warp=''
 	_flag_time_state=''
+	_flag_check=0
 	while true; do
 		[[ -z "$*" ]] && return 0
 		case "$1" in
@@ -890,6 +891,11 @@ librarium() {
 					_flag_time_state=0
 					state_name="${1#*=}"
 				fi
+				;;
+
+			--no-checks					)
+				_flag_check=1
+				export _flag_check
 				;;
 
 			--verbose|-v 				)
@@ -1104,20 +1110,22 @@ inquisitor() {
 	parameters_check "$@"
 
 	# PROMPT FOR FLAGS
-	while true; do
-		_e_report_back "===================================================================================================================="
-		_e_report_back "Do you wish to apply those and proceed?"
-		_e_report_back "Answer: Y/N "
-		read -rp "Input :: <= " YN
-		case "$YN" in
-			[yY])
-				break;;
-			[nN])
-				die "Requested exit.";;
-			*)
-				_e_report_back "Please answer Y/N "
-		esac
-	done
+	if [[ "${_flag_auto}" == 1 ]]; then
+		while true; do
+			_e_report_back "===================================================================================================================="
+			_e_report_back "Do you wish to apply those and proceed?"
+			_e_report_back "Answer: Y/N "
+			read -rp "Input :: <= " YN
+			case "$YN" in
+				[yY])
+					break;;
+				[nN])
+					die "Requested exit.";;
+				*)
+					_e_report_back "Please answer Y/N "
+			esac
+		done
+	fi
 
 	# PROMPT FOR CONTINUE IF FORCE_NEW IS PRESENT
 	if [[ -n "$(echo ${_flag_force_new})" ]]; then
@@ -1145,7 +1153,9 @@ inquisitor() {
 	fi
 
 	# MAKE CHECKS AS DESCRIBED IN WITCH HUNT
-	witch_hunt "$@"
+	if [[ "${_flag_check}" == 0 ]]; then
+		witch_hunt "$@"
+	fi
 
 	# PERFORM RUNTIME DEPENDENCIES CHECK. ISSUE WARNING FOR ALL BUT GENTOO
 	if [[ "$(awk -F '=' '/RDEP/{ print $2 }' <"${CLOCALLG}/sinprog")" == 0 ]]; then
@@ -1275,6 +1285,7 @@ _warping_time() {
 
 		# EXPORT ENFORCE SAVED ARGS
 		if [[ -e "${_flag_time_warp}/${state_name}_enforce" ]]; then
+			_flag_enforce=0
 			_enforce_args=()
 			while read -r s; do
 				_enforce_args+=("${s}")
@@ -1284,6 +1295,7 @@ _warping_time() {
 
 		# EXPORT LAWFUL SAVED ARGS
 		if [[ -e "${_flag_time_warp}/${state_name}_lawful" ]]; then
+			_flag_lawful=0
 			_lawful_args=()
 			while read -r s; do
 				_lawful_args+=("${s}")
@@ -1293,14 +1305,42 @@ _warping_time() {
 		_auto_def_silence_def "$@" "${_flags_stagea[@]}"
 
 		_flags_stagea+=("${_flag_base}")
-		echo "base:$_flag_base"
-		echo "auto:$_flag_auto"
-		echo "sdir:$_flag_sdir"
-		echo "sdir_path:$_flag_sdir_path"
+		
+		_o_report_back "Warp time is enabled"
+		_o_report_back "Selected state holds"
+
+		_e_report_back "base:$_flag_base"
+
+		if [[ "${_flag_auto}" ]]; then
+			_e_report_back "auto:$_flag_auto"
+		fi
+		
+		if [[ "${_flag_silence}" == 0 ]]; then
+			_e_report_back "Silence is enabled"
+		elif [[ "${_flag_silence}" == 1 ]]; then
+			_e_report_back "Silence is disabled"
+		fi
+
+		if [[ "${_flag_sdir}" ]]; then
+			_e_report_back "sdir:$_flag_sdir"
+			_e_report_back "sdir_path:$_flag_sdir_path"
+		fi
+
+		if [[ "${_flag_enforce}" ]]; then
+			_e_report_back "Enforce entries"
+			_e_report_back "${_enforce_args[@]}"
+		fi
+
+		if [[ "${_flag_lawful}" ]]; then
+			_e_report_back "Lawful entries"
+			_e_report_back "${_lawful_args[@]}"
+		fi
 
 		# MAKE CHECKS AS DESCRIBED IN WITCH HUNT
-		witch_hunt "$@"
-		
+		if [[ "${_flag_check}" == 0 ]]; then
+			witch_hunt "$@"
+		fi
+
 		source "${CWORKDIR}/scripts/sinit" "${_flags_stagea[@]}"
 		exit 0
 	fi
