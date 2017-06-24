@@ -2,7 +2,7 @@
 {{Note|This project is currently under development. The page itself aims to provide the basic concepts and requirements for the project
 when it is done in the future.}}
 
-'''GSE''': Gentoo Stateless Environment is a set of scripts and configuration files that take special advantage of catalyst and other
+'''GSE: Gentoo Stateless Environment''' is a set of scripts and configuration files that take special advantage of catalyst and other
 Gentoo features for the purpose of creating a Gentoo system that can function under stateless conditions.
 
 The project aims to automate the building and configuration process of a Gentoo system that will produce a flexible system that can be transformed to anything one wishes. Because the foundation is Gentoo, such a flexibility can easily be achieved and the process itself represents a way of unlimited possibilities and configurations, since Gentoo provides the means for those. 
@@ -20,7 +20,10 @@ The project aims to automate the building and configuration process of a Gentoo 
 
 To install GSE, run:
 
-{{Emerge|category/gse}}
+{{Emerge|{categpry}/gse}}
+
+{{Note|There is no ebuild in the portage tree yet, hence the category is not defined. The only way to use the project for now, is by 
+directly git cloning it, however that is only recommended for testing and review, since it lacks many features.}}
 
 To use distcc and ccache, one has to enable those flags, otherwise gse will read no option regarding distcc/ccache, with exeption the catalyst part which is independent of the process.
 
@@ -77,7 +80,7 @@ The build can be initiated either from the main menu: ''System menu -> Build a s
 The ''--base'' flag is the only flag with its argument, required to initiate the building sequence, everything else is considered optional.
 
 Among the supported flags and arguments, the most famous are: --lawful-good="arguments" and --enforce="arguments". Both flags use the 
-same arguments, which are simply hooks in the build sequence. They start with a [g] followed by a three letters regarding the part. Example: gcat refers to catalyst part inside the StageA, while the gupd refers to the portage update part inside the {chroot} StageB. 
+same arguments, which are simply hooks in the build sequence. They start with a [g] followed by a name regarding the part. Example: gcat refers to catalyst part inside the StageA, while the gupdate refers to the portage update part inside the {chroot} StageB. Please see man 1 gse for more parts.
 
 The differences of --lawful-good and --enforce are two. First one is that they enable opposite functions. That is, the --lawful-good flag will automatically say 'pass' to the referred hook point (excluding it from the process) while --enforce flag will automatically say yes, and additionally use force on the referred part. The second difference is that --lawful-good suppresses --enforce, meaning that if someone uses:
 {{RootCmd|gse --base{{=}}catalyst --lawful-good{{=}}gparta --enforce{{=}}gparta}}
@@ -99,35 +102,86 @@ If one wishes to use distcc with pump mode, then the command becomes
 
 ==== Requested Commands ====
 
-Gse provides a way to execute user specific commands during the each part. If ''--do'' flag is passed, then a set of functions is enabled that ''take over the indicated parts''.
+Gse provides a way to source custom scripts, before and after each part. If ''--sdir'' flag is passed, then a set of functions that injects custom scripts between parts is enabled.
 
-For example someone could wish to execute cmd0,cmd1,cmd2 commands, exactly after the portage update has finished, inside the chroot stage.
-To do this, run:
-{{RootCmd|gse --base{{=}}catalyst --do{{==}}</path/to/file> -g{{=}}<&plusmn;hook point>}}
+The basic syntax is:
+{{RootCmd|gse --base{{=}}catalyst --sdir{{=}}"/path/to/scrip's/dir" --do{{=}}"scriptX<sub>0</sub>,scriptX<sub>1</sub>,...,scriptX<sub>n</sub> scriptN<small>0</small>,..." -g{{=}}"&plusmn;hookX<sub>0</sub>,...,&plusmn;hookX<sub>n</sub>"}}
 
-The file can be any file with text. The file will be read line by line and commends will be excluded. Each line is considered a command.
-{{RootCmd|cat <path/to/mycommands>|output=<pre># Comment for cmd0
-cmd0
-# Comment for cmd1
-# Some extra comments
-cmd1
-# Many comments
-# .
-# .
-# .
-cmd2</pre>}}
+The custom scrip functions are enabled by --sdir. Additionally --sdir's argument is the script's directory. For the rest 2 flags, the --do exports the script's names while the -g indicates at which point those scripts will be sourced. The relation --do/-g is 1:1 between spaces and commas.
 
-The hook points are the same with the --lawful-good/--enforce arguments. Therefore for our example (after portage update), the hook point
-would be gupd with a + sign. The mines sign indicates that the command or chain of commands will be executed before the specific part is activated.
+Example:
+{{RootCmd|gse --base{{=}}catalyst --sdir{{=}}/root/myscripts --do{{=}}"script1,script2 script3 script4,script5" -g{{=}}"-gparta,-gseed,+gcat"}}
+
+In the above example, gse will search for the scripts at ''/root/myscripts'' directory. If the directory exists, and the scripts do exists too, then gse will proceed with the hook points evaluation. As stated above, the relation of script's spaces and hook point's commas, is one to one. That means that gse will source script1 and then script2 before initiating Part: A. After that, it will source script3 before initiating the network seed function. Last, gse will source script4 and then script5 after the Part: Catalyst has finished.
+The above command generates a file inside "${CLOCALLG}/doscripts".
+{{RootCmd|cat "${CLOCALLG}/doscripts"|output=<pre># Requested Scripts
+# SCRIPT'S PATH
+SCP:/root
+# Hook:Script
+-gparta:script1
+-gparta:script2
+-gseed:script3
++gcat:script4
++gcat:script5
+</pre>}}
+
+As we can see, each script is related to a hook point, exactly the way it's described above.
+''The hook points are the same with the --lawful-good/--enforce arguments, but with the extra &plusmn; infront.''
+
+{{Note|The order in which the scripts are given, is the order in which they are executed in the indicated hook point.}}
+
+Looking inside the ${sdir}.
+{{RootCmd|ls /root/myscripts|output=<pre>script1
+script2
+script3
+script4
+script5
+</pre>}}
+
+The script files can be any script that can be sourced, however it is recommended to stay with bash, since it's the one supported by this project.
 
 This feature is probably one of gse most important features, since it can transform gse from a predetermined building process, to a completely different process.
 
-The next example will further reveal how strong this feature can be.
-{{RootCmd|gse --base{{=}}catalyst --do{{=}}"file0,file1,file2" -g{{=}}"-gupd,-gins,-gcon" --lawful-good{{=}}"gupd,gins,gcon"}}
+The next example will further illustrate the importancy of this feature.
+{{RootCmd|gse --base{{=}}catalyst --sdir{{=}}/root/myscripts --do{{=}}"script1,script2 script3 script4,script5" -g{{=}}"-gcat,-gextr,+gupdate" --lawful-good{{=}}"gcat,gextr,gupdate"}}
 
-What is happening here is that, gse is instructed to automatically pass the portage update, installation and configuration parts. At the same time gse is instructed to execute the commands in file0 at the portage update part, the commands in file1 at the installation part and last the commands from file 2 at the configuration part.
+What is happening here is that, gse is instructed to automatically pass Catalyst, Extraction and Portage Update parts. At the same time, those script's will be sourced in the given order at the indicated hook points.
 
-Each of these commands could source other scripts, and the customization can go on and on. You can even go completely gse building process free while only using the hook points that are provided.
+Each of these scripts could source other scripts, and the customization can go on and on. You can even go completely gse building process free while only using the hook points that are provided.
+
+==== Time Warp ====
+
+Time warp is function that controls warp function. The warp function is the main function which initiates the building process. This function is responsible for almost all the processes, since everything is either initiated by it or initiated by its child. Most common actions are: making system checks (check connectivity, check disk space, check process priority, check for ssh (tmux/screen) connections, reading, filtering and exporting input parameters.
+
+Each time warp is initiated, it expects to read some options with arguments. For given options, warp enables or disables internal flags and initiates the process. It does not matter if warp is initiated from the main menu or from the command line directly, what matters is that the parameters it reads, must comply with certain conditions and completely specify a given process line. That is, given inputs must specify all the steps from Stage: A to Stage: C. If either one of those conditions is not satisfied, warps terminates the main script.
+
+This process works quite fine, however if one wishes to run again a process with exactly the same output, then the same flags, arguments and configurations files must be present. But, what if the configuration files have been altered, or the process must be run multiple times? Here is where time warp comes in. Time warp is a function that reads all parameters and configuration files on a given run, and saves them as a complete state. That state holds all the information required by warp to pass the mentioned conditions and initiate exactly a clone process. 
+
+However gse wont save a new state each time it is initiated. To save a state, one must run:
+{{RootCmd|gse --base{{=}}"..." --option1 --option2 ... --time-state{{=}}"state-name"}}
+
+To view the saved states, run:
+{{RootCmd|gse --time-state?|output=<pre>1:first_state
+2:minimal
+3:test_build
+</pre>}}
+
+To delete a state, run:
+{{RootCmd|gse --time-state{{=}}-N}}
+
+While to initiate a state, run:
+{{RootCmd|gse --time-warp{{=}}N}}
+Where N is the number related with the saved state from the --time-state? output.
+
+==== Verbosity ====
+
+Gse controls the output in three ways. First one is the default setting and indicates the normal mode. Stdout and stderr flow, is not filtered at all. You will get exactly the same if you had run all gse code in a bash interpreter without an filter.
+
+The second option is the --verbose/-v option. This option will use set -x option on all running scripts. Because of the messy output, this option should be enabled only for debugging issues.
+
+The last and third option is the --quiet/-q option. This option enables the global silence flag. Given this, almost all commands are replaced with simple text that holds information for the current phase. For example when extraction is taking place, one would see "Extracting tarball", or when portage update is taking place, the indicated message would be "Updating Portage".
+
+{{Note|Verbose can not run with interactive mode. This is because most of the interactive text is lost during the verbose output.}}
 
 ==== Stage A ====
 
@@ -138,13 +192,13 @@ done, extraction sub-part is enabled and a "${CDISTDIR}/workdir-catalyst" is cre
 
 ===== PART: B Preparing to enter the new system =====
 
-Here, the chroot preparation function is enabled. This function create all the mount points required for the chroot process, copy the files required by the chroot scripts, copy extra files that are indicated inside the ''inject-custom'' configuration file and last pass all the parameters required for StageB before chrooting happens.
+Here, the chroot preparation function is enabled. This function creates all the mount points required for the chroot process, copies the files required by the chroot scripts, copies extra files that are indicated inside the ''inject-custom'' configuration file and last passes all the parameters required for StageB before chrooting happens.
 
 ==== Stage B ====
 
 ===== Part: C Syncing Portage =====
 
-Chroot has happen, and the chroot_init script has been enabled. This part read the imported environmental variables and proceeds with probably the most important part of the script, updating portage.
+Chroot has happen, and the chroot_init script has been enabled. This part reads the imported environmental variables and proceeds with probably the most important part of the script, updating portage.
 
 ===== Three Control Functions =====
 
@@ -162,7 +216,7 @@ This part is a sub-part of Part: C. Here the only entries worth mentioning are t
 
 ====== The GSE Profile ======
 
-The GSE profile is a custom experimental profile. The aim of the profile is to collect useful flags and packages for aiding systems intended to be used on Research labs and University computer labs. For more details about the flags and the packages it enables, see 
+The GSE profile is a custom experimental profile. The aim of the profile is to collect useful flags and packages for aiding systems intended to be used on Research and University computer labs. For more details about the flags and the packages it enables, see 
 man 5 gse (GSE Profile section).
 
 ===== Part: D Rebuilding the system =====
@@ -171,7 +225,7 @@ This part simply prompts for a ''emerge -eq @system'' command, in case the preco
 
 ===== Part: E Configuration =====
 
-This part enables the functions to read all and apply all configuration files. Locales, timeszone, consolefonts, fstab entries, ssh-pub keys and more configuration files under /etc are configured here.
+This part enables the functions to read and apply all configuration files. Locales, timeszone, consolefonts, fstab entries, ssh-pub keys and more configuration files under /etc are configured here.
 
 ===== Part: F Emerge Essentials =====
 
@@ -208,7 +262,7 @@ The generated archive is marked as completed and a prompt asks to either mark it
 
 === The Controller ===
 
-The controller consists from a set of scripts, functions and files that lie inside the initramfs. The concept of it, derives from the need to control and make changes to multiple systems that host the images created from the builder. By names definition, the controller is responsible making decisions before the system begins booting, that is, before the initramfs handles the control to the main system.
+The controller consists from a set of scripts, functions and files that lie inside the initramfs. The concept of it, derives from the need to control and make changes to multiple systems that host the images created from the builder. By name's definition, the controller is responsible making decisions before the system begins booting, that is, before the initramfs handles the control to the main system.
 
 The most important part of the initramfs apart from the config.d directory, which is a way of indirect server-client communication, is the _etc_misc script, which is responsible for mounting /etc as tmpfs and other entries requested from the configuration files.
 
@@ -238,6 +292,8 @@ Controller's functions {as described in man 1 gse}
 
 
 The above features can be accessed and modified, while not recommended from the controller modules. The modules are located at "$GSE/config.d/controller/modules" and are organized by categories.
+
+{{Note|Those modules are dracut modules intended to be used by dracut. Actually are written for dracut. Therefore they should not be confused with kernel modules.}}
 
 ==== Boot Process ====
 
@@ -273,4 +329,3 @@ After the configuration has finished, a clean up script is sourced. This script 
 ===== Mount Directories =====
 
 This is the last and final phase. The last script is sourced, which mounts /etc, /var/log, /tmp and any other indicated directories, as tmpfs and finally resumes the process of the initramfs.
-
