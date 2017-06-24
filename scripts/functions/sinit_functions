@@ -146,18 +146,31 @@ help_f() {
 	echo "Distributed under the GNU General Public License, V2"
 	echo "usage: gse [OPTIONS] / "
 	echo
-	echo "-fe, 	--fetch-new"
-	echo "-fcn,	--force-new"
-	echo "-lg,	--lawful-good"
-	echo "-ef, 	--enforce=x"
-	echo "-h, 	--help"
-	echo "-k, 	--keep"
-	echo "-hc, 	--health-check"
-	echo "-rpn,	--replace-new"
-	echo "-nk, 	--no-kernel"
-	echo "-ni, 	--no-initramfs"
-	echo "-bc, 	--build-controller"
-	echo "-bm, 	--build-minimal"
+	echo "	--time-state[?/=state_name]		:Creates a state with the given option. Can be used from time-warp,"
+	echo "					 	 by it's state mark (^N). To view states use --time-state?"
+	echo "					 	 and to delete states, use --time-state=-N"
+	echo
+	echo "	--time-warp=[state's mark]		:Calls a given state by it's mark (^N). The process is initiated "
+	echo "					 	 as all arguments and configurations were passed at that given time."
+	echo
+	echo "	--distcc=[on/pump]			:Enable distcc for chroot phase with on/pump entry"
+	echo "	--ccache=[on{2G}/size{G}]		:Enable ccache with on entry"
+	echo "	--auto=[yes/no]				:Enable/Disable interactive mode with yes/no"
+	echo
+	echo "-fe 	--fetch-new				:Fetch new flag, will force new downloads for portage/stage3 tarball"
+	echo "-ns	--start-new				:Enables a global force flag. Everything starts from scratch"
+	echo "-lg	--lawful-good 	[hook point] 		:Stays passive on give part. Passive parts are skipped"
+	echo "-ef 	--enforce 	[hook point]		:Force a given part. If work is done, it will be purged."
+	echo "-h 	--help					:Call help menu and exit"
+	echo "-k 	--keep					:Keep flag. This flag saves old work to /var/tmp/gse/work-date"
+	echo "-hc 	--health-check				:Check for modified/corrput/lost files"
+	echo "-rpn	--replace-new				:Replaces all core scripts and configuration files with default"
+	echo "-nk 	--[no]-kernel={kernel_image}		:Enable/disable kernel build. You can also give a prebuild kernel"
+	echo "-ni 	--[no]-initramfs={initrd_image}		:Enable/disable initramfs build. You can also give a prebuild image"
+	echo "-bc 	--build-controller={kernel moddir}	:This option will build the controller of gse project."
+	echo "-bm 	--build-minimal				:Builds a minimal system. It will be very close to a minimal s3 tb"
+	echo "-v 	--verbose				:Enables verbose output"
+	echo "-q 	--quiet					:Enables quiet mode. This imput enables a global silence flag."
 	echo
 }
 
@@ -674,7 +687,7 @@ _export_args() {
 
 # FLAGS AND ARGUMENTS
 librarium() {
-	_e_report_back "================================================"
+	_e_report_back "===================================================================================================================="
 	_flag_fetch=''
 	_flag_force_new=''
 	_flag_keep=''
@@ -711,8 +724,9 @@ librarium() {
 				export _flag_force_new;;
 		
 			--help|-h 					)
-				_flag_help=0
-				export _flag_help;;
+				help_f
+			_e_report_back "===================================================================================================================="
+				exit 0;;
 			--base*|-b* 					)
 				if [[ "$1" != *'='* ]]; then
 					die "Missing argument for base method"
@@ -1045,7 +1059,7 @@ witch_hunt() {
 			export _flag_tty
 		else
 			while true; do
-				_e_report_back "================================================"
+				_e_report_back "===================================================================================================================="
 				_e_report_back "It appears you are running connected via ssh session"
 				_e_report_back "It is recommended, if you haven't done yet, to stop this process"
 				_e_report_back "and start it new from a tmux or screen session."
@@ -1053,7 +1067,7 @@ witch_hunt() {
 				_e_report_back "therefore it is a good idea to have a failsafe in case of a disconnect."
 				_e_report_back "Do you wish to continue? {Not recommended}"
 				_e_report_back "Answer Y/N "
-				_e_report_back "================================================"
+				_e_report_back "===================================================================================================================="
 				read -rp "Input :: <= " YN
 				case "$YN" in 
 					[yY])
@@ -1091,7 +1105,7 @@ inquisitor() {
 
 	# PROMPT FOR FLAGS
 	while true; do
-		_e_report_back "================================================"
+		_e_report_back "===================================================================================================================="
 		_e_report_back "Do you wish to apply those and proceed?"
 		_e_report_back "Answer: Y/N "
 		read -rp "Input :: <= " YN
