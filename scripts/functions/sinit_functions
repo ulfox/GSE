@@ -893,6 +893,61 @@ librarium() {
 				fi
 				;;
 
+			--distcc*					)
+				if [[ "$1" != *'='* ]]; then
+					die "Missing = for --distcc"
+				fi
+
+				if [[ "${1#*=}" == '' ]]; then
+					die "Please select either on or pump mode."
+				fi
+
+				_flag_distcc=0
+				export _flag_distcc
+
+				if [[ "${1#*=}" == 'on' ]]; then
+					_e_report_back "Distcc enabled"
+					_opt_distcc=on
+					export _opt_distcc
+				elif [[ "${1#*=}" == 'pump' ]]; then
+					_e_report_back "Distcc: Pump mode enabled"
+					_opt_distcc=pump
+					export _opt_distcc
+				else
+					die "Unknown option"
+				fi
+				;;
+
+			--ccache*					)
+				if [[ "$1" != *'='* ]]; then
+					die "Missing = for --ccache"
+				fi
+
+				if [[ "${1#*=}" == '' ]]; then
+					die "Please select a value in G for ccache."
+				fi
+
+				if [[ -z "$(echo ${i#*=} | sed 's/[!0-9]//g')" ]]; then
+					die "Size order not specified. Please give the value in G or M"
+				fi
+
+				if [[ "${1: -1}" == 'G' ]]; then
+					:
+				elif [[ "${1: -1}" == 'M' ]]; then
+					if [[ "$(echo ${i#*=} | sed 's/[a-zA-Z]//g')" -le '500' ]]; then
+						_e_report_back "Ccache value is very low."
+					fi
+				else
+					die "Ccache value is out of expected boundaries, aborting..."
+				fi
+
+				_e_report_back "ccache has been enabled, with a value of ${1#*=}"
+				_flag_ccache=o
+				export _flag_ccache
+				_ccache_val="${1#*=}G"
+				export _ccache_val
+				;;
+
 			--no-checks					)
 				_flag_check=1
 				export _flag_check
@@ -1379,7 +1434,9 @@ warp() {
 		"_flag_auto" \
 		"_flag_silence" \
 		"_flag_verbose" \
-		"_flag_chroot_silence")
+		"_flag_chroot_silence" \
+		"_flag_ccache" \
+		"_flag_distcc")
 
 	_warping_time "$@"
 
@@ -1425,11 +1482,7 @@ warp() {
 	_flags_stagea+=("${_flag_base}")
 
 	if [[ -n "${_flag_base}" ]]; then
-		if [[ -n "${_flag_sdir}" ]]; then
 			source "${CWORKDIR}/scripts/sinit" "${_flags_stagea[@]}"
-		else
-			source "${CWORKDIR}/scripts/sinit" "${_flags_stagea[@]}"
-		fi
 	elif [[ -z "${_flag_base}" && -n "${_flag_fetch}" ]]; then
 		_call_fetch_new "$@"
 	fi
@@ -1752,18 +1805,18 @@ _prepare_chroot() {
 		cp -r "${CLOCALLG}/doscripts" "$1/sinit.d/cscripts/doscripts"
 	fi
 
-		mkdir -p "$1/sinit.d/array_args"
+	mkdir -p "$1/sinit.d/array_args"
+
+	rm -f "$1/sinit.d/array_args/enforce_args"
 
 	if [[ -n "${_enforce_args}" ]]; then
-		rm -f "$1/sinit.d/array_args/enforce_args"
-	
 		for i in "${_enforce_args[@]}"; do
 			echo "$i" >> "$1/sinit.d/array_args/enforce_args"
 		done
 	fi
 
+	rm -f "$1/sinit.d/array_args/lawful_args"
 	if [[ -n "${_lawful_args}" ]]; then
-		rm -f "$1/sinit.d/array_args/lawful_args"
 		for i in "${_lawful_args[@]}"; do
 			echo "$i" >> "$1/sinit.d/array_args/lawful_args"
 		done
