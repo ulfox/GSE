@@ -24,11 +24,11 @@ parameters_check() {
 		sleep 2
 	fi
 
-	if [[ "$(echo "$@" | grep -q '\--verbose')" || "$(echo "$@" | grep -q '\-v')" ]] && echo "$@" | grep -q '\--auto=yes'; then
-		die "Error: verbose & interactive mode (auto=yes) can not be set at the same time"
+	if [[ "$(echo "$@" | grep '\--verbose')" || "$(echo "$@" | grep '\-v')" ]] && ! echo "$@" | grep -q '\--auto=yes'; then
+		die "Error: Verbose & interactive mode can not be set at the same time. To use verbose, please set --auto=yes"
 	fi
 
-	if [[ "$(echo "$@" | grep -q '\--quiet')" || "$(echo "$@" | grep '\-q')" ]] && [[ "$(echo "$@" | grep -q '\--verbose')" || "$(echo "$@" | grep -q '\-v')" ]]; then
+	if [[ "$(echo "$@" | grep '\--quiet')" || "$(echo "$@" | grep '\-q')" ]] && [[ "$(echo "$@" | grep '\--verbose')" || "$(echo "$@" | grep '\-v')" ]]; then
 		die "Error: verbose & quiet can not be set at the same time"
 	fi
 
@@ -61,6 +61,12 @@ parameters_check() {
 	if echo "$@" | grep -q '\--build-minimal' && echo "$@" | grep -q '\--enforce' | grep -q 'ginst'; then
 		_e_report_back "Warning: --build-minimal suppresses custom package installation {ginst}"
 		sleep 2
+	fi
+}
+
+set_x() {
+	if [[ "${_flag_verbose}" ]]; then
+		set -x
 	fi
 }
 
@@ -274,8 +280,8 @@ _pseudo_check_purge(){
 	[[ -n "$(grep "dist.d/workdir-" "/proc/mounts" | awk -F ' ' '{ print $2 }')" ]] \
 	&& while true; do
 		while read -r i; do
-			eval umount -l "$i"/* "${_flag_silence}"
-			eval umount -l "$i" "${_flag_silence}"
+			eval umount -l "$i"/* >/dev/null 2>&1
+			eval umount -l "$i" >/dev/null 2>&1
 		done < <(grep 'dist.d/workdir-' "/proc/mounts" | awk -F ' ' '{ print $2 }')
 		
 		[[ -z $(grep "dist.d/workdir-" "/proc/mounts" | awk -F ' ' '{ print $2 }') ]] \
@@ -293,6 +299,7 @@ _pseudo_check_purge(){
 }
 
 _start_again() {
+	set +x
 	# PROMPT TO CONTINUE OR START ANEW
 	if ! echo "$@" | grep -q 'force'; then
 		while true; do
@@ -318,6 +325,7 @@ _start_again() {
 		&& sinit_flow_monitor "RESET" && sed -i -e 's/1/0/g' "${CWORKDIR}/scripts/chroot_scripts/chsinprog"
 	fi
 	unset YN
+	set_x
 }
 
 _extract_tarball() {
@@ -526,19 +534,22 @@ _fetch_new() {
 # KEEP DOING UMOUNT -l UNTIL THERE IS NO DIST.D/WORKDIR ENTRY ON STDOUT
 _unmount() {
 	k=0
-	[[ -n "$(grep "dist.d/workdir-"$2 "/proc/mounts" | awk -F ' ' '{ print $2 }')" ]] \
-	&& while true; do
-		while read -r i; do
-			eval umount -l "$i"/* "${_flag_silence}"
-			eval umount -l "$i" "${_flag_silence}"
-		done < <(grep 'dist.d/workdir-' "/proc/mounts" | awk -F ' ' '{ print $2 }')
+	if [[ -n "$(grep "dist.d/workdir-"$2 "/proc/mounts" | awk -F ' ' '{ print $2 }')" ]]; then
+		while true; do
+			while read -r i; do
+				eval umount -l "$i"/* "${_flag_silence}"
+				eval umount -l "$i" "${_flag_silence}"
+			done < <(grep 'dist.d/workdir-' "/proc/mounts" | awk -F ' ' '{ print $2 }')
+			
+			if [[ -z $(grep "dist.d/workdir-"$2 "/proc/mounts" | awk -F ' ' '{ print $2 }') ]]; then
+				break
+			fi
 		
-		[[ -z $(grep "dist.d/workdir-"$2 "/proc/mounts" | awk -F ' ' '{ print $2 }') ]] \
-		&& break
-		[[ "$k" -ge 20 ]] && return 1
-		((++k))
-	done
+			[[ "$k" -ge 20 ]] && return 1
+			((++k))
+		done
 	return 0
+	fi
 }
 
 # MOUNT DEV & SYS WITH RBIND THEN RSLAVE ON TARGET BUILDDIR
@@ -571,6 +582,7 @@ _mount_proc() {
 
 # THIS SCRIPT IS SOURCED AT THE BEGINING FOR CHECKING THE BUILDER'S RUNTIME DEPENDENCIES
 _lcreq() {
+	set +x
 	CRDPENDS=''
 	_am_i_root_sub() {
 		if [[ "$1" == "0" ]]; then
@@ -703,6 +715,7 @@ librarium() {
 	_flag_quiet=''
 	_flag_test=''
 	_flag_silence=''
+	_flag_chroot_silence=''
 	_flag_network=''
 	_flag_mm=''
 	_flag_do=''
@@ -906,11 +919,19 @@ librarium() {
 				export _flag_distcc
 
 				if [[ "${1#*=}" == 'on' ]]; then
-					_e_report_back "Distcc enabled"
-					_opt_distcc=on
+					if [[ "$(cat "${CCONFDIR}/system/coptions" | sed '/^#/ d' | sed '/^\s*$/d' | grep "distcc")" ]]; then
+						_e_report_back "Dist is already set from the coptions configuration file."
+						_e_report_back "Resetting..."
+					fi
+					_o_report_back "Distcc enabled"
+					_opt_distcc=normal
 					export _opt_distcc
 				elif [[ "${1#*=}" == 'pump' ]]; then
-					_e_report_back "Distcc: Pump mode enabled"
+					if [[ "$(cat "${CCONFDIR}/system/coptions" | sed '/^#/ d' | sed '/^\s*$/d' | grep "pump")" ]]; then
+						_e_report_back "Pump mode is already set from the coptions configuration file."
+						_e_report_back "Resetting..."
+					fi
+					_o_report_back "Distcc: Pump mode enabled"
 					_opt_distcc=pump
 					export _opt_distcc
 				else
@@ -941,10 +962,15 @@ librarium() {
 					die "Ccache value is out of expected boundaries, aborting..."
 				fi
 
-				_e_report_back "ccache has been enabled, with a value of ${1#*=}"
-				_flag_ccache=o
+				if [[ "$(cat "${CCONFDIR}/system/coptions" | sed '/^#/ d' | sed '/^\s*$/d' | grep "ccache")" ]]; then
+					_e_report_back "Ccache is already set from the coptions configuration file."
+					_e_report_back "Command line will overwrite the configs."
+					_e_report_back "Overwriting..."
+				fi
+				_o_report_back "Ccache has been enabled, with a value of ${1#*=}"
+				_flag_ccache=0
 				export _flag_ccache
-				_ccache_val="${1#*=}G"
+				_ccache_val="${1#*=}"
 				export _ccache_val
 				;;
 
@@ -1119,6 +1145,7 @@ witch_hunt() {
 			_flag_tty="sshd"
 			export _flag_tty
 		else
+			set +x
 			while true; do
 				_e_report_back "===================================================================================================================="
 				_e_report_back "It appears you are running connected via ssh session"
@@ -1140,6 +1167,7 @@ witch_hunt() {
 						die;;
 				esac
 			done
+			set_x
 		fi
 	fi
 
@@ -1159,6 +1187,7 @@ witch_hunt() {
 
 # INQUSITOR. CHECK FOR VERBOSITY LEVEL, CALL WITCH HUNT AND PROMPT IN CASE OF FORCE NEW
 inquisitor() {
+	set +x
 	inspector "$@"
 
 	# ISSUE PARAMETER WARRNINGS
@@ -1228,30 +1257,15 @@ _auto_def_silence_def() {
 
 	# CONFIGURE SILENCE MODE
 	if [[ "$(echo "${_flag_verbose}")" == 0 ]]; then
-		_silence=1
-		export _silence
+		# THIS SECTION ENABLES (set -x)
+		_flag_silence="2>&1 | tee -a ${CLOCALLG}/log/sinit_log"
 	elif [[ "$(echo "${_flag_quiet}")" == 0 ]]; then
-		_silence=0
-		export _silence
+		_flag_silence=">>${CLOCALLG}/log/sinit_log 2>&1"
 	else
-		_silence=9
-		export _silence
+		_flag_silence="2>&1 | tee -a ${CLOCALLG}/log/sinit_log"
 	fi
-
-	if [[ "${_silence}" == 0 ]]; then
-		_flag_silence='>/dev/null 2>&1'
-		_flag_chroot_silence=0
-		export _flag_silence
-	elif [[ "${_silence}" == 1 ]]; then
-		_flag_silence=''
-		_flag_chroot_silence=1
-		set -x
-		export _flag_silence
-	elif [[ "${_silence}" == 9 ]]; then
-		_flag_silence=''
-		_flag_chroot_silence=1
-		export _flag_silence
-	fi
+	
+	export _flag_silence
 }
 
 # TIME STATE
@@ -1433,8 +1447,6 @@ warp() {
 		"_flag_sdir" \
 		"_flag_auto" \
 		"_flag_silence" \
-		"_flag_verbose" \
-		"_flag_chroot_silence" \
 		"_flag_ccache" \
 		"_flag_distcc")
 
@@ -1567,6 +1579,7 @@ _do_hs() {
 }
 
 _repeat_part() {
+	set +x
 	while true; do
 		echo -e "\e[33m$1: Has been completed\e[0m"
 		echo "Run again? Y/N: "
@@ -1578,9 +1591,12 @@ _repeat_part() {
 				return 1;;
 			esac
 	done
+	
+	set_x
 }
 
 _call_hook_points() {
+	set_x
 
 	if ! echo "$@" | grep -q '_flag_auto'; then
 		if echo "${_lawful_args[@]}" | grep -q "$2"; then
@@ -1612,6 +1628,7 @@ _call_hook_points() {
 
 # SUBSHELL LOOP FUNCTION
 subshell_loop() {
+	set +x
 	while true; do
 		_subshell
 		_e_report_back "If you fixed the issue, say CONTINUE proceed"
@@ -1629,14 +1646,18 @@ subshell_loop() {
 				die "Exit Requested";;
 		esac
 	done
+	
+	set_x
 }
 
 _trap_sigs() {
-	ask_for_shell "External termination signal detected"
+	trap_var=0
+	export trap_var
 }
 
 # CALL SHELL FUNCtiON
 ask_for_shell() {
+	set +x
 	while true; do
 		_e_report_back "$*"
 		_e_report_back "Do you wish to call shell function and fix the issues manually?"
@@ -1650,6 +1671,8 @@ ask_for_shell() {
 				break;;
 		esac
 	done
+	
+	set_x
 }
 
 # SINIT MASTER LOOP FUNCTION. CONTROLLS LOOP SUBSHELL
@@ -1799,7 +1822,12 @@ _prepare_chroot() {
 
 	# COPY THE SCRIPTS AND DOSCRIPTS AT CHROOTDIR
 	if [[ -n "${_flag_sdir}" ]]; then
+		if [[ -e "$1/sinit.d/cscripts" ]]; then
+			rm -rf "$1/sinit.d/cscripts"
+		fi
+
 		mkdir -p "$1/sinit.d/cscripts"
+		
 		rsync -aAXhrvq "${_flag_sdir_path}/" "$1/sinit.d/cscripts/"
 		chmod +x "$1/sinit.d/cscripts/"*
 		cp -r "${CLOCALLG}/doscripts" "$1/sinit.d/cscripts/doscripts"
@@ -1815,7 +1843,21 @@ _prepare_chroot() {
 		done
 	fi
 
+	mkdir -p "$1/sinit.d/distcc_ccache"
+	if [[ -n "${_opt_distcc}" ]]; then
+		echo "${_opt_distcc}" > "$1/sinit.d/distcc_ccache/distcc_opt"
+	else
+		rm -f "$1/sinit.d/distcc_ccache/distcc_opt"
+	fi
+
+	if [[ -n "${_ccache_val}" ]]; then
+		echo "${_ccache_val}" > "$1/sinit.d/distcc_ccache/ccache_val"
+	else
+		rm -f "$1/sinit.d/distcc_ccache/ccache_val"
+	fi
+
 	rm -f "$1/sinit.d/array_args/lawful_args"
+	
 	if [[ -n "${_lawful_args}" ]]; then
 		for i in "${_lawful_args[@]}"; do
 			echo "$i" >> "$1/sinit.d/array_args/lawful_args"
@@ -1824,7 +1866,6 @@ _prepare_chroot() {
 
 	echo -e "\e[34mChrooting at new system\e[0m"
 	# PASS ALL PP AND INITIATE CHROOT
-	#"enforce:${_enforce_args[@]}" "lawful:${_lawful_args[@]}"
 	if chroot "$1" "sinit.d/chroot_init" "$@"; then
 		_o_report_back "Chroot staged finished"
 	else
