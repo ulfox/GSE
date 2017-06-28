@@ -101,7 +101,7 @@ _monitor_chroot_flow() {
 _emerge_depclear() {
 	# DEPCLEAN BEFORE APPLYING NEW PROFILE CHANGES
 	echo -e "\e[34mRunning depclean before proceeding...\e[0m"
-	if emerge --depclean >LAST_ACTION 2>&1; then
+	if eval emerge --depclean "${_chroot_silence}"; then
 		_e_report_back "Depclean completed"
 	else
 		echo "emerge --depclean" >LAST_FAILED_COMMAND
@@ -109,45 +109,72 @@ _emerge_depclear() {
 	fi
 }
 
+_log_date() {
+	for i in {1..5}; do
+		echo "==============================================================================================" >>LAST_ACTION
+	done
+	echo "LOG ENTRY $(date)" >>LAST_ACTION
+	echo >>LAST_ACTION
+}
+
 dist_ccashe_f() {
+
 	# ADD OR REMOVE DISTCC FROM THE SYSTEM
-	if [[ -n "$(echo ${CHFEATURES} | grep distcc)" ]]; then
-		if ! eix --installed sys-devel/distcc >LAST_ACTION 2>&1; then
-			echo -e "Configuring [\e[32mdistcc\e[0m]"
-			if emerge -q sys-devel/distcc >LAST_ACTION 2>&1; then
-				echo -e "[\e[34mConfigured\e[0m]"
+	if [[ "${_cflag_distcc}" ]]; then
+		if [[ ! "$(eval command -v distcc)" ]]; then
+			echo -e "Emerging [\e[32mdistcc\e[0m]"
+			if eval emerge "${emerge_opt}" sys-devel/distcc "${_chroot_silence}"; then
+				echo -e "[\e[34mEmerged\e[0m]"
 			else
 				echo "emerge -q sys-devel/distcc" >LAST_FAILED_COMMAND
 				combat_medic
 			fi
-
-			mkdir -p /etc/distcc \
-			&& cp "${CHDIR}/hosts" /etc/distcc/hosts \
-			&& echo -e "Configuring [\e[32mdistcc hosts\e[0m]" \
-			|| echo -e "Faild configuring [\e[33mdistcc hosts\e[0m]"
 		fi
 	else
-		if eix --installed sys-devel/distcc >LAST_ACTION 2>&1; then
-			echo -e "Removing [\e[32mdistcc\e[0m]" \
-			&& emerge --deselect sys-devel/distcc >LAST_ACTION 2>&1
+		if [[ "$(eval command -v distcc)" ]]; then
+			echo -e "Removing [\e[32mdistcc\e[0m]"
+			eval emerge --deselect sys-devel/distcc "${_chroot_silence}"
 			echo -e "[\e[34mRemoved\e[0m]"
 		fi
 	fi
-	
-	if [[ -n "${CCCACHESIZE}" ]]; then
-		if ! eix --installed dev-util/ccache >LAST_ACTION 2>&1; then
+
+	mkdir -p /etc/distcc
+			
+	if cp "${CHDIR}/hosts" /etc/distcc/hosts; then
+		echo -e "Configuring [\e[32mdistcc hosts\e[0m]"
+	else
+		echo -e "Faild configuring [\e[33mdistcc hosts\e[0m]"
+	fi	
+		
+	if [[ "${_cflag_distcc}" ]]; then
+		if [[ "${_cflag_distcc}" == 'normal' ]]; then
+			emerge_mode='emerge'
+		elif [[ "${_cflag_distcc}" == 'pump' ]]; then
+			emerge_mode='pump emerge'
+		else
+			die "Failed setting emerge var"
+		fi
+	else
+		emerge_mode='emerge'
+	fi
+
+	export emerge_mode
+	rc-service distccd start
+
+	if [[ "${_cflag_ccache}" ]]; then
+		if [[ ! "$(command -v ccache)" ]]; then
 			echo -e "Configuring [\e[32mccache\e[0m]"
-			if emerge -q dev-util/ccache >LAST_ACTION 2>&1; then
+			if eval "${emerge_mode}" -q dev-util/ccache "${_chroot_silence}"; then
 				echo -e "[\e[34mConfigured\e[0m]"
 			else
-				echo "emerge -q dev-util/ccache" >LAST_FAILED_COMMAND
+				echo "${emerge_mode} -q dev-util/ccache" >LAST_FAILED_COMMAND
 				combat_medic
 			fi
 		fi
 	else
-		if eix --installed dev-util/ccache >LAST_ACTION 2>&1; then
-			echo -e "Removing [\e[33mccache\e[0m]" \
-			&& emerge --deselect sys-devel/distcc >LAST_ACTION 2>&1
+		if [[ "$(command -v ccache)" ]]; then
+			echo -e "Removing [\e[33mccache\e[0m]"
+			eval emerge --deselect sys-devel/distcc "${_chroot_silence}"
 			echo -e "[\e[34mRemoved\e[0m]"
 		fi
 	fi
@@ -199,38 +226,98 @@ port_prof_f() {
 	# END OF GSE PROFILE
 }
 
-part_portage() {
+# FEATURES, DISTCC & CCACHE
+_edc_exp() {
 	# MAKE.CONF, PACKAGE.USE, FEATURES AND CCACHE
 	if rm -f /etc/portage/make.conf; then
-		rm -r /etc/portage/package.use/sysbuild >LAST_ACTION 2>&1
+		eval rm -r /etc/portage/package.use/sysbuild "${_chroot_silence}"
 		mkdir -p "/etc/portage/package.use" || exit 1
 		cp "${CHDIR}/make.conf" /etc/portage/make.conf || exit 1
 		echo -e "\e[34mConfigured\e[0m [\e[32mmake.conf\e[0m]"
 		if cp "${CHDIR}/package.use/sysbuild" "/etc/portage/package.use"; then
 			echo -e "\e[34mConfigured\e[0m [\e[32mpackage.use\e[0m]"
-			echo "FEATURES=\"\${FEATURES} ${CHFEATURES}\"" >> /etc/portage/make.conf
-			echo -e "\e[34mConfigured\e[0m [\e[32mFEATURES\e[0m]"
-			if [[ -n "${CCCACHESIZE}" ]]; then
-				echo "CCACHE=\"${CCCACHESIZE}\"" >> /etc/portage/make.conf
-				echo -e "\e[34mConfigured\e[0m [\e[32mCCACHE=${CCCACHESIZE}\e[0m]"
-			else
-				ask_for_shell "Could not configure CCACHE"
-			fi
-
-			dist_ccashe_f || return 1
-			_emerge_depclear
-			if port_prof_f; then
-				echo -e "[\e[32m*\e[0m] Creating [\e[34mprofile\e[0m]"
-			else
-				ask_for_shell "Creating GSE profile failed"
-			fi
 		else
 			echo -e "\e[31mFaild\e[0m Configuring [\e[32mpackage.use\e[0m]"
 			ask_for_shell "Could not configure package.use files"
 		fi
 	else
 		echo -e "\e[31mFaild\e[0m Configuring [\e[32mmake.conf\e[0m]"
-		exit 1
+		ask_for_shell
+	fi
+
+	if [[ "${_flag_distcc}" ]]; then
+		if [[ ! "$(echo "${CHFEATURES}" | sed '/^#/ d' | sed '/^\s*$/d' | grep 'distcc')" ]]; then
+			CHFEATURES="${CHFEATURES} distcc distcc-pump"
+		fi
+	fi
+
+	# DISTCC & CCACHE ENTRIES
+	if echo "$@" | grep -q '_flag_distcc'; then
+		if [[ "$(cat "${CHDIR}/distcc_ccache/distcc_opt")" == 'normal' ]]; then
+			_cflag_distcc="normal"
+			export _cflag_distcc
+		elif [[ "$(cat "${CHDIR}/distcc_ccache/distcc_opt")" == 'pump' ]]; then
+			_cflag_distcc="pump"
+			export _cflag_distcc
+		fi
+	elif [[ "$(cat "${CHDIR}/coptions" | sed '/^#/ d' | sed '/^\s*$/d' | grep "pump")" ]]; then
+		_cflag_distcc="pump"
+		export _cflag_distcc
+	elif [[ "$(cat "${CHDIR}/coptions" | sed '/^#/ d' | sed '/^\s*$/d' | grep "pump")" ]]; then
+		_cflag_distcc=''
+		export _cflag_distcc	
+	fi
+
+	if echo "$@" | grep -q '_flag_ccache'; then
+		_cflag_ccache="$(cat "${CHDIR}/distcc_ccache/ccache_val")"
+		export _cflag_ccache
+	elif [[ "$(cat "${CHDIR}/coptions" | sed '/^#/ d' | sed '/^\s*$/d' | grep "ccache")" ]]; then
+		tmpv="$(cat "${CHDIR}/coptions" | sed '/^#/ d' | sed '/^\s*$/d' | grep "CCCACHESIZE=")"
+		_cflag_ccache="$(echo "${tmpv#*=}")"
+		export _cflag_ccache
+	fi
+	
+	if [[ ! "$(grep "FEATURES" "/etc/portage/make.conf")" ]]; then
+		echo "FEATURES=\"\${FEATURES} ${CHFEATURES}\"" >> /etc/portage/make.conf
+		echo -e "\e[34mConfigured\e[0m [\e[32mFEATURES\e[0m]"
+	else
+		sed -i -e '/FEATURES/d' "/etc/portage/make.conf"
+		echo "FEATURES=\"\${FEATURES} ${CHFEATURES}\"" >> /etc/portage/make.conf
+		echo -e "\e[34mConfigured\e[0m [\e[32mFEATURES\e[0m]"
+	fi
+
+	if [[ "${_flag_ccache}" ]]; then
+		if [[ ! "$(grep "CCACHE" "/etc/portage/make.conf")" ]]; then
+			echo "CCACHE=\"${_cflag_ccache}\"" >> /etc/portage/make.conf
+			echo -e "\e[34mConfigured\e[0m [\e[32mCCACHE=${_cflag_ccache}\e[0m]"
+		else
+			sed -i -e '/CCACHE/d' "/etc/portage/make.conf"
+			echo "CCACHE=\"${_cflag_ccache}\"" >> /etc/portage/make.conf
+			echo -e "\e[34mConfigured\e[0m [\e[32mCCACHE=${_cflag_ccache}\e[0m]"
+		fi
+	elif [[ -n "${CCCACHESIZE}" ]]; then
+		if [[ ! "$(grep "CCACHE" "/etc/portage/make.conf")" ]]; then
+			echo "CCACHE=\"${CCCACHESIZE}\"" >> /etc/portage/make.conf
+			echo -e "\e[34mConfigured\e[0m [\e[32mCCACHE=${CCCACHESIZE}\e[0m]"
+		else
+			sed -i -e '/CCACHE/d' "/etc/portage/make.conf"
+			echo "CCACHE=\"${CCCACHESIZE}\"" >> /etc/portage/make.conf
+			echo -e "\e[34mConfigured\e[0m [\e[32mCCACHE=${CCCACHESIZE}\e[0m]"
+		fi
+	else
+		ask_for_shell "Could not configure CCACHE"
+	fi
+	
+	dist_ccashe_f "$@" || return 1
+}
+
+part_portage() {
+
+	# GSE PROFILE CREATION	
+	if port_prof_f; then
+		echo -e "[\e[32m*\e[0m] Creating [\e[34mprofile\e[0m]"
+	else
+		ask_for_shell "Creating GSE profile failed"
 	fi
 
 	if echo "$@" | grep -q 'cforce' || echo "$@" | grep -q '_flag_auto'; then
@@ -265,6 +352,9 @@ part_portage() {
 			fi
 		done
 	fi
+
+	_emerge_depclear
+
 	_apply_new "$@"
 	unset YN
 	unset ANS
@@ -274,10 +364,10 @@ part_portage() {
 _apply_new() {
 	# APPLYING PROFILE CHANGES
 	echo -e "[\e[32m*\e[0m] \e[34mApplying new profile changes\e[0m"
-	if emerge -q --update --deep --newuse --with-bdeps=y @world; then
+	if eval "${emerge_mode}" -q --update --deep --newuse --with-bdeps=y @world; then
 		_e_report_back "Changes successfully applied"
 	else
-		echo "emerge -q --update --deep --newuse --with-bdeps=y @world" > LAST_FAILED_COMMAND
+		echo "${emerge_mode} -q --update --deep --newuse --with-bdeps=y @world" > LAST_FAILED_COMMAND
 		combat_medic
 	fi
 }
@@ -293,11 +383,11 @@ build_the_world() {
 			read -rp "Input :: <= " YN
 			case "${YN}" in
 				[yY][eE][sS]|[yY])
-					if emerge -eq @world; then
+					if eval "${emerge_mode}" -eq @world; then
 						_e_report_back "World rebuild has been completed"
 						_monitor_chroot_flow "REBUILD"; break
 					else
-						echo "emerge -eq @world" > LAST_FAILED_COMMAND
+						echo "${emerge_mode} -eq @world" > LAST_FAILED_COMMAND
 						combat_medic
 					fi;;
 				[nN][oO]|[nN])
@@ -312,28 +402,28 @@ build_the_world() {
 
 
 _update_portage(){
-	if emerge -q --deep --update portage >LAST_ACTION 2>&1; then
+
+	if eval emerge "${emerge_opt} --deep --update portage" "${_chroot_silence}"; then
 		_e_report_back "Portage update was successful"
 	else
-		echo "emerge -q --deep --update portage" > LAST_FAILED_COMMAND
+		echo "${emerge_mode} ${emerge_opt} --deep --update portage" > LAST_FAILED_COMMAND
 		combat_medic
 	fi
 }
 
 _emerge_eix() {
-	if emerge -q app-portage/eix >LAST_ACTION 2>&1; then
+	if eval "${emerge_mode} ${emerge_opt} app-portage/eix" "${_chroot_silence}"; then
 		_e_report_back "Emerge of eix was successful"
 	else
-		echo "emerge -q app-portage/eix" > LAST_FAILED_COMMAND
+		echo "${emerge_mode} ${emerge_opt} app-portage/eix" > LAST_FAILED_COMMAND
 		combat_medic
 	fi
 }
 
 _update_eix() {
 	#trap exit 1 SIGHUP SIGINT SIGTERM
-	if eix-update >LAST_ACTION 2>&1; then
+	if eval eix-update "${_chroot_silence}"; then
 		_e_report_back "Update of eix was successful"
-		_monitor_chroot_flow "UPDATE"
 	else
 		echo "eix-update" > LAST_FAILED_COMMAND
 		combat_medic
@@ -342,10 +432,10 @@ _update_eix() {
 }
 
 _emerge_gentoolkit() {
-	if emerge -q app-portage/gentoolkit >LAST_ACTION 2>&1; then
+	if eval "${emerge_mode} ${emerge_opt} app-portage/gentoolkit" "${_chroot_silence}"; then
 		_e_report_back "Emerge of gentoolkit was successful"
 	else
-		echo "emerge -q app-portage/gentoolkit" > LAST_FAILED_COMMAND
+		echo "${emerge_mode} ${emerge_opt} app-portage/gentoolkit" > LAST_FAILED_COMMAND
 		combat_medic
 	fi
 }
@@ -357,29 +447,30 @@ test_stage_f() {
 _portage_subpart() {
 	mkdir -p "/etc/portage/repos.conf"
 	cp /usr/share/portage/config/repos.conf /etc/portage/repos.conf/gentoo.conf
-
+	
 	if [[ -n $(echo "$@" | grep 'catalyst') ]]; then
-		#emerge --sync >LAST_ACTION 2>&1 && pass || { echo "emerge --sync" > LAST_FAILED_COMMAND; combat_medic; }
-		if rsync -aAXhrv root@192.168.2.2:/usr/portage/ /usr/portage/ >LAST_ACTION 2>&1; then
+		if eval emerge --sync "${_chroot_silence}"; then
 			pass
 		else
-			echo "rsync -aAXhrv root@192.168.2.2:/usr/portage/ /usr/portage/" > LAST_FAILED_COMMAND
+			echo "emerge --sync" > LAST_FAILED_COMMAND
 			combat_medic
 		fi
-		env-update >LAST_ACTION 2>&1
+		eval env-update "${_chroot_silence}"
 	elif [[ -n $(echo "$@" | grep 'precomp') ]]; then
-		#emerge-webrsync >LAST_ACTION 2>&1 && pass || { echo "emerge-webrsync" > LAST_FAILED_COMMAND; combat_medic; }
-		if rsync -aAXhrv root@192.168.2.2:/usr/portage/ /usr/portage/ >LAST_ACTION 2>&1; then
+		if eval emerge-webrsync "${_chroot_silence}"; then
 			pass
 		else
-			echo "rsync -aAXhrv root@192.168.2.2:/usr/portage/ /usr/portage/" > LAST_FAILED_COMMAND
+			echo "emerge-webrsync" > LAST_FAILED_COMMAND
 			combat_medic
 		fi
-		env-update >LAST_ACTION 2>&1
+		eval env-update "${_chroot_silence}"
 	fi
 
 	echo -e "\e[34mUpdating Portage\e[0m"
 	_update_portage
+
+	_edc_exp "$@"
+
 	echo -e "\e[34mSearching for eix\e[0m"
 	if [[ -z $(command -v eix) ]]; then
 		echo -e "\e[33mCould not locate eix\e[0m"
@@ -392,12 +483,14 @@ _portage_subpart() {
 		echo -e "\e[34mUpdating eix database\e[0m"
 		_update_eix
 	fi
-	if ! eix --installed app-portage/gentoolkit >LAST_ACTION 2>&1; then
+	
+	if ! eval eix --installed app-portage/gentoolkit >/dev/null; then
 		echo -e "\e[34mEmerging app-portage/gentoolkit\e[0m"
 		_emerge_gentoolkit
 		echo -e "\e[34mRunning\e[0m \e[35mGentoo's\e[0m \e[34mReverse Dependency rebuilder\e[0m"
 		if revdep-rebuild; then
 			_e_report_back "Reverse Dependency Completed"
+			_monitor_chroot_flow "UPDATE"
 		else
 			combat_medic
 		fi
@@ -405,6 +498,7 @@ _portage_subpart() {
 		echo -e "\e[34mRunning\e[0m \e[35mGentoo's\e[0m \e[34mReverse Dependency rebuilder\e[0m"
 		if revdep-rebuild; then
 			_e_report_back "Reverse Dependency Completed"
+			_monitor_chroot_flow "UPDATE"
 		else
 			combat_medic
 		fi
@@ -428,7 +522,7 @@ _configure_timezone() {
 		echo "UTC" > /etc/timezone && echo -e "[\e[32m*\e[0m] \e[34mConfiguring Timezone\e[0m"
 	fi
 
-	if emerge --config sys-libs/timezone-data | grep "invalid" >LAST_ACTION 2>&1; then
+	if eval emerge --config sys-libs/timezone-data "${_chroot_silence}" | grep -q "invalid"; then
 		if echo "UTC" >/etc/timezone; emerge --config sys-libs/timezone-data; then
 			echo -e "[\e[32m*\e[0m] Resetting to UTC"
 		else
@@ -621,13 +715,13 @@ configure_system_f() {
 
 _emerge_default() {
 	echo -e "\e[34mEmerging\e[0m..."
-	if emerge -q --update --deep --with-bdeps=y ${INS_PARTF}; then
+	if eval "${emerge_mode} ${emerge_opt} --update --deep --with-bdeps=y" ${INS_PARTF}; then
 		_e_report_back "Emerged"
 	else
-		echo "emerge -q --update --deep --with-bdeps=y ${INS_PARTF}" > LAST_FAILED_COMMAND
+		echo "${emerge_mode} ${emerge_opt} --update --deep --with-bdeps=y ${INS_PARTF}" > LAST_FAILED_COMMAND
 		echo "###################################" >> issues.info
 		echo "Issue: emerge request packages $(date)" >> issues.info
-		echo "Command: emerge -q --update --deep --with-bdeps=y" >> issues.info
+		echo "Command: ${emerge_mode} ${emerge_opt} --update --deep --with-bdeps=y" >> issues.info
 		echo "Items --->" >> issues.info
 		echo "${INS_PARTF}" >> issues.info
 		echo "###################################" >> issues.info
@@ -638,13 +732,13 @@ _emerge_default() {
 _emerge_custom_requested() {
 	mapfile -t CMPL < <(cat "${CHDIR}/custom_pacl" | sed '/^#/ d' | sed '/^\s*$/d')
 
-	if emerge -q --deep --update "${CMPL[@]}"; then
+	if eval "${emerge_mode} ${emerge_opt} --deep --update" "${CMPL[@]}"; then
 		_e_report_back "Emerged"
 	else
-		echo "emerge -q --deep --update ${CMPL[@]}" > LAST_FAILED_COMMAND
+		echo "${emerge_mode} ${emerge_opt} --deep --update ${CMPL[@]}" > LAST_FAILED_COMMAND
 		echo "###################################" >> issues.info
 		echo "Issue: emerge request packages $(date)" >> issues.info
-		echo "Command: emerge -q --deep --update " >> issues.info
+		echo "Command: ${emerge_mode} ${emerge_opt} --deep --update " >> issues.info
 		echo "Items --->" >> issues.info
 		echo "${CMPL[@]}" >> issues.info
 		echo "###################################" >> issues.info
@@ -800,8 +894,11 @@ _runlevel_configuration() {
 # SIMPLE EMERGE RESUME
 _emerge_resume() {
 	echo -e "\e[33mResuming\e[0m"
-	emerge -qr \
-	&& return 0 || return 1
+	if eval "${emerge_mode}" -qr; then
+		return 0 
+	else
+		return 1
+	fi
 }
 
 # RECALL LAST FAILED ACTION
@@ -828,7 +925,7 @@ _resume(){
 		&& delete_fail \
 		&& return 0
 	else
-		echo "emerge -qr" > LAST_FAILED_COMMAND
+		echo "${emerge_mode} -qr" > LAST_FAILED_COMMAND
 		return 1
 	fi
 }
@@ -997,9 +1094,11 @@ _do_rs() {
 }
 
 _do_hs() {
-	if grep -q "$1" "${CHDIR}/cscripts/doscripts" && [[ -n "${_flag_sdir}" ]]; then
-		_e_report_back "Sourcing scripts $2 $3"
-		_do_rs "$1"
+	if [[ -e "${CHDIR}/cscripts/doscripts" ]]; then
+		if grep -q "$1" "${CHDIR}/cscripts/doscripts" && [[ -n "${_flag_sdir}" ]]; then
+			_e_report_back "Sourcing scripts $2 $3"
+			_do_rs "$1"
+		fi
 	fi
 }
 

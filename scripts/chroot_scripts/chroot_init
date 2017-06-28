@@ -19,14 +19,23 @@ fi
 echo "$@"
 
 if echo "$@" | grep -q '_flag_verbose'; then
-	set -x
+	emerge_opt="-v"
+	_chroot_silence="2>&1 | tee -a LAST_ACTION"
+elif echo "$@" | grep -q '_flag_quiet'; then
+	_chroot_silence=">>LAST_ACTION 2>&1"
+	emerge_opt="-q"
+else
+	emerge_opt=''
+	_chroot_silence="2>&1 | tee -a LAST_ACTION"
 fi
 
-if echo "$@" | grep -q '_flag_chroot_silence'; then
-	_chroot_silence='>/dev/null 2>&1'
-else
-	_chroot_silence=''
-fi
+export emerge_opt
+export _chroot_silence
+
+_trap_sigs() {
+	trap_var=0
+	export trap_var
+}
 
 # EXPORT IMPORTANT VARIABLES BEFORE GOING ON
 source /etc/profile && export PS1="( 'Part C: Preparing to bootstrap' ) $PS1"
@@ -36,6 +45,9 @@ source "${CHDIR}/chinit.conf" \
 && source "${CHDIR}/cfunctions" && source "${CHDIR}/coptions"|| die "Failed"
 [[ ! -e "${CHDIR}/emergeresume" ]] && echo "#####" >> "${CHDIR}/emergeresume" \
 || sed -i "/#####/d" "${CHDIR}/emergeresume"
+
+# INCLUDE LOG DATE
+_log_date
 
 # CHECK POSITIONAL PARAMETERS
 inspector "$@"
@@ -64,6 +76,11 @@ else
 	die "Part: Update Failed"
 fi
 _do_hs '\+gupdate' "after" "Part: Portage Update"
+
+# EXPORT FEATURES & DISTCC, CCACHE OPTIONS
+if echo "${_lawful_args[@]}" | grep -q "gupdate" || [[ -z "${emerge_mode}" ]]; then
+	_edc_exp "$@"
+fi
 
 # PART PORTAGE, PROFILE AND FEATURES UPDATE
 _do_hs '\-gportage' "before" "Part: Portage"
