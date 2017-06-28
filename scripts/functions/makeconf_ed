@@ -9,98 +9,105 @@ fi
 # HERE MAKE.CONF IS CONFIGURED, BY EITHER AN AUTOMATIC METHOD OR BY A GUIDED METHOD
 [[ -z "${CCONFDIR}" ]] && exit 1
 
-clear; while true; do
+clear
+while true; do
 echo "You can automatically generate the make.conf based on the machine or configure it following the guider"
 echo "Configure manually with the guider? "
-read -rp "Select an option: " SELCT
-case ${SELCT:-9} in
-[Yy][eE][sS]|[yY])
-break ;;
-[nN][oO]|[nN])
-echo "Starting automatic configuration..."
-sleep 1
-pass
-cat >"${CCONFDIR}/system/portage/make.conf" <<\EOF
-# These settings were set by the catalyst build script that automatically
-# built this stage.
-# Please consult /usr/share/portage/config/make.conf.example for a more
-# detailed example.
-EOF
-echo "CFLAGS=\"-O2 -pipe\"">>"${CCONFDIR}/system/portage/make.conf"
-cat >>"${CCONFDIR}/system/portage/make.conf" <<\EOF
-CXXFLAGS="${CFLAGS}"
-# WARNING: Changing your CHOST is not something that should be done lightly.
-# Please consult http://www.gentoo.org/doc/en/change-chost.xml before changing.
-CHOST="x86_64-pc-linux-gnu"
-# These are the USE and USE_EXPAND flags that were used for
-# buidling in addition to what is provided by the profile.
-USE="bindist"
-CPU_FLAGS_X86="mmx sse sse2"
-PORTDIR="/usr/portage"
-DISTDIR="${PORTDIR}/distfiles"
-PKGDIR="${PORTDIR}/packages"
-# MAKE OPTS
-EOF
-echo "FEATURES=\"cgroup clean-logs merge-sync parallel-fetch userfetch\"">>"${CCONFDIR}/system/portage/make.conf"
-MKCORES=$(( $(grep -c ^processor /proc/cpuinfo) + 1 ))
-echo "MAKEOPTS=\"-j${MKCORES}\"">>"${CCONFDIR}/system/portage/make.conf"
-echo "# EMERGE DEFAULT OPTS">>"${CCONFDIR}/system/portage/make.conf"
-echo "EMERGE_DEFAULT_OPTS=\"--load-average ${CORES}\"">>"${CCONFDIR}/system/portage/make.conf"
-echo "# MIRRORS">>"${CCONFDIR}/system/portage/make.conf"
-unset MKCORES
-echo "Determining optimal servers..."
+	if [[ "$1" != 'int' ]]; then
+		read -rp "Select an option: " SELCT
+	else
+		SELCT='n'
+	fi
 
-GENMIRR="$(netselect -v -t2 -s10 ftp://ftp.swin.edu.au/gentoo http://ftp.swin.edu.au/gentoo http://gd.tuwien.ac.at/opsys/linux/gentoo/ ftp://gd.tuwien.ac.at/opsys/linux/gentoo/ \
-rsync://gentoo.c3sl.ufpr.br/gentoo/ http://gentoo.c3sl.ufpr.br/ ftp://gentoo.c3sl.ufpr.br/gentoo/ http://www.las.ic.unicamp.br/pub/gentoo/ \
-ftp://ftp.las.ic.unicamp.br/pub/gentoo/ http://mirrors.telepoint.bg/gentoo/ rsync://mirrors.telepoint.bg/gentoo/ rsync://gentoo.gossamerhost.com/gentoo-distfiles/ \
-http://gentoo.gossamerhost.com ftp://mirrors.tera-byte.com/pub/gentoo http://gentoo.mirrors.tera-byte.com/ rsync://mirrors.tera-byte.com/gentoo \
-ftp://mirror.csclub.uwaterloo.ca/gentoo-distfiles/ http://mirror.csclub.uwaterloo.ca/gentoo-distfiles/ http://mirrors.163.com/gentoo/ \
-http://mirrors.xmu.edu.cn/gentoo ftp://mirrors.xmu.edu.cn/gentoo rsync://mirrors.xmu.edu.cn/gentoo/ http://gentoo.supp.name/ \
-http://ftp.fi.muni.cz/pub/linux/gentoo/ rsync://ftp.fi.muni.cz/pub/linux/gentoo/ rsync://ftp6.linux.cz/pub/linux/gentoo/ ftp://ftp.fi.muni.cz/pub/linux/gentoo/ \
-ftp://mirror.dkm.cz/gentoo/ https://mirror.dkm.cz/gentoo/ http://mirror.dkm.cz/gentoo/ rsync://mirror.dkm.cz/gentoo/ http://gentoo.mirror.web4u.cz/ \
-ftp://gentoo.mirror.web4u.cz/ ftp://trumpetti.atm.tut.fi/gentoo/ http://trumpetti.atm.tut.fi/gentoo/ rsync://trumpetti.atm.tut.fi/gentoo/ \
-ftp://ftp.free.fr/mirrors/ftp.gentoo.org/ ftp://gentoo.imj.fr/pub/gentoo/ http://gentoo.modulix.net/gentoo/ http://gentoo.mirrors.ovh.net/gentoo-distfiles/ \
-ftp://gentoo.mirrors.ovh.net/gentoo-distfiles/ ftp://mirrors.soeasyto.com/distfiles.gentoo.org/ http://mirrors.soeasyto.com/distfiles.gentoo.org/ \
-http://mirror.eu.oneandone.net/linux/distributions/gentoo/gentoo/ rsync://mirror.eu.oneandone.net/gentoo/ ftp://ftp.wh2.tu-dresden.de/pub/mirrors/gentoo \
-http://mirror.netcologne.de/gentoo/ rsync://mirror.netcologne.de/gentoo/ ftp://mirror.netcologne.de/gentoo/ http://linux.rz.ruhr-uni-bochum.de/download/gentoo-mirror/ \
-http://ftp.halifax.rwth-aachen.de/gentoo/ ftp://ftp.halifax.rwth-aachen.de/gentoo/ rsync://ftp.halifax.rwth-aachen.de/gentoo/ \
-ftp://sunsite.informatik.rwth-aachen.de/pub/Linux/gentoo http://ftp.uni-erlangen.de/pub/mirrors/gentoo ftp://ftp.uni-erlangen.de/pub/mirrors/gentoo \
-ftp://ftp-stud.hs-esslingen.de/pub/Mirrors/gentoo/ http://ftp-stud.hs-esslingen.de/pub/Mirrors/gentoo/ rsync://ftp-stud.hs-esslingen.de/gentoo/ \
-ftp://files.gentoo.gr http://files.gentoo.gr http://ftp.ntua.gr/pub/linux/gentoo/ ftp://ftp.ntua.gr/pub/linux/gentoo/ http://gentoo.aditsu.net:8000/ \
-rsync://ftp.heanet.ie/pub/gentoo/ http://ftp.heanet.ie/pub/gentoo/ ftp://ftp.heanet.ie/pub/gentoo/ http://mirror.isoc.org.il/pub/gentoo/ \
-ftp://mirror.isoc.org.il/gentoo/ ftp://ftp.iij.ad.jp/pub/linux/gentoo/ rsync://ftp.iij.ad.jp/pub/linux/gentoo/ http://ftp.iij.ad.jp/pub/linux/gentoo/ \
-rsync://ftp.jaist.ac.jp/pub/Linux/Gentoo/ http://ftp.jaist.ac.jp/pub/Linux/Gentoo/ ftp://ftp.jaist.ac.jp/pub/Linux/Gentoo/ rsync://mirror.neolabs.kz/gentoo \
-http://mirror.neolabs.kz/gentoo/pub ftp://mirror.neolabs.kz/gentoo/pub http://mirror.leaseweb.com/gentoo/ rsync://mirror.leaseweb.com/gentoo/ \
-ftp://mirror.leaseweb.com/gentoo/ ftp://ftp.snt.utwente.nl/pub/os/linux/gentoo rsync://ftp.snt.utwente.nl/gentoo http://ftp.snt.utwente.nl/pub/os/linux/gentoo \
-http://gentoo.prz.rzeszow.pl rsync://gentoo.prz.rzeszow.pl/gentoo rsync://ftp.vectranet.pl/gentoo/ http://ftp.vectranet.pl/gentoo/ ftp://ftp.vectranet.pl/gentoo/ \
-ftp://ftp.rnl.tecnico.ulisboa.pt/pub/gentoo/gentoo-distfiles/ http://ftp.rnl.tecnico.ulisboa.pt/pub/gentoo/gentoo-distfiles/ \
-rsync://ftp.rnl.tecnico.ulisboa.pt/pub/gentoo/gentoo-distfiles/ ftp://ftp.dei.uc.pt/pub/linux/gentoo/ http://ftp.dei.uc.pt/pub/linux/gentoo/ \
-http://ftp.romnet.org/gentoo/ http://mirrors.xservers.ro/gentoo/ rsync://gentoo.bloodhost.ru/gentoo-distfiles http://gentoo.bloodhost.ru/ \
-ftp://gentoo.bloodhost.ru/ ftp://xeon.gentoo.ru/mirrors/gentoo/distfiles/ ftp://mirror.yandex.ru/gentoo-distfiles/ http://mirror.yandex.ru/gentoo-distfiles/ \
-ftp://tux.rainside.sk/gentoo/ http://tux.rainside.sk/gentoo/ ftp://gentoo.wheel.sk/pub/linux/gentoo/ http://gentoo.wheel.sk/ http://ftp.daum.net/gentoo/ \
-http://ftp.kaist.ac.kr/pub/gentoo/ ftp://ftp.kaist.ac.kr/gentoo/ https://ftp.lanet.kr/pub/gentoo/ http://ftp.lanet.kr/pub/gentoo/ ftp://ftp.lanet.kr/pub/gentoo/ \
-http://gentoo-euetib.upc.es/mirror/gentoo/ http://mirror.mdfnet.se/gentoo ftp://mirror.mdfnet.se/gentoo http://mirror.switch.ch/ftp/mirror/gentoo/ \
-ftp://mirror.switch.ch/mirror/gentoo/ ftp://ftp.twaren.net/Linux/Gentoo/ http://ftp.twaren.net/Linux/Gentoo/ http://ftp.linux.org.tr/gentoo/ \
-rsync://ftp.linux.org.tr/gentoo-distfiles/ ftp://ftp.linux.org.tr/gentoo/ ftp://mirror.bytemark.co.uk/gentoo/ http://mirror.bytemark.co.uk/gentoo/ \
-rsync://mirror.bytemark.co.uk/gentoo/ http://mirrors.evowise.com/gentoo/ http://mirror.qubenet.net/mirror/gentoo/ ftp://ftp.mirrorservice.org/sites/distfiles.gentoo.org/ \
-http://www.mirrorservice.org/sites/distfiles.gentoo.org/ rsync://rsync.mirrorservice.org/distfiles.gentoo.org/ http://gentoo.iteam.net.ua/ \
-http://gentoo.mirrors.easynews.com/linux/gentoo/ rsync://rsync.gtlib.gatech.edu/gentoo ftp://ftp.gtlib.gatech.edu/pub/gentoo http://www.gtlib.gatech.edu/pub/gentoo \
-ftp://ftp.ussg.iu.edu/pub/linux/gentoo ftp://lug.mtu.edu/gentoo/ http://lug.mtu.edu/gentoo/ ftp://gentoo.netnitco.net/pub/mirrors/gentoo/source/ http://gentoo.netnitco.net \
-http://gentoo.osuosl.org/ http://gentoo.mirrors.pair.com/ ftp://gentoo.mirrors.pair.com/ ftp://mirrors.rit.edu/gentoo/ rsync://mirrors.rit.edu/gentoo/ \
-http://mirrors.rit.edu/gentoo/ ftp://mirror.iawnet.sandia.gov/pub/gentoo/ http://mirror.iawnet.sandia.gov/gentoo/ http://gentoo.mirrors.tds.net/gentoo \
-http://mirror.lug.udel.edu/pub/gentoo/ ftp://cosmos.illinois.edu/pub/gentoo/ http://cosmos.illinois.edu/pub/gentoo/ http://gentoo.cs.uni.edu/ \
-rsync://gentoo.cs.uni.edu/gentoo-distfiles http://mirror.usu.edu/mirrors/gentoo/ \
-| awk -F ' ' '{ print $2 }' 2>/dev/null)" \
-&& pass || { _e_report_back "There was a problem automatically generating the servers."
-echo "Please use manually: mirrorselect -i -o >> {CCONFDIR}/system/portage/make.conf"; }
+	case ${SELCT} in
+		[Yy][eE][sS]|[yY])
+			break ;;
+		[nN][oO]|[nN])
+			echo "Starting automatic configuration..."
 
-echo "GENTOO_MIRRORS=\"${GENMIRR}\"" >>"${CCONFDIR}/system/portage/make.conf"
-unset GENMIRR
-unset CORE
-exit 0;;
-*)
-clear;;
-esac
+			cat >"${CCONFDIR}/system/portage/make.conf" <<\EOF
+			# These settings were set by the catalyst build script that automatically
+			# built this stage.
+			# Please consult /usr/share/portage/config/make.conf.example for a more
+			# detailed example.
+EOF
+
+			echo "CFLAGS=\"-O2 -pipe\"">>"${CCONFDIR}/system/portage/make.conf"
+			cat >>"${CCONFDIR}/system/portage/make.conf" <<\EOF
+			CXXFLAGS="${CFLAGS}"
+			# WARNING: Changing your CHOST is not something that should be done lightly.
+			# Please consult http://www.gentoo.org/doc/en/change-chost.xml before changing.
+			CHOST="x86_64-pc-linux-gnu"
+			# These are the USE and USE_EXPAND flags that were used for
+			# buidling in addition to what is provided by the profile.
+			USE="bindist"
+			CPU_FLAGS_X86="mmx sse sse2"
+			PORTDIR="/usr/portage"
+			DISTDIR="${PORTDIR}/distfiles"
+			PKGDIR="${PORTDIR}/packages"
+			# MAKE OPTS
+EOF
+
+			echo "FEATURES=\"cgroup clean-logs merge-sync parallel-fetch userfetch\"">>"${CCONFDIR}/system/portage/make.conf"
+			MKCORES=$(( $(grep -c ^processor /proc/cpuinfo) + 1 ))
+			echo "MAKEOPTS=\"-j${MKCORES}\"">>"${CCONFDIR}/system/portage/make.conf"
+			echo "# EMERGE DEFAULT OPTS">>"${CCONFDIR}/system/portage/make.conf"
+			echo "EMERGE_DEFAULT_OPTS=\"--load-average ${CORES}\"">>"${CCONFDIR}/system/portage/make.conf"
+			echo "# MIRRORS">>"${CCONFDIR}/system/portage/make.conf"
+			unset MKCORES
+			echo "Determining optimal servers..."
+
+			GENMIRR="$(netselect -v -t2 -s10 ftp://ftp.swin.edu.au/gentoo http://ftp.swin.edu.au/gentoo http://gd.tuwien.ac.at/opsys/linux/gentoo/ ftp://gd.tuwien.ac.at/opsys/linux/gentoo/ \
+			rsync://gentoo.c3sl.ufpr.br/gentoo/ http://gentoo.c3sl.ufpr.br/ ftp://gentoo.c3sl.ufpr.br/gentoo/ http://www.las.ic.unicamp.br/pub/gentoo/ \
+			ftp://ftp.las.ic.unicamp.br/pub/gentoo/ http://mirrors.telepoint.bg/gentoo/ rsync://mirrors.telepoint.bg/gentoo/ rsync://gentoo.gossamerhost.com/gentoo-distfiles/ \
+			http://gentoo.gossamerhost.com ftp://mirrors.tera-byte.com/pub/gentoo http://gentoo.mirrors.tera-byte.com/ rsync://mirrors.tera-byte.com/gentoo \
+			ftp://mirror.csclub.uwaterloo.ca/gentoo-distfiles/ http://mirror.csclub.uwaterloo.ca/gentoo-distfiles/ http://mirrors.163.com/gentoo/ \
+			http://mirrors.xmu.edu.cn/gentoo ftp://mirrors.xmu.edu.cn/gentoo rsync://mirrors.xmu.edu.cn/gentoo/ http://gentoo.supp.name/ \
+			http://ftp.fi.muni.cz/pub/linux/gentoo/ rsync://ftp.fi.muni.cz/pub/linux/gentoo/ rsync://ftp6.linux.cz/pub/linux/gentoo/ ftp://ftp.fi.muni.cz/pub/linux/gentoo/ \
+			ftp://mirror.dkm.cz/gentoo/ https://mirror.dkm.cz/gentoo/ http://mirror.dkm.cz/gentoo/ rsync://mirror.dkm.cz/gentoo/ http://gentoo.mirror.web4u.cz/ \
+			ftp://gentoo.mirror.web4u.cz/ ftp://trumpetti.atm.tut.fi/gentoo/ http://trumpetti.atm.tut.fi/gentoo/ rsync://trumpetti.atm.tut.fi/gentoo/ \
+			ftp://ftp.free.fr/mirrors/ftp.gentoo.org/ ftp://gentoo.imj.fr/pub/gentoo/ http://gentoo.modulix.net/gentoo/ http://gentoo.mirrors.ovh.net/gentoo-distfiles/ \
+			ftp://gentoo.mirrors.ovh.net/gentoo-distfiles/ ftp://mirrors.soeasyto.com/distfiles.gentoo.org/ http://mirrors.soeasyto.com/distfiles.gentoo.org/ \
+			http://mirror.eu.oneandone.net/linux/distributions/gentoo/gentoo/ rsync://mirror.eu.oneandone.net/gentoo/ ftp://ftp.wh2.tu-dresden.de/pub/mirrors/gentoo \
+			http://mirror.netcologne.de/gentoo/ rsync://mirror.netcologne.de/gentoo/ ftp://mirror.netcologne.de/gentoo/ http://linux.rz.ruhr-uni-bochum.de/download/gentoo-mirror/ \
+			http://ftp.halifax.rwth-aachen.de/gentoo/ ftp://ftp.halifax.rwth-aachen.de/gentoo/ rsync://ftp.halifax.rwth-aachen.de/gentoo/ \
+			ftp://sunsite.informatik.rwth-aachen.de/pub/Linux/gentoo http://ftp.uni-erlangen.de/pub/mirrors/gentoo ftp://ftp.uni-erlangen.de/pub/mirrors/gentoo \
+			ftp://ftp-stud.hs-esslingen.de/pub/Mirrors/gentoo/ http://ftp-stud.hs-esslingen.de/pub/Mirrors/gentoo/ rsync://ftp-stud.hs-esslingen.de/gentoo/ \
+			ftp://files.gentoo.gr http://files.gentoo.gr http://ftp.ntua.gr/pub/linux/gentoo/ ftp://ftp.ntua.gr/pub/linux/gentoo/ http://gentoo.aditsu.net:8000/ \
+			rsync://ftp.heanet.ie/pub/gentoo/ http://ftp.heanet.ie/pub/gentoo/ ftp://ftp.heanet.ie/pub/gentoo/ http://mirror.isoc.org.il/pub/gentoo/ \
+			ftp://mirror.isoc.org.il/gentoo/ ftp://ftp.iij.ad.jp/pub/linux/gentoo/ rsync://ftp.iij.ad.jp/pub/linux/gentoo/ http://ftp.iij.ad.jp/pub/linux/gentoo/ \
+			rsync://ftp.jaist.ac.jp/pub/Linux/Gentoo/ http://ftp.jaist.ac.jp/pub/Linux/Gentoo/ ftp://ftp.jaist.ac.jp/pub/Linux/Gentoo/ rsync://mirror.neolabs.kz/gentoo \
+			http://mirror.neolabs.kz/gentoo/pub ftp://mirror.neolabs.kz/gentoo/pub http://mirror.leaseweb.com/gentoo/ rsync://mirror.leaseweb.com/gentoo/ \
+			ftp://mirror.leaseweb.com/gentoo/ ftp://ftp.snt.utwente.nl/pub/os/linux/gentoo rsync://ftp.snt.utwente.nl/gentoo http://ftp.snt.utwente.nl/pub/os/linux/gentoo \
+			http://gentoo.prz.rzeszow.pl rsync://gentoo.prz.rzeszow.pl/gentoo rsync://ftp.vectranet.pl/gentoo/ http://ftp.vectranet.pl/gentoo/ ftp://ftp.vectranet.pl/gentoo/ \
+			ftp://ftp.rnl.tecnico.ulisboa.pt/pub/gentoo/gentoo-distfiles/ http://ftp.rnl.tecnico.ulisboa.pt/pub/gentoo/gentoo-distfiles/ \
+			rsync://ftp.rnl.tecnico.ulisboa.pt/pub/gentoo/gentoo-distfiles/ ftp://ftp.dei.uc.pt/pub/linux/gentoo/ http://ftp.dei.uc.pt/pub/linux/gentoo/ \
+			http://ftp.romnet.org/gentoo/ http://mirrors.xservers.ro/gentoo/ rsync://gentoo.bloodhost.ru/gentoo-distfiles http://gentoo.bloodhost.ru/ \
+			ftp://gentoo.bloodhost.ru/ ftp://xeon.gentoo.ru/mirrors/gentoo/distfiles/ ftp://mirror.yandex.ru/gentoo-distfiles/ http://mirror.yandex.ru/gentoo-distfiles/ \
+			ftp://tux.rainside.sk/gentoo/ http://tux.rainside.sk/gentoo/ ftp://gentoo.wheel.sk/pub/linux/gentoo/ http://gentoo.wheel.sk/ http://ftp.daum.net/gentoo/ \
+			http://ftp.kaist.ac.kr/pub/gentoo/ ftp://ftp.kaist.ac.kr/gentoo/ https://ftp.lanet.kr/pub/gentoo/ http://ftp.lanet.kr/pub/gentoo/ ftp://ftp.lanet.kr/pub/gentoo/ \
+			http://gentoo-euetib.upc.es/mirror/gentoo/ http://mirror.mdfnet.se/gentoo ftp://mirror.mdfnet.se/gentoo http://mirror.switch.ch/ftp/mirror/gentoo/ \
+			ftp://mirror.switch.ch/mirror/gentoo/ ftp://ftp.twaren.net/Linux/Gentoo/ http://ftp.twaren.net/Linux/Gentoo/ http://ftp.linux.org.tr/gentoo/ \
+			rsync://ftp.linux.org.tr/gentoo-distfiles/ ftp://ftp.linux.org.tr/gentoo/ ftp://mirror.bytemark.co.uk/gentoo/ http://mirror.bytemark.co.uk/gentoo/ \
+			rsync://mirror.bytemark.co.uk/gentoo/ http://mirrors.evowise.com/gentoo/ http://mirror.qubenet.net/mirror/gentoo/ ftp://ftp.mirrorservice.org/sites/distfiles.gentoo.org/ \
+			http://www.mirrorservice.org/sites/distfiles.gentoo.org/ rsync://rsync.mirrorservice.org/distfiles.gentoo.org/ http://gentoo.iteam.net.ua/ \
+			http://gentoo.mirrors.easynews.com/linux/gentoo/ rsync://rsync.gtlib.gatech.edu/gentoo ftp://ftp.gtlib.gatech.edu/pub/gentoo http://www.gtlib.gatech.edu/pub/gentoo \
+			ftp://ftp.ussg.iu.edu/pub/linux/gentoo ftp://lug.mtu.edu/gentoo/ http://lug.mtu.edu/gentoo/ ftp://gentoo.netnitco.net/pub/mirrors/gentoo/source/ http://gentoo.netnitco.net \
+			http://gentoo.osuosl.org/ http://gentoo.mirrors.pair.com/ ftp://gentoo.mirrors.pair.com/ ftp://mirrors.rit.edu/gentoo/ rsync://mirrors.rit.edu/gentoo/ \
+			http://mirrors.rit.edu/gentoo/ ftp://mirror.iawnet.sandia.gov/pub/gentoo/ http://mirror.iawnet.sandia.gov/gentoo/ http://gentoo.mirrors.tds.net/gentoo \
+			http://mirror.lug.udel.edu/pub/gentoo/ ftp://cosmos.illinois.edu/pub/gentoo/ http://cosmos.illinois.edu/pub/gentoo/ http://gentoo.cs.uni.edu/ \
+			rsync://gentoo.cs.uni.edu/gentoo-distfiles http://mirror.usu.edu/mirrors/gentoo/ \
+			| awk -F ' ' '{ print $2 }' 2>/dev/null)" \
+			&& pass || { _e_report_back "There was a problem automatically generating the servers."
+			echo "Please use manually: mirrorselect -i -o >> {CCONFDIR}/system/portage/make.conf"; }
+
+			echo "GENTOO_MIRRORS=\"${GENMIRR}\"" >>"${CCONFDIR}/system/portage/make.conf"
+			unset GENMIRR
+			unset CORE
+			exit 0;;
+		*)
+			clear;;
+	esac
 done
 
 opt_men (){
