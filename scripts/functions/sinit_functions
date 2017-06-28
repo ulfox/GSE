@@ -300,6 +300,7 @@ _pseudo_check_purge(){
 
 _start_again() {
 	set +x
+
 	# PROMPT TO CONTINUE OR START ANEW
 	if ! echo "$@" | grep -q 'force'; then
 		while true; do
@@ -313,8 +314,36 @@ _start_again() {
 					break;;
 				"START NEW")
 					echo -e "\e[33mChecking...\e[0m"
-					_pseudo_check_purge "$1" \
-					&& sinit_flow_monitor "RESET" && sed -i -e 's/1/0/g' "${CWORKDIR}/scripts/chroot_scripts/chsinprog"; break;;
+					if _pseudo_check_purge "$1"; then
+						sinit_flow_monitor "RESET" && sed -i -e 's/1/0/g' "${CWORKDIR}/scripts/chroot_scripts/chsinprog"
+
+						rm -f "${CLOCALLG}/log.old.tar.bz2"
+						_o_report_back "Backing up old build logs"
+						if tar xvjpf "${CLOCALLG}/log.old.tar.bz2" "${CLOCALLG}/log"; then
+							pass
+						else
+							_e_report_back "FAILED backing up old log"
+						fi
+
+						_flag_new=0
+						export _flag_new
+
+						_o_report_back "Clearing current log directory"
+						if [[ -n "${CLOCALLG}" ]]; then
+							if rm -rf "${CLOCALLG}/log"; then
+								pass
+							else
+								_e_report_back "FAILED clearing old log directory"
+							fi
+						else
+							print_inf_f
+						fi
+
+						mkdir -p "${CLOCALLG}/log"
+					else
+						die "Safe check of workdir failed. Aborting action"
+					fi
+					break;;
 				* ) echo "Wrong answer";;
 			esac
 		done
@@ -323,9 +352,24 @@ _start_again() {
 		echo -e "\e[34mResetting\e[0m"
 		_pseudo_check_purge "$1" \
 		&& sinit_flow_monitor "RESET" && sed -i -e 's/1/0/g' "${CWORKDIR}/scripts/chroot_scripts/chsinprog"
+		if rm -rf "${CLOCALLG}/log"; then
+			if rm -rf "${CLOCALLG}/log"; then
+				pass
+			else
+				_e_report_back "FAILED clearing old log directory"
+			fi
+		else
+			print_inf_f
+		fi
+
+		mkdir -p "${CLOCALLG}/log"
+
+		_flag_new=0
+		export _flag_new
 	fi
+
 	unset YN
-	set_x
+	set -x
 }
 
 _extract_tarball() {
@@ -1866,9 +1910,18 @@ _prepare_chroot() {
 
 	echo -e "\e[34mChrooting at new system\e[0m"
 	# PASS ALL PP AND INITIATE CHROOT
-	if chroot "$1" "sinit.d/chroot_init" "$@"; then
-		_o_report_back "Chroot staged finished"
+	if [[ "${_flag_new}" == 0 ]]; then
+		if chroot "$1" "sinit.d/chroot_init" "$@" "_flag_new"; then
+			_o_report_back "Chroot staged finished"
+		else
+			die "Chrooting configuration failed"
+		fi
 	else
-		die "Chrooting configuration failed"
+		if chroot "$1" "sinit.d/chroot_init" "$@" "_flag_new"; then
+			_o_report_back "Chroot staged finished"
+		else
+			die "Chrooting configuration failed"
+		fi
 	fi
+
 }

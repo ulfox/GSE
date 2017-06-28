@@ -101,20 +101,20 @@ _monitor_chroot_flow() {
 _emerge_depclear() {
 	# DEPCLEAN BEFORE APPLYING NEW PROFILE CHANGES
 	echo -e "\e[34mRunning depclean before proceeding...\e[0m"
-	if eval emerge --depclean "${_chroot_silence}"; then
+	if eval emerge "${emerge_opt}" --depclean "${_chroot_silence}"; then
 		_e_report_back "Depclean completed"
 	else
-		echo "emerge --depclean" >LAST_FAILED_COMMAND
+		echo "emerge ${emerge_opt} --depclean" >"log/LAST_FAILED_COMMAND"
 		combat_medic
 	fi
 }
 
 _log_date() {
 	for i in {1..5}; do
-		echo "==============================================================================================" >>LAST_ACTION
+		echo "==============================================================================================" >> "log/chroot_sinit_log"
 	done
-	echo "LOG ENTRY $(date)" >>LAST_ACTION
-	echo >>LAST_ACTION
+	echo "LOG ENTRY $(date)" >> "log/chroot_sinit_log"
+	echo >> "log/chroot_sinit_log"
 }
 
 dist_ccashe_f() {
@@ -126,14 +126,14 @@ dist_ccashe_f() {
 			if eval emerge "${emerge_opt}" sys-devel/distcc "${_chroot_silence}"; then
 				echo -e "[\e[34mEmerged\e[0m]"
 			else
-				echo "emerge -q sys-devel/distcc" >LAST_FAILED_COMMAND
+				echo "emerge -q sys-devel/distcc" >"log/LAST_FAILED_COMMAND"
 				combat_medic
 			fi
 		fi
 	else
 		if [[ "$(eval command -v distcc)" ]]; then
 			echo -e "Removing [\e[32mdistcc\e[0m]"
-			eval emerge --deselect sys-devel/distcc "${_chroot_silence}"
+			eval emerge "${emerge_opt}" --deselect sys-devel/distcc "${_chroot_silence}"
 			echo -e "[\e[34mRemoved\e[0m]"
 		fi
 	fi
@@ -167,7 +167,7 @@ dist_ccashe_f() {
 			if eval "${emerge_mode}" -q dev-util/ccache "${_chroot_silence}"; then
 				echo -e "[\e[34mConfigured\e[0m]"
 			else
-				echo "${emerge_mode} -q dev-util/ccache" >LAST_FAILED_COMMAND
+				echo "${emerge_mode} -q dev-util/ccache" >"log/LAST_FAILED_COMMAND"
 				combat_medic
 			fi
 		fi
@@ -311,6 +311,12 @@ _edc_exp() {
 	dist_ccashe_f "$@" || return 1
 }
 
+set_x() {
+	if [[ "${_flag_verbose}" ]]; then
+		set -x
+	fi
+}
+
 part_portage() {
 
 	# GSE PROFILE CREATION	
@@ -325,6 +331,7 @@ part_portage() {
 		eselect profile set 1 && echo -e "\e[34mEnabled\e[0m"  \
 		|| ask_for_shell "Could not enable basic profile"
 	else
+		set +x
 		# SELECTING PROFILE
 		echo -e "Do you wish to enable \e[33mGSE\e[0m \e[34mprofile\e[0m ::: (\e[31mexperimental\e[0m)?"
 		echo -e "Say no here, to select a basic \e[35mGentoo\e[0m \e[34mprofile\e[0m manually"
@@ -333,19 +340,39 @@ part_portage() {
 		while true; do
 			case "${YN}" in
 				[yY])
-					GSE_PROF=$(eselect profile list | grep gse | awk -F '[' '{print $2}' | awk -F ']' '{print $1}') \
-					&& eselect profile set "${GSE_PROF}" && echo -e "\e[34mEnabled\e[0m" && BREAKVAR=0 \
-					|| { _print_info 2 && YN=n; };;
+					if GSE_PROF=$(eselect profile list | grep gse | awk -F '[' '{print $2}' | awk -F ']' '{print $1}'); then
+						if eselect profile set "${GSE_PROF}"; then
+							echo -e "\e[34mEnabled\e[0m"
+							BREAKVAR=0
+						else
+							_print_info 2
+							YN=n
+						fi
+					else
+						_print_info 2
+						BREAKVAR=1
+						YN=n
+					fi
+					;;
 				[nN])
 					eselect profile list
 					echo -e "Please select a \e[34mprofile\e[0m listed from above:"
 					echo -e "Answer is only related \e[34mprofile\e[0m numbers"
 					read -rp "Input :: <= " ANS
-					[[ -n "${ANS}" ]] && eselect profile set "${ANS}" && echo -e "\e[34mEnabled\e[0m" && BREAKVAR=0 \
-					|| { _print_info 2 && BREAKVAR=1; };;
+					if [[ -n "${ANS}" ]]; then
+						if eselect profile set "${ANS}"; then
+							echo -e "\e[34mEnabled\e[0m" && BREAKVAR=0
+						else
+							_print_info 2
+						fi
+					else
+						_print_info 2
+						BREAKVAR=1
+					fi
+					;;
 			esac
 			if [[ "${BREAKVAR}" == 0 ]]; then
-				break 
+				break
 			else
 				echo "Could not set a profile"
 				YN=n
@@ -353,6 +380,7 @@ part_portage() {
 		done
 	fi
 
+	set_x
 	_emerge_depclear
 
 	_apply_new "$@"
@@ -367,7 +395,7 @@ _apply_new() {
 	if eval "${emerge_mode}" -q --update --deep --newuse --with-bdeps=y @world; then
 		_e_report_back "Changes successfully applied"
 	else
-		echo "${emerge_mode} -q --update --deep --newuse --with-bdeps=y @world" > LAST_FAILED_COMMAND
+		echo "${emerge_mode} -q --update --deep --newuse --with-bdeps=y @world" > "log/LAST_FAILED_COMMAND"
 		combat_medic
 	fi
 }
@@ -376,6 +404,7 @@ build_the_world() {
 	# EMERGIN WORLD
 	if ! echo "$@" | grep -q '_flag_auto'; then
 		while true; do
+			set +x
 			echo "----------------------------------------------------------------------------"
 			echo "Do you wish to rebuild the system?"
 			echo "If catalyst built this system, simply say no"
@@ -383,21 +412,24 @@ build_the_world() {
 			read -rp "Input :: <= " YN
 			case "${YN}" in
 				[yY][eE][sS]|[yY])
+					set_x
 					if eval "${emerge_mode}" -eq @world; then
 						_e_report_back "World rebuild has been completed"
 						_monitor_chroot_flow "REBUILD"; break
 					else
-						echo "${emerge_mode} -eq @world" > LAST_FAILED_COMMAND
+						echo "${emerge_mode} -eq @world" > "log/LAST_FAILED_COMMAND"
 						combat_medic
 					fi;;
 				[nN][oO]|[nN])
+					set_x
 					echo "Exiting Rebuilding Part"
-					sleep 1
 					_monitor_chroot_flow "REBUILD"; break;;
 			esac
 		done
 		unset YN
 	fi
+
+	set_x
 }
 
 
@@ -406,7 +438,7 @@ _update_portage(){
 	if eval emerge "${emerge_opt} --deep --update portage" "${_chroot_silence}"; then
 		_e_report_back "Portage update was successful"
 	else
-		echo "${emerge_mode} ${emerge_opt} --deep --update portage" > LAST_FAILED_COMMAND
+		echo "${emerge_mode} ${emerge_opt} --deep --update portage" > "log/LAST_FAILED_COMMAND"
 		combat_medic
 	fi
 }
@@ -415,7 +447,7 @@ _emerge_eix() {
 	if eval "${emerge_mode} ${emerge_opt} app-portage/eix" "${_chroot_silence}"; then
 		_e_report_back "Emerge of eix was successful"
 	else
-		echo "${emerge_mode} ${emerge_opt} app-portage/eix" > LAST_FAILED_COMMAND
+		echo "${emerge_mode} ${emerge_opt} app-portage/eix" > "log/LAST_FAILED_COMMAND"
 		combat_medic
 	fi
 }
@@ -425,7 +457,7 @@ _update_eix() {
 	if eval eix-update "${_chroot_silence}"; then
 		_e_report_back "Update of eix was successful"
 	else
-		echo "eix-update" > LAST_FAILED_COMMAND
+		echo "eix-update" > "log/LAST_FAILED_COMMAND"
 		combat_medic
 		#ask_for_shell "Updating eix failed"	
 	fi
@@ -435,7 +467,7 @@ _emerge_gentoolkit() {
 	if eval "${emerge_mode} ${emerge_opt} app-portage/gentoolkit" "${_chroot_silence}"; then
 		_e_report_back "Emerge of gentoolkit was successful"
 	else
-		echo "${emerge_mode} ${emerge_opt} app-portage/gentoolkit" > LAST_FAILED_COMMAND
+		echo "${emerge_mode} ${emerge_opt} app-portage/gentoolkit" > "log/LAST_FAILED_COMMAND"
 		combat_medic
 	fi
 }
@@ -452,7 +484,7 @@ _portage_subpart() {
 		if eval emerge --sync "${_chroot_silence}"; then
 			pass
 		else
-			echo "emerge --sync" > LAST_FAILED_COMMAND
+			echo "emerge --sync" > "log/LAST_FAILED_COMMAND"
 			combat_medic
 		fi
 		eval env-update "${_chroot_silence}"
@@ -460,7 +492,7 @@ _portage_subpart() {
 		if eval emerge-webrsync "${_chroot_silence}"; then
 			pass
 		else
-			echo "emerge-webrsync" > LAST_FAILED_COMMAND
+			echo "emerge-webrsync" > "log/LAST_FAILED_COMMAND"
 			combat_medic
 		fi
 		eval env-update "${_chroot_silence}"
@@ -718,7 +750,7 @@ _emerge_default() {
 	if eval "${emerge_mode} ${emerge_opt} --update --deep --with-bdeps=y" ${INS_PARTF}; then
 		_e_report_back "Emerged"
 	else
-		echo "${emerge_mode} ${emerge_opt} --update --deep --with-bdeps=y ${INS_PARTF}" > LAST_FAILED_COMMAND
+		echo "${emerge_mode} ${emerge_opt} --update --deep --with-bdeps=y ${INS_PARTF}" > "log/LAST_FAILED_COMMAND"
 		echo "###################################" >> issues.info
 		echo "Issue: emerge request packages $(date)" >> issues.info
 		echo "Command: ${emerge_mode} ${emerge_opt} --update --deep --with-bdeps=y" >> issues.info
@@ -735,7 +767,7 @@ _emerge_custom_requested() {
 	if eval "${emerge_mode} ${emerge_opt} --deep --update" "${CMPL[@]}"; then
 		_e_report_back "Emerged"
 	else
-		echo "${emerge_mode} ${emerge_opt} --deep --update ${CMPL[@]}" > LAST_FAILED_COMMAND
+		echo "${emerge_mode} ${emerge_opt} --deep --update ${CMPL[@]}" > "log/LAST_FAILED_COMMAND"
 		echo "###################################" >> issues.info
 		echo "Issue: emerge request packages $(date)" >> issues.info
 		echo "Command: ${emerge_mode} ${emerge_opt} --deep --update " >> issues.info
@@ -787,13 +819,16 @@ _kernel_build() {
 			ask_for_shell "Failed Building the kernel"
 		fi
 	fi
+
 	while true; do
+		set +x
 		echo -e "Do you wish to configure the \e[34mkernel's\e[0m config file?"
 		echo -e "Please keep in mind that main function of the controller are related with \e[34mkernel builtins\e[0m"
 		echo -e "Select an option Y/N: "
 		read -rp "Input :: <= " SELCT
 			case ${SELCT} in
 				[Yy][eE][sS]|[yY])
+					set_x
 					if genkernel --install kernel --menuconfig --kernel-config="${CHDIR}/kernel-conf" \
 						--makeopts="-j${MKPS}" --btrfs --postclear --e2fsprogs; then
 						echo -e "The \e[34mkernel\e[0m built was \e[32msuccessful\e[0m"
@@ -808,6 +843,7 @@ _kernel_build() {
 					fi
 					break;;
 				[nN][oO]|[nN])
+					set_x
 					if genkernel --install kernel --kernel-config="${CHDIR}/kernel-conf" \
 						--makeopts="-j${MKPS}" --btrfs --postclear --e2fsprogs; then
 						echo -e "The \e[34mkernel\e[0m built was \e[32msuccessful\e[0m"
@@ -824,6 +860,8 @@ _kernel_build() {
 				*) echo "Wrong option";;
 			esac
 	done
+
+	set_x
 }
 
 # INITRAMFS BUILDER FUNCTION
@@ -904,7 +942,7 @@ _emerge_resume() {
 # RECALL LAST FAILED ACTION
 recal_action() {
 	echo -e "\e[33mRecalling last process...\e[0m"
-	eval "$(cat LAST_FAILED_COMMAND)"
+	eval "$(cat "log/LAST_FAILED_COMMAND")"
 }
 
 # CALL FOR EVALUATION LAST FAILD ACTION
@@ -925,13 +963,14 @@ _resume(){
 		&& delete_fail \
 		&& return 0
 	else
-		echo "${emerge_mode} -qr" > LAST_FAILED_COMMAND
+		echo "${emerge_mode} -qr" > "log/LAST_FAILED_COMMAND"
 		return 1
 	fi
 }
 
 # BRINGS SHELL
 ask_for_shell() {
+	set +x
 	while true; do
 		_print_info 2
 		_e_report_back "$*"
@@ -943,24 +982,29 @@ ask_for_shell() {
 		read -rp "Input :: <= " YN
 		case "$YN" in
 			[yY])
+				set_x
 				chroot_master_loop "SHELL"
 				break;;
 			[nN])
 				break;;
 		esac
-	done		
+	done
+
+	set_x
 }
 
 # EMERGE MASTER LOOP FUNCTION. IT OFFERS A RESUME, SHELL & EXIT OPTION.
 emerge_master_loop() {
 	if [[ -n "$(grep "FAILED" <"${CHDIR}/emergeresume")" ]]; then
 		while true; do
+			set +x
 			echo -e "\e[33mA previous emerge action could not be completed or stopped manually\e[0m"
 			echo -e "Do you wish to \e[35mresume\e[0m that action?"
 			echo -e "Answer: \e[35mRESUME\e[0m/\e[33mSHELL\e[0m/\e[34mCONTINUE\e[0m/\e[31mEXIT\e[0m"
 			read -rp "Input :: <= " YN
 			case "${YN}" in
 				RESUME)
+					set_x
 					if [[ -n "$(grep resume "/var/cache/edb/mtimedb")" ]]; then
 						if _resume; then
 							LOOPVAR="PASS"
@@ -977,6 +1021,7 @@ emerge_master_loop() {
 					break;;
 				SHELL)
 					while true; do
+						set +x
 						_subshell
 						echo "If you fixed the issue, say RESUME to attempt an emerge resume"
 						echo "You can answer SHELL to open shell again, or call die with EXIT"
@@ -991,6 +1036,9 @@ emerge_master_loop() {
 								die "Exit Requested";;
 						esac
 					done
+
+					set_x
+					
 					if [[ -n "$(grep resume "/var/cache/edb/mtimedb")" ]]; then
 						if _resume; then
 							LOOPVAR="PASS"
@@ -1006,13 +1054,17 @@ emerge_master_loop() {
 					fi
 					break;;
 				CONTINUE)
+						set_x
 						LOOPVAR="PASS"
 						break;;
 				EXIT)
+					set_x
 					die "Exit Requested";;
 			esac
 		done
 	fi
+
+	set_x
 	unset YN
 	unset AANS
 	unset ANS
@@ -1032,6 +1084,7 @@ _trao_sigs() {
 # SUBSHELL LOOP FUNCTION, IT OFFERS
 subshell_loop() {
 	while true; do
+		set +x
 		_subshell
 		_e_report_back "If you fixed the issue, say CONTINUE proceed"
 		_e_report_back "You can answer SHELL to open shell again, or call die with EXIT"
@@ -1039,15 +1092,20 @@ subshell_loop() {
 		read -rp "Input :: <= " AANS
 		case "${AANS}" in
 			CONTINUE)
+				set_x
 				LOOPVAR="EXITSHELL"
 				break;;
 			SHELL)
+				set_x
 				LOOPVAR="SHELL"
 				;;
 			EXIT)
+				set_x
 				die "Exit Requested";;
 		esac
 	done
+
+	set_x
 }
 
 # CHROOT MASTER LOOP FUNCTION. CONTROLLS SUBSHELL LOOP AND EMERGE MASTER LOOP
@@ -1072,6 +1130,7 @@ chroot_master_loop() {
 
 # REPEAT PART X.
 _repeat_part() {
+	set +x
 	while true; do
 		echo -e "\e[33mPart $1: Has been completed\e[0m"
 		echo -e "\e[33mRun again? Y/N: \e[0m"
@@ -1085,6 +1144,8 @@ _repeat_part() {
 				break;;
 		esac
 	done
+
+	set_x
 }
 
 _do_rs() {

@@ -18,15 +18,23 @@ fi
 # ENVIROMENTAL ECHO FOR TESTING PHASE
 echo "$@"
 
+if echo "$@" | grep -q "_flag_new"; then
+	rm -rf log
+	mkdir -p log
+fi
+
 if echo "$@" | grep -q '_flag_verbose'; then
 	emerge_opt="-v"
-	_chroot_silence="2>&1 | tee -a LAST_ACTION"
+	export _flag_verbose
+	set -x
+	_chroot_silence="2>&1 | tee -a log/chroot_sinit_log"
 elif echo "$@" | grep -q '_flag_quiet'; then
-	_chroot_silence=">>LAST_ACTION 2>&1"
+	_chroot_silence=">>log/chroot_sinit_log 2>&1"
+	export _flag_quiet
 	emerge_opt="-q"
 else
 	emerge_opt=''
-	_chroot_silence="2>&1 | tee -a LAST_ACTION"
+	_chroot_silence="2>&1 | tee -a log/chroot_sinit_log"
 fi
 
 export emerge_opt
