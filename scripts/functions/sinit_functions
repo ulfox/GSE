@@ -1925,3 +1925,313 @@ _prepare_chroot() {
 	fi
 
 }
+
+main_f() {
+	read -rp "Input :: <= " SELCT
+	case ${SELCT:-6} in
+		I|i|1			)
+			# CALL BUILDER SUBMENU
+			_CHILD="BSM";;
+		II|ii|2			)
+			# CALL CONTROLLER SUBMENU
+			_CHILD="CONTR";;
+		III|iii|3		)
+			# GSE TOOLS SUBMENU: RENEW & VERSION CHECK
+			_CHILD="GSET";;
+		IV|iv|4			)
+			# CALL DOCUMENTATION SUBMENU
+			_CHILD="DOC";;
+		V|v|5			)
+			# CALL ABOUT SUBMENU
+			_CHILD="AB";;
+		VI|vi|6|[qQ]	)
+ 			echo -e "\e[32mExiting\e[39m..."
+ 			_PARENT=0;;
+ 		[tT]			)
+			subterm_f "${lppar[@]}"
+			_STAY=0;;
+	esac
+}
+
+gse_t() {
+	read -rp "Input :: <= " SELCT
+	case ${SELCT:-6} in
+		I|i|1			)
+			# RENEW ALL MODIFIED ITEMS
+			# THE LIST WILL INCLUDE ONLY THE MAIN SCRIPTS IN THE END
+			#./"${CWORKDIR}/functions/renew" & 
+			exit 0;;
+		II|ii|2			)
+			# VERSION CHECK
+			source "${CWORKDIR}/functions/gse_sources"
+			_STAY=0;;
+		III|iii|3		)
+			_PARENT=0;;
+ 		[tT]			)
+			subterm_f "${lppar[@]}"
+			_STAY=0;;
+	esac
+}
+
+# BUILDER SUBMENU
+bs_menu_f() {
+	read -rp "Input :: <= " SELCT
+	case ${SELCT:-4} in
+		I|i|1			)
+			# CALL BUILD SYSTEM SUBMENU
+			_CHILD="SM";;
+		II|ii|2			)
+			# CALL CONFIGURATION SUBMENU
+			_CHILD="CO_F";;
+		III|iii|3		)
+			# CALL SELECT DEFAULT SYSTEM SUBMENU
+			_CHILD="SELDEF";;
+		IV|iv|4			)
+			# TBU: WILL INCLUDE A STAGE4 TARBALL CREATION
+			_STAY=0;;
+		V|v|5			)
+			_PARENT=0;;
+		[tT]					)
+			subterm_f "${lppar[@]}"
+			_STAY=0;;
+	esac
+}
+
+# BUILD SYSTEM SUBMENU
+bs_f() {
+	read -rp "Input :: <= " SELCT
+	case ${SELCT:-3} in
+		I|i|1			)
+			# CALL PORTAGE SUBMENU
+			_CHILD="PORT_M";;
+		II|ii|2			)
+			# CALL CATALYST SUBMENU
+			_CHILD="CATA_M";;
+		III|iii|3		)
+			# START PRE PRECOMPILED
+			clear; warp "--base=precomp" "${lppar[@]}"
+			_STAY=0;;
+		IV|iv|4			)
+			_PARENT=0;;
+		[tT]			)
+			subterm_f "${lppar[@]}"
+			_STAY=0;;
+	esac
+}
+
+# PORTAGE SUBMENU
+portage_men_f() {
+	read -rp "Input :: <= " SELCT
+	case ${SELCT:-5} in
+		I|i|1			)
+			# MAKE MAKE.CONF: AUTOMATIC OR GUIDED CONFIGURATION
+			if makeconf_ed; then
+				clear
+				echo -e "[\e[32m*\e[0m] Configurations was successful!"
+			else
+				echo -e "[\e[31m*\e[0m] Something went wrong"
+			fi
+			_STAY=0;;
+		II|ii|2			)
+			# MANUAL EDIT OF MAKE.CONF
+			cp "${CCONFDIR}/system/portage/makeconf.backup" "${CCONFDIR}/system/portage/make.conf"
+			vim "${CCONFDIR}/system/portage/make.conf"
+			_STAY=0;;
+		III|iii|3		)
+			# FEATURES & CCACHE
+			vim "${CCONFDIR}/system/coptions"
+			_STAY=0;;
+		IV|iv|4			)
+			# EDIT DISTCC
+			vim "${CCONFDIR}/system/portage/hosts"
+			_STAY=0;;
+		V|v|5			)
+			# MANUAL EDIT OF USEFLAGS
+			vim "${CCONFDIR}/system/portage/package.use/sysbuild"
+			_STAY=0;;
+		VI|vi|6			)
+			# PREVIEW OF USEFLAGS: WILL BE REMOVED AS AN OPTION
+			less "${CCONFDIR}/system/portage/package.use/sysbuild"
+			_STAY=0;;
+		VII|vii|7		)
+			# REGENERATES MAKE.CONF TO DEFAULT
+			cp "${CCONFDIR}/system/portage/package.use/sysbuild.backup" "${CCONFDIR}/system/portage/package.use/sysbuild"
+			_STAY=0;;
+		VIII|viii|8		)
+			_PARENT=0;;
+		[tT]			)
+			subterm_f "${lppar[@]}"
+  			_STAY=0;;
+	esac
+}
+
+catalyst_f() {
+	read -rp "Input :: <= " SELCT
+	case ${SELCT:-6} in
+		I|i|1			)
+			# CONFIGURE CATALYST.CONF
+			vim "${CCONFDIR}/system/catalyst/catalyst.conf"
+			_STAY=0;;
+		II|ii|2			)
+			# CONFIGURE CATALYSTRC
+			vim "${CCONFDIR}/system/catalyst/catalystrc"
+			_STAY=0;;
+		III|iii|3		)
+			# CONFIGURE STAGE1.SPEC
+			vim "${CCONFDIR}/system/catalyst/stage1.spec"
+			_STAY=0;;
+		IV|iv|4			)
+			# CONFIGURE STAGE2.SPEC
+			vim "${CCONFDIR}/system/catalyst/stage2.spec"
+			_STAY=0;;
+		V|v|5			)
+			# CONFIGURE STAGE3.SPEC
+			vim "${CCONFDIR}/system/catalyst/stage3.spec"
+			_STAY=0;;
+		VI|vi|6			)
+			# START MAIN BUILDER PROCESS
+			clear; warp "--base=catalyst" "${lppar[@]}"
+			_STAY=0;;
+		VII|vii|7		)
+			_PARENT=0;;
+		[tT]			)
+			subterm_f "${lppar[@]}"
+  			_STAY=0;;
+	esac
+}
+
+# CONFIGURATION SUBMENU
+config_f() {
+	read -rp "Input :: <= " SELCT
+	case ${SELCT} in
+		I|i|1			)
+			# GUIDED FSTAB EDITOR
+			drv_interface
+			_STAY=0;;
+		II|ii|2			)
+			# MANUAL FSTAB EDIT
+			vim "${CCONFDIR}/system/fstab"
+			_STAY=0;;
+		III|iii|3		)
+			# DEVICES FOR BOOT, SYSTEM, USERDATA: RELATED ONLY WITH THE HOSTS
+			vim "${CCONFDIR}/system/devname.info"
+			_STAY=0;;
+		IV|iv|4			)
+			# HOSTNAME
+			vim "${CCONFDIR}/system/hostname"
+			_STAY=0;;
+		V|v|5			)
+			# NETWORKING
+			vim "${CCONFDIR}/system/net"
+			_STAY=0;;
+		VI|vi|6			)
+			# LOCALES
+			vim "${CCONFDIR}/system/locale.gen"
+			_STAY=0;;
+		VII|vii|7		)
+			# CONSOLEFONTS
+			vim "${CCONFDIR}/system/consolefont"
+			_STAY=0;;
+		VIII|viii|8		)
+			# SSHD CONFIGURATION FILE
+			vim "${CCONFDIR}/system/sshd"
+			_STAY=0;;
+		IX|ix|9			)
+			# SSH PUBLIC KEY: WILL BE INCLUDED ON THE HOSTS
+			vim "${CCONFDIR}/system/ssh.pub"
+			_STAY=0;;
+		X|x|10			)
+			# SETS SYMLINKS, BIND MOUNTS, TMPFS AND OVERLAYS
+			vim "${CCONFDIR}/system/system_links"
+			_STAY=0;;
+		XI|xi|11		)
+			# SETS CUSTOM USER SCRIPTS ON BOOTUP
+			vim "${CCONFDIR}/system/custom_scripts"
+			_STAY=0;;
+		XII|xii|12		)
+			# LIST FOR CUSTOM PACKAGES TO BE INSTALLED DURING THE PROCESS
+			vim "${CCONFDIR}/system/custom_pacl"
+			_STAY=0;;
+		XIII|xiii|13	)
+			# EDIT DEFAULT GRUB
+			vim "${CCONFDIR}/system/grub"
+			_STAY=0;;
+		XIV|xiv|14		)
+			# UPDATES RUNLEVEL ENTRIES
+			vim "${CCONFDIR}/system/runlevels"
+			_STAY=0;;
+		XV|xv|15		)
+			# INJECT CUSTOM FILES
+			vim "${CCONFDIR}/system/inject_files"
+			_STAY=0;;
+		XVI|xvi|16		)
+			_PARENT=0;;
+		[tT]			)
+			subterm_f "${lppar[@]}"
+  			_STAY=0;;
+	esac
+}
+
+# SELECT DEFAULT SYSTEM MENU
+selectdef_f() {
+	read -rp "Input :: <= " SELCT
+	case ${SELCT:-3} in
+		I|i|1			)
+			clear; echo "Documentations submenu option a)"
+			_STAY=0;;
+		II|ii|2			)
+			clear; echo "Documentations submenu option b)"
+			_STAY=0;;
+		III|iii|3		)
+			_PARENT=0;;
+		[tT]			)
+			subterm_f "${lppar[@]}"
+  			_STAY=0;;
+	esac
+}
+
+# THE CONTROLLER MENU
+controller_f() {
+	clear; amiroot "$UID"; echo "You selected: build the controller image"; echo
+	source cinit.sh
+	_PARENT=0
+}
+
+# DOCUMENTATIONS MENU
+doc_f(){
+	read -rp "Choose a document you wish to read: " SELCT
+	case ${SELCT:-5} in
+		I|i|1			)
+			clear; echo "Documentations submenu option a)"
+			_STAY=0;;
+		II|ii|2			)
+			clear; echo "Documentations submenu option b)"
+			_STAY=0;;
+		III|iii|3		)
+			clear; echo "Documentations submenu option c)"
+			_STAY=0;;
+		IV|iv			)
+			clear; echo "Documentations submenu option d)"
+			_STAY=0;;
+		V|v|5			)
+			_PARENT=0;;
+	esac
+}
+
+# ABOUT MENU
+about_f() {
+	read -rp "Choose a journey: " SELCT
+	case ${SELCT:-4} in
+		I|i|1			)
+			clear; echo "About submenu option a)"
+			_STAY=0;;
+		II|ii|2			)
+			clear; echo "About submenu option b)"
+			_STAY=0;;
+		III|iii|3		)
+			clear; echo "About submenu option c)"
+			_STAY=0;;
+		IV|iv|4			)
+			_PARENT=0;;
+	esac
+}
