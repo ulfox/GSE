@@ -19,7 +19,7 @@ install() {
     inst_multiple chroot chown chmod ls sed awk mount ls ln umount \
     cp mv busybox rsync ssh gpg bash rmmod dmesg modprobe findmnt \
     tar bzip2 ping clear mkfs.ext2 mkfs.ext3 mkfs.ext4 mkfs.btrfs mkfs.vfat \
-    e2label mlabel swaplabel scp md5sum sha512sum
+    e2label mlabel swaplabel scp md5sum sha512sum lsblk tee
 
     mkdir -m 0755 -p ${initdir}/config.d/fetchdir,confdir}
     mkdir -m 0755 -p ${initdir}/config.d/confdir/{local,keys,jobs}
@@ -37,7 +37,6 @@ install() {
     inst_script "$moddir/cfunctions.sh" "/usr/local/controller/cfunctions.sh"
     inst_script "$moddir/chealth.sh" "/usr/local/controller/chealth.sh"
     inst_script "$moddir/cnetwork.sh" "/usr/local/controller/cnetwork.sh"
-    inst_script "$moddir/cverify.sh" "/usr/local/controller/cverify.sh"
     inst_script "$moddir/cverify.sh" "/usr/local/controller/cverify.sh"
     inst_simple "${CHDIR}/controller/cssh_config" "/etc/ssh/ssh_config"
     inst_simple "${CHDIR}/controller/cknown_hosts" "/root/.ssh/known_hosts"
