@@ -25,13 +25,9 @@ export CREL="$(grep ^NAME /etc/*release | awk -F '=' '{ print $2 }')"
 # PATH DEFINITION FOR THE SCRIPTS WHICH WILL AID THE PROCESS
 export PATH=${PATH}:${CWORKDIR}/scripts/functions
 
-source "${CWORKDIR}/scripts/functions/sinit_functions" || { echo -e "\e[32mMissing scripts\e[0m" && exit 1; }
-source "${CWORKDIR}/scripts/functions/catalyst_functions" || { echo -e "\e[32mMissing scripts\e[0m" && exit 1; }
-source "${CWORKDIR}/etc/gentoo.conf" || { echo -e "\e[32mMissing gentoo.conf\e[0m" && exit 1; }
-
-STAT_VAR=''
-
-#set -o
+source "${CWORKDIR}/scripts/functions/sinit_functions" || { echo -e "\e[31mMissing scripts\e[0m" && exit 1; }
+source "${CWORKDIR}/scripts/functions/catalyst_functions" || { echo -e "\e[31mMissing scripts\e[0m" && exit 1; }
+source "${CWORKDIR}/etc/gentoo.conf" || { echo -e "\e[31mMissing gentoo.conf\e[0m" && exit 1; }
 
 # CHECK IF BASH IS THE DEFAULT {CURRENT} SHELL, ISSUE A WARNING OTHERIWSE
 shl_f() {
@@ -65,7 +61,7 @@ amiroot() {
 
 subterm_f() {
 	echo -e "\e[33mCalling bash subshell\e[0m"
-	sleep 2
+	sleep 0.5
 	echo 'echo -e "\e[33mInside Subshell\e[0m"' >> /root/.bashrc
 	echo 'echo -e "\e[33mExit to return back to parent\e[0m"' >> /root/.bashrc
 	(clear; exec /bin/bash "${lppar[@]}";)
@@ -74,459 +70,69 @@ subterm_f() {
 	echo -e "\e[33mYou are back to parent\e[0m"
 }
 
-# MAIN MENU FUNCTION
-main_f() {
+# MENU FUNCTION
+_call_menu() {
+	echo "${@}"
+	unset _PARENT
+	unset _CHILD
+	unset _STAY
+	echo "$_PARENT"
+	echo "$_CHILD"
+	echo "$_STAY"
 	while true; do
-		clear; men_opt 1
-		read -rp "Input :: <= " SELCT
-		case ${SELCT:-6} in
-			I|i|1|-I|-i|-1			)
-				# CALL BUILDER SUBMENU
-				bs_menu_f "${lppar[@]}"; break;;
-			II|ii|2|-II|-ii|-2		)
-				# CALL CONTROLLER SUBMENU
-				con_f; break;;
-	 		III|iii|3|-III|-iii|-3	)
-				# GSE TOOLS SUBMENU: RENEW & VERSION CHECK
-				gse_t "${lppar[@]}"; break;;
-			IV|iv|4|-IV|-iv|-4		)
-				# CALL DOCUMENTATION SUBMENU
-				doc_f; break;;
-			V|v|5|-V|-v|-5			)
-				# CALL ABOUT SUBMENU
-				about_f; break;;
-			VI|vi|6|-VI|-vi|-6|[Qq][uU][iI][tT]|[Ee][Xx][Ii][tT]|[qQ])
- 				echo -e "\e[32mExiting\e[39m..."; BACKTO="Q"
- 				break;;
- 			[tT]					)
-				subterm_f "${lppar[@]}"
-				echo "Presh any key to return"
-				read -r 1>&-;BACKTO="MM" 
-  				clear; break;;
-			* ) clear; men_opt 1;;
-		esac
-	done
-}
+		clear; men_opt "$1"
+		eval "$4" #"${@:5}"
 
-gse_t() {
-	while true; do
-		clear; men_opt 11
-		read -rp "Input :: <= " SELCT
-		case ${SELCT:-6} in
-			I|i|1|-I|-i|-1			)
-				# RENEW ALL MODIFIED ITEMS
-				# THE LIST WILL INCLUDE ONLY THE MAIN SCRIPTS IN THE END
-				#./"${CWORKDIR}/functions/renew" & 
-				exit 0;;
-			II|ii|2|-II|-ii|-2		)
-				# VERSION CHECK
-				source "${CWORKDIR}/functions/gse_sources"
-				echo "Presh any key to return"
-				read -r 1>&-;BACKTO="GSET"; break;;
-	 		III|iii|3|-III|-iii|-3	)
-				BACKTO="MM"
-				break;;
- 			[tT]					)
-				subterm_f "${lppar[@]}"
-				echo "Presh any key to return"
-				read -r 1>&-;BACKTO="GSET" 
-  				clear; break;;
-			* ) clear; men_opt 11;;
-		esac
+		if [[ "${_PARENT}" ]]; then
+			BACKTO="$2"
+			break
+		elif [[ "${_CHILD}" ]]; then
+			BACKTO="${_CHILD}"
+			break
+		elif [[ "${_STAY}" ]]; then
+			BACKTO="$3"
+			break
+		fi
 	done
-}
-# BUILDER SUBMENU
-bs_menu_f() {
-	clear; men_opt 5
-	while true; do
-		read -rp "Input :: <= " SELCT
-		case ${SELCT:-4} in
-			I|i|1|-I|-i|-1			)
-				# CALL BUILD SYSTEM SUBMENU
-				clear; bs_f "${lppar[@]}"
-				break;;
-			II|ii|2|-II|-ii|-2		)
-				# CALL CONFIGURATION SUBMENU
-				clear; config_f "${lppar[@]}"
-				break;;
-			III|iii|3|-III|-iii|-3	)
-				subterm_f "${lppar[@]}"
-				# CALL SELECT DEFAULT SYSTEM SUBMENU
-				clear; selectdef_f "${lppar[@]}"
-				break;;
-			IV|iv|4|-IV|-iv|-4		)
-				# TBU: WILL INCLUDE A STAGE4 TARBALL CREATION
-				echo "Presh any key to return"
-				read -r 1>&-;BACKTO="BSM";
-				break;;
-			V|v|5					)
-				clear; BACKTO="MM"; break;;
-			[tT]					)
-				subterm_f "${lppar[@]}"
-				echo "Presh any key to return"
-				read -r 1>&-;BACKTO="BSM";
-  				clear; break;;
-			* ) clear; men_opt 5;;
-		esac
-	done
-}
-
-# BUILD SYSTEM SUBMENU
-bs_f() {
-clear; men_opt 6
-	while true; do
-		read -rp "Input :: <= " SELCT
-		case ${SELCT:-3} in
-			I|i|1|-I|-i|-1			)
-				# CALL PORTAGE SUBMENU
-				portage_men_f "${lppar[@]}"
-				break;;
-			II|ii|2|-II|-ii|-2		)
-				# CALL CATALYST SUBMENU
-				catalyst_f "${lppar[@]}"
-				break;;
-			III|iii|3|-III|-iii|-3	)
-				# START PRE PRECOMPILED
-				clear; warp "--base=precomp" "${lppar[@]}"
-				echo "Presh any key to return"
-				read -r 1>&-;BACKTO="SM";
-				break;;
-			IV|iv|4|-IV|-iv|-4		)
-				clear; BACKTO="BSM"; break;;
-			[tT]					)
-				subterm_f "${lppar[@]}"
-				echo "Presh any key to return"
-				read -r 1>&-;BACKTO="SM";
-  				clear; break;;
-			* ) clear; men_opt 6;;
-		esac
-	done
-}
-
-# PORTAGE SUBMENU
-portage_men_f() {
-	clear; men_opt 7
-	while true; do
-		read -rp "Input :: <= " SELCT
-		case ${SELCT:-5} in
-			I|i|1|-I|-i|-1			)
-				# MAKE MAKE.CONF: AUTOMATIC OR GUIDED CONFIGURATION
-				makeconf_ed &&{ clear; echo -e "[\e[32m*\e[0m] Configurations was successful!"
-				echo "Presh any key to return"; } || { cho -e "[\e[31m*\e[0m] Something went wrong"; }
-				read -r 1>&-; BACKTO="PORT_M"; break;;
-			II|ii|2|-II|-ii|-2		)
-				# MANUAL EDIT OF MAKE.CONF
-				cp "${CCONFDIR}/system/portage/makeconf.backup" "${CCONFDIR}/system/portage/make.conf"
-				vim "${CCONFDIR}/system/portage/make.conf"
-				clear; echo "Presh any key to return"
-				read -r 1>&-; BACKTO="PORT_M"; break;;
-			III|iii|3|-III|-iii|-3	)
-				# FEATURES & CCACHE
-				vim "${CCONFDIR}/system/coptions"
-				clear; echo "Presh any key to return"
-				read -r 1>&-; BACKTO="PORT_M"; break;;
-			IV|iv|4|-IV|-iv|-4		)
-				# EDIT DISTCC
-				vim "${CCONFDIR}/system/portage/hosts"
-				clear; echo "Presh any key to return"
-				read -r 1>&-; BACKTO="PORT_M"; break;;
-			V|v|5|-V|-v|-5			)
-				# MANUAL EDIT OF USEFLAGS
-				vim "${CCONFDIR}/system/portage/package.use/sysbuild"
-				clear; echo "Presh any key to return"
-				read -r 1>&-; BACKTO="PORT_M"; break;;
-			VI|vi|6|-VI|-vi|-6		)
-				# PREVIEW OF USEFLAGS: WILL BE REMOVED AS AN OPTION
-				less "${CCONFDIR}/system/portage/package.use/sysbuild"
-				clear; echo "Presh any key to return"
-				read -r 1>&-; BACKTO="PORT_M"; break;;
-			VII|vii|7|-VII|-vii|-7	)
-				# REGENERATES MAKE.CONF TO DEFAULT
-				cp "${CCONFDIR}/system/portage/package.use/sysbuild.backup" "${CCONFDIR}/system/portage/package.use/sysbuild"
-				clear; echo "Presh any key to return"
-				read -r 1>&-; BACKTO="PORT_M"; break;;
-			VIII|viii|8				)
-				BACKTO="SM"; break;;
-			[tT]					)
-				subterm_f "${lppar[@]}"
-				echo "Presh any key to return"
-				read -r 1>&-;BACKTO="PORT_M";
-  				clear; break;;
-			* ) clear; men_opt 7;;
-		esac
-	done
-}
-
-catalyst_f() {
-	clear; men_opt 10
-	while true; do
-		read -rp "Input :: <= " SELCT
-		case ${SELCT:-6} in
-			I|i|1|-I|-i|-1			)
-				# CONFIGURE CATALYST.CONF
-				vim "${CCONFDIR}/system/catalyst/catalyst.conf"
-				clear; echo -e "[\e[32m*\e[0m] Presh any key to return"
-				read -r 1>&-; BACKTO="CATA_M"; break;;
-			II|ii|2|-II|-ii|-2		)
-				# CONFIGURE CATALYSTRC
-				vim "${CCONFDIR}/system/catalyst/catalystrc"
-				clear; echo -e "[\e[32m*\e[0m] Presh any key to return"
-				read -r 1>&-; BACKTO="CATA_M"; break;;
-			III|iii|3|-III|-iii|-3	)
-				# CONFIGURE STAGE1.SPEC
-				vim "${CCONFDIR}/system/catalyst/stage1.spec"
-				clear; echo -e "[\e[32m*\e[0m] Presh any key to return"
-				read -r 1>&-; BACKTO="CATA_M"; break;;
-			IV|iv|4|-IV|-iv|-4		)
-				# CONFIGURE STAGE2.SPEC
-				vim "${CCONFDIR}/system/catalyst/stage2.spec"
-				clear; echo -e "[\e[32m*\e[0m] Presh any key to return"
-				read -r 1>&-; BACKTO="CATA_M"; break;;
-			V|v|5|-V|-v|-5			)
-				# CONFIGURE STAGE3.SPEC
-				vim "${CCONFDIR}/system/catalyst/stage3.spec"
-				clear; echo "Presh any key to return"
-				read -r 1>&-; BACKTO="CATA_M"; break;;
-			VI|vi|6|-VI|-vi|-6		)
-				# START MAIN BUILDER PROCESS
-				clear; warp "--base=catalyst" "${lppar[@]}"
-				echo "Presh any key to return"
-				read -r 1>&-;BACKTO="CATA_M";
-				break;;
-			VII|vii|7				)
-				BACKTO="SM"; break;;
-			[tT]					)
-				subterm_f "${lppar[@]}"
-				echo "Presh any key to return"
-				read -r 1>&-;BACKTO="PORT_M";
-  				clear; break;;
-			* ) clear; men_opt 7;;
-		esac
-	done
-}
-
-# CONFIGURATION SUBMENU
-config_f() {
-	clear; men_opt 8
-	while true; do
-		read -rp "Input :: <= " SELCT
-		case ${SELCT} in
-			I|i|1|-I|-i|-1			)
-				# GUIDED FSTAB EDITOR
-				drv_interface
-				clear; echo -e "[\e[32m*\e[0m] Presh any key to return"
-				read -r 1>&-; BACKTO="CO_F"; break;;
-			II|ii|2|-II|-ii|-2		)
-				# MANUAL FSTAB EDIT
-				vim "${CCONFDIR}/system/fstab"
-				clear; echo -e "[\e[32m*\e[0m] Presh any key to return"
-				read -r 1>&-; BACKTO="CO_F"; break;;
-			III|iii|3|-III|-iii|-3	)
-				# DEVICES FOR BOOT, SYSTEM, USERDATA: RELATED ONLY WITH THE HOSTS
-				vim "${CCONFDIR}/system/devname.info"
-				clear; echo -e "[\e[32m*\e[0m] Presh any key to return"
-				read -r 1>&-; BACKTO="CO_F"; break;;
-			IV|iv|4|-IV|-iv|-4		)
-				# HOSTNAME
-				vim "${CCONFDIR}/system/hostname"
-				clear; echo -e "[\e[32m*\e[0m] Presh any key to return"
-				read -r 1>&-; BACKTO="CO_F"; break;;
-			V|v|5|-V|-v|-5			)
-				# NETWORKING
-				vim "${CCONFDIR}/system/net"
-				clear; echo -e "[\e[32m*\e[0m] Presh any key to return"
-				read -r 1>&-; BACKTO="CO_F"; break;;
-			VI|vi|6|-VI|-vi|-6		)
-				# LOCALES
-				vim "${CCONFDIR}/system/locale.gen"
-				clear; echo -e "[\e[32m*\e[0m] Presh any key to return"
-				read -r 1>&-; BACKTO="CO_F"; break;;
-			VII|vii|7				)
-				# CONSOLEFONTS
-				vim "${CCONFDIR}/system/consolefont"
-				clear; echo -e "[\e[32m*\e[0m] Presh any key to return"
-				read -r 1>&-; BACKTO="CO_F"; break;;
-			VIII|viii|8				)
-				# SSHD CONFIGURATION FILE
-				vim "${CCONFDIR}/system/sshd"
-				clear; echo -e "[\e[32m*\e[0m] Presh any key to return"
-				read -r 1>&-; BACKTO="CO_F"; break;;
-			IX|ix|9					)
-				# SSH PUBLIC KEY: WILL BE INCLUDED ON THE HOSTS
-				vim "${CCONFDIR}/system/ssh.pub"
-				clear; echo -e "[\e[32m*\e[0m] Presh any key to return"
-				read -r 1>&-; BACKTO="CO_F"; break;;
-			X|x|10					)
-				# SETS SYMLINKS, BIND MOUNTS, TMPFS AND OVERLAYS
-				vim "${CCONFDIR}/system/system_links"
-				clear; echo -e "[\e[32m*\e[0m] Presh any key to return"
-				read -r 1>&-; BACKTO="CO_F"; break;;
-			XI|xi|11				)
-				# SETS CUSTOM USER SCRIPTS ON BOOTUP
-				vim "${CCONFDIR}/system/custom_scripts"
-				clear; echo -e "[\e[32m*\e[0m] Presh any key to return"
-				read -r 1>&-; BACKTO="CO_F"; break;;
-			XII|xii|12				)
-				# LIST FOR CUSTOM PACKAGES TO BE INSTALLED DURING THE PROCESS
-				vim "${CCONFDIR}/system/custom_pacl"
-				clear; echo -e "[\e[32m*\e[0m] Presh any key to return"
-				read -r 1>&-; BACKTO="CO_F"; break;;
-			XIII|xiii|13			)
-				# EDIT DEFAULT GRUB
-				vim "${CCONFDIR}/system/grub"
-				clear; echo -e "[\e[32m*\e[0m] Presh any key to return"
-				read -r 1>&-; BACKTO="CO_F"; break;;
-			XIV|xiv|14				)
-				# UPDATES RUNLEVEL ENTRIES
-				vim "${CCONFDIR}/system/runlevels"
-				clear; echo -e "[\e[32m*\e[0m] Presh any key to return"
-				read -r 1>&-; BACKTO="CO_F"; break;;
-			XV|xv|15				)
-				# INJECT CUSTOM FILES
-				vim "${CCONFDIR}/system/inject_files"
-				clear; echo -e "[\e[32m*\e[0m] Presh any key to return"
-				read -r 1>&-; BACKTO="CO_F"; break;;
-			XVI|xvi|16				)
-				BACKTO="BSM"; break;;
-			[tT]					)
-				subterm_f "${lppar[@]}"
-				echo "Presh any key to return"
-				read -r 1>&-;BACKTO="CO_F";
-  				clear; break;;
-			* ) clear; men_opt 8;;
-		esac
-	done
-}
-
-# SELECT DEFAULT SYSTEM MENU
-selectdef_f() {
-	#show list of local builds
-	#add imput for setting default
-		#will change the dist system-arch-version to system-arch-version-default
-		#same for kernel-arch-version
-	clear; men_opt 9
-	while true; do
-		read -rp "Input :: <= " SELCT
-		case ${SELCT:-3} in
-			I|i|1|-I|-i|-1			)
-				clear; echo "Documentations submenu option a)"
-				echo "Presh any key to return"
-				read -r 1>&-; BACKTO="SELDEF"; break;;
-			II|ii|2|-II|-ii|-2		)
-				clear; echo "Documentations submenu option b)"
-				echo "Presh any key to return"
-				read -r 1>&-; BACKTO="SELDEF"; break;;
-			III|iii|3|-III|-iii|-3	)
-				clear; BACKTO="BSM"; break;;
-			[tT]					)
-				subterm_f "${lppar[@]}"
-				echo "Presh any key to return"
-				read -r 1>&-;BACKTO="SELDEF";
-  				clear; break;;
-			* ) clear; men_opt 9;;
-		esac
-	done
-}
-
-# THE CONTROLLER MENU
-con_f() {
-	clear; amiroot "$UID"; echo "You selected: build the controller image"; echo
-	source cinit.sh
-	BACKTO="MM"
-}
-
-# DOCUMENTATIONS MENU
-doc_f(){
-	clear; echo "	      Documentations. Please enjoy yourself!"; echo
-	men_opt 2
-	while true; do
-		read -rp "Choose a document you wish to read: " SELCT
-		case ${SELCT:-5} in
-			I|i|1|-I|-i|-1			)
-				clear; echo "Documentations submenu option a)"
-				echo "Presh any key to return"
-				read -r 1>&-; BACKTO="DOC"; break;;
-			II|ii|2|-II|-ii|-2		)
-				clear; echo "Documentations submenu option b)"
-				echo "Presh any key to return"
-				read -r 1>&-; BACKTO="DOC"; break;;
-			III|iii|3|-III|-iii|-3	)
-				clear; echo "Documentations submenu option c)"
-				echo "Presh any key to return"
-				read -r 1>&-; BACKTO="DOC"; break;;
-			IV|iv|4|-IV|-iv|-4		)
-				clear; echo "Documentations submenu option d)"
-				echo "Presh any key to return"
-				read -r 1>&-; BACKTO="DOC"; break;;
-			V|v|5|-V|-v|-5			)
-				clear; echo "Documentations submenu option e)"
-				BACKTO="MM"; break;;
-			* ) clear; men_opt 2;;
-		esac
-	done
-}
-
-# ABOUT MENU
-about_f() {
-	clear; echo "		     Welcome to About Menu"; echo
-	men_opt 3
-	while true; do
-		read -rp "Choose a journey: " SELCT
-		case ${SELCT:-4} in
-			I|i|1|-I|-i|-1			)
-				clear; echo "About submenu option a)"
-				echo "Presh any key to return"
-				read -r 1>&-; BACKTO="AB"; break;;
-			II|ii|2|-II|-ii|-2		)
-				clear; echo "About submenu option b)"
-				echo "Presh any key to return"
-				read -r 1>&-; BACKTO="AB"; break;;
-			III|iii|3|-III|-iii|-3	)
-				clear; echo "About submenu option c)"
-				echo "Presh any key to return"
-				read -r 1>&-; BACKTO="AB"; break;;
-			IV|iv|4|-IV|-iv|-4		)
-				clear; echo "About submenu option d)"
-				BACKTO="MM"; break;;
-			* ) clear; men_opt 3;;
-		esac
-	done
+	unset SELCT
 }
 
 # MAIN LOOP FUNCTION
 mainlp_f() {
 BACKTO="$1"
 while true; do
-	case "${BACKTO:-MM}" in
+	case "${BACKTO:-Q}" in
 		MM 		)
 			# PULLS MAIN MENU FUNCTION
-			main_f "${lppar[@]}";;
+			_call_menu "1" "Q" "MM" "main_f" "${lppar[@]}";;
 		DOC 	)
 			# PULLS DOCUMENTATION MENU FUNCTION
-			doc_f;;
+			_call_menu "2" "MM" "DOC" "doc_f";;
 		AB 		)
 			# PULLS ABOUT MENU FUNCTION
-			about_f;;
+			_call_menu "3" "MM" "DOC" "about_f";;
 		PORT_M 	)
 			# PULLS PORTAGE SUBMENU FUNCTION
-			portage_men_f "${lppar[@]}";;
+			_call_menu "7" "SM" "PORT_M" "portage_men_f" "${lppar[@]}";;
 		CATA_M 	)
-			catalyst_f "${lppar[@]}";;
+			_call_menu "10" "SM" "CATA_M" "catalyst_f" "${lppar[@]}";;
 		SM 		)
 			# PULLS BUILD SYSTEM SUBMENU: THIS IS A SUBMENU OF BULDERS MENU
-			bs_f "${lppar[@]}";;
+			_call_menu "6" "BSM" "SM" "bs_f" "${lppar[@]}";;
 		BSM 	)
 			# PULLS BUILDER MENU
-			bs_menu_f "${lppar[@]}";;
+			_call_menu "5" "MM" "BSM" "bs_menu_f" "${lppar[@]}";;
 		CO_F 	)
 			# PULLS CONFIGURATION SUBMENU: SUBMENU OF BUILDERS MENU
-			config_f "${lppar[@]}";;
+			_call_menu "8" "BSM" "CO_F" "config_f" "${lppar[@]}";;
 		SELDEF 	)
 			# PULLS SELECT DEFAULT SYSTEM SUBMENU: SUBMENU OF BUILDERS MENU
-			selectdef_f "${lppar[@]}";;
+			_call_menu "9" "BSM" "SELDEF" "selectdef_f" "${lppar[@]}";;
 		GSET 	)
 			# PULL GSE TOOLS SUBMENU
-			gse_t "${lppar[@]}";;
+			_call_menu "11" "MM" "GSET" "gse_t" "${lppar[@]}";;
+		CONTR 	)
+			_call_menu '' "MM" "CONTR" "controller_f" "${lppar[@]}";;
 		Q 		)
 			# EXIT
 			sleep 1
