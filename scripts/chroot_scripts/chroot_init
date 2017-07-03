@@ -156,6 +156,10 @@ _do_hs '\+grun' "after" "Part: Runlevel Configurations"
 _do_hs '\-gkernel' "before" "Part: Kernel build"
 if [[ -n "${_flag_kernel}" ]] || [[ -n "${_flag_minimal}" ]]; then
 	:
+elif [[ "${_flag_kernel_use}" ]]; then
+	mkdir -p "/boot"
+	cp "${CHDIR}/boot.d/kernel" "/boot/$(cat "${CHDIR}/boot.d/kernel_name")"
+	_monitor_chroot_flow "KERNEL"
 else
 	if _call_hook_points 'KERNEL' 'gkernel' 'Part: Kernel build' '_kernel_build'; then
 		_monitor_chroot_flow "KERNEL"
@@ -170,6 +174,10 @@ _do_hs '\+gkernel' "after" "Part: Kernel build"
 _do_hs '\-ginitrd' "before" "Part: Initramfs build"
 if [[ -n "${_flag_kernel}" ]] || [[ -n "${_flag_minimal}" ]] || [[ -n "${_flag_initrd}" ]]; then
 	:
+elif [[ "${_flag_initramfs_use}" ]]; then
+	mkdir -p "/boot"
+	cp "${CHDIR}/boot.d/initramfs" "/boot/$(cat "${CHDIR}/boot.d/initramfs_name")"
+	_monitor_chroot_flow "INITRAMFS"
 else
 	if _call_hook_points 'INITRAMFS' 'ginitrd' 'Part: Initramfs build' '_initramfs_builder'; then
 		_monitor_chroot_flow "INITRAMFS"
