@@ -741,6 +741,39 @@ _export_args() {
 	unset _ARGARRAY
 }
 
+_edit_subc() {
+	case "$1" in
+		portage 	)
+			_o_report_back "I   ) make.conf"
+			_o_report_back "II  ) package.use"
+			_o_report_back "III ) Features"
+			;;
+		catalyst 	)
+			_o_report_back "I   ) catalyst.conf"
+			_o_report_back "II  ) catalystrc"
+			_o_report_back "III ) spec1"
+			_o_report_back "IV  ) spec2"
+			_o_report_back "V   ) spec3"
+			;;
+		config 		)
+			_o_report_back "I   ) fstab"
+			_o_report_back "II  ) drives interface"
+			_o_report_back "III ) hostname"
+			_o_report_back "IV  ) /etc/conf.d/net"
+			_o_report_back "V   ) locales"
+			_o_report_back "VI  ) consolefont"
+			_o_report_back "VII ) sshd"
+			_o_report_back "VIII) sshkey {pub}"
+			_o_report_back "IX  ) symlinks"
+			_o_report_back "X   ) scripts"
+			_o_report_back "XI  ) packages"
+			_o_report_back "XII ) default grub"
+			_o_report_back "XIII) runlevels"
+			_o_report_back "XIV ) custom files"
+			;;
+	esac
+}
+
 # FLAGS AND ARGUMENTS
 librarium() {
 	_e_report_back "===================================================================================================================="
@@ -763,6 +796,8 @@ librarium() {
 	_flag_network=''
 	_flag_mm=''
 	_flag_do=''
+	_flag_initramfs_use=''
+	_flag_kernel_use=''
 	_flag_g=''
 	_flag_sdir=''
 	_flag_auto=''
@@ -835,13 +870,131 @@ librarium() {
 				_flag_initrd=1
 				_e_report_back "Initramfs will be excluded"
 				export _flag_initrd;;
-		
+
+			--initramfs*				)
+				if [[ "$1" != *'='* ]]; then
+					die "Missing argument for initramfs image"
+				fi
+				
+				if [[ "${1#*=}" == '' ]]; then
+					die "No argument specified"
+				fi
+
+				_flag_initramfs_image="${1#*=}"
+
+				if [[ "${_flag_initramfs_image:0:1}" != "/" ]]; then
+					_flag_initramfs_image="/${_flag_initramfs_image}"
+				fi
+
+				if [[ -e "${_flag_initramfs_image}" ]]; then
+					if [[ -d "${_flag_initramfs_image}" ]]; then
+						die "The input is a directory, please select an image. Aborting..."
+					elif [[ ! -d "${_flag_initramfs_image}" ]]; then
+						_flag_initrd_use=0
+						export _flag_initrd
+						export _flag_initramfs_image
+						_o_report_back "Initramfs image has been set to ${_flag_initramfs_image}"
+					fi
+				else
+					die "No such a file. Aborting..."
+				fi
+				;;
+
+			--kernel*					)
+				if [[ "$1" != *'='* ]]; then
+					die "Missing argument for kernel image"
+				fi
+				
+				if [[ "${1#*=}" == '' ]]; then
+					die "No argument specified"
+				fi
+
+				_flag_kernel_image="${1#*=}"
+
+				if [[ "${_flag_kernel_image:0:1}" != "/" ]]; then
+					_flag_kernel_image="/${_flag_kernel_image}"
+				fi
+
+				if [[ -e "${_flag_kernel_image}" ]]; then
+					if [[ -d "${_flag_kernel_image}" ]]; then
+						die "The input is a directory, please select an image. Aborting..."
+					elif [[ ! -d "${_flag_kernel_image}" ]]; then
+						_flag_kernel_use=0
+						export _flag_kernel
+						export _flag_kernel_image
+						_o_report_back "Kernel image has been set to ${_flag_kernel_image}"
+					fi
+				else
+					die "No such a file. Aborting..."
+				fi;;
+
+			--edit*						)
+				case "${2%=*}" in
+					portage|catalyst|conf)
+					shift;;
+					* )
+						_e_report_back "Wrong option after edit"
+						_e_report_back "Please select one of:"
+						_o_report_back "I    ) portage"
+						_o_report_back "II   ) catalyst"
+						_o_report_back "III  ) conf"
+						die
+				esac
+
+				case "$1" in
+					portage* 	)
+						_edit_args() {
+							if [[ "$1" != *'='* ]]; then
+								die "Missing = after $2"
+							fi
+
+							if [[ "${1#*=}" == '' ]]; then
+								_e_report_back "No argument specified"
+								_e_report_back "Please select on of:"
+								_edit_subc "$2"
+								die
+							fi
+						}
+						
+						_edit_args "$1" "portage"
+						;;
+					catalyst* 	)
+						if [[ "$1" != *'='* ]]; then
+							die "Missing = after catalyst"
+						fi
+
+						if [[ "${1#*=}" == '' ]]; then
+							_e_report_back "No argument specified"
+							_e_report_back "Please select on of:"
+							_edit_subc "catalyst"
+						fi
+						;;
+					conf* 		)
+						if [[ "$1" != *'='* ]]; then
+							die "Missing = after conf"
+						fi
+
+						if [[ "${1#*=}" == '' ]]; then
+							_e_report_back "No argument specified"
+							_e_report_back "Please select on of:"
+							_edit_subc "config"
+						fi
+						;;
+					*			)
+						die "Wrong category"
+				esac
+exit 1;;
+
 			--build-controller*|-bc*	)
 				if [[ "$1" != *'='* ]]; then
 					die "Missing argument for controller's path"
 				else
 					_flag_controller_path="${1#*=}"
-					[[ ${_flag_controller_path:0:1} != "/" ]] && _flag_controller_path="/${_flag_controller_path}"
+					
+					if [[ ${_flag_controller_path:0:1} != "/" ]]; then
+						_flag_controller_path="/${_flag_controller_path}"
+					fi
+
 					if [[ "${_flag_controller_path}" == '/' ]]; then
 						die "Root is not allowed to be set as moddir path. Aborting..."
 					else
@@ -1151,6 +1304,8 @@ witch_hunt() {
 	for i in "${CATDIR}" "${CATPORTDIR}" "${CATDISTDIR}"; do
 		if [[ -e "$i" && ! -d "$i" ]]; then
 			die "Error: $i is not a directory. Aborting"
+		elif [[ ! -e "$i" ]]; then
+			mkdir -p "$i"
 		fi
 	done
 
@@ -1492,6 +1647,8 @@ warp() {
 		"_flag_auto" \
 		"_flag_silence" \
 		"_flag_ccache" \
+		"_flag_initramfs_use" \
+		"_flag_kernel_use" \
 		"_flag_distcc")
 
 	_warping_time "$@"
@@ -1877,8 +2034,10 @@ _prepare_chroot() {
 		cp -r "${CLOCALLG}/doscripts" "$1/sinit.d/cscripts/doscripts"
 	fi
 
+	# CREATE ARRAY DIR
 	mkdir -p "$1/sinit.d/array_args"
 
+	# CREATE THE ENFORCE ARGS FILE
 	rm -f "$1/sinit.d/array_args/enforce_args"
 
 	if [[ -n "${_enforce_args}" ]]; then
@@ -1887,6 +2046,7 @@ _prepare_chroot() {
 		done
 	fi
 
+	# CREATE THE DISTCC FILE
 	mkdir -p "$1/sinit.d/distcc_ccache"
 	if [[ -n "${_opt_distcc}" ]]; then
 		echo "${_opt_distcc}" > "$1/sinit.d/distcc_ccache/distcc_opt"
@@ -1894,18 +2054,48 @@ _prepare_chroot() {
 		rm -f "$1/sinit.d/distcc_ccache/distcc_opt"
 	fi
 
+	# CREATE THE CCACHE FILE
 	if [[ -n "${_ccache_val}" ]]; then
 		echo "${_ccache_val}" > "$1/sinit.d/distcc_ccache/ccache_val"
 	else
 		rm -f "$1/sinit.d/distcc_ccache/ccache_val"
 	fi
 
+	# CREATE THE LAWFUL ARGS FILE
 	rm -f "$1/sinit.d/array_args/lawful_args"
 	
 	if [[ -n "${_lawful_args}" ]]; then
 		for i in "${_lawful_args[@]}"; do
 			echo "$i" >> "$1/sinit.d/array_args/lawful_args"
 		done
+	fi
+
+	# COPY THE INITRAMFS FILE TO WORKDIR
+	if [[ "${_flag_initrd}" ]]; then
+		if [[ "${_flag_initramfs_image}" ]]; then
+			if [[ ! -e "$1/sinit.d/boot.d/initramfs" ]]; then
+				rm -f "$1/sinit.d/boot.d/initramfs"
+				rm -f "$1/sinit.d/boot.d/initramfs_name"
+			fi
+
+			mkdir -p "$1/sinit.d/boot.d"
+			echo "$(basename "${_flag_initramfs_image}")" > "$1/sinit.d/boot.d/initramfs_name"
+			cp "${_flag_initramfs_image}" "$1/sinit.d/boot.d/initramfs"
+		fi
+	fi
+
+	# COPY THE KERNEL FILE TO WORKDIR
+	if [[ "${_flag_keep}" ]]; then
+		if [[ "${_flag_kernel_image}" ]]; then
+			if [[ ! -e "$1/sinit.d/boot.d/kernel" ]]; then
+				rm -f "$1/sinit.d/boot.d/kernel"
+				rm -f "$1/sinit.d/boot.d/kernel_name"
+			fi
+
+			mkdir -p "$1/sinit.d/boot.d"
+			echo "$(basename "${_flag_kernel_image}")" > "$1/sinit.d/boot.d/kernel_name"
+			cp "${_flag_kernel_image}" "$1/sinit.d/boot.d/kernel"
+		fi
 	fi
 
 	echo -e "\e[34mChrooting at new system\e[0m"
@@ -1923,7 +2113,6 @@ _prepare_chroot() {
 			die "Chrooting configuration failed"
 		fi
 	fi
-
 }
 
 main_f() {
@@ -2034,15 +2223,30 @@ portage_men_f() {
 			_STAY=0;;
 		II|ii|2			)
 			# MANUAL EDIT OF MAKE.CONF
-			cp "${CCONFDIR}/system/portage/makeconf.backup" "${CCONFDIR}/system/portage/make.conf"
-			vim "${CCONFDIR}/system/portage/make.conf"
+			while true; do
+				clear
+				_o_report_back "Do you wish to edit or reset the make.conf file"
+				_o_report_back "Please select: e/E for view or r/R for reset"
+				read -rp "Input :: <= " ANS
+				case "${ANS}" in
+					[eE]	)
+						vim "${CCONFDIR}/system/portage/make.conf"
+						break;;
+					[rR]	)
+						cp "${CCONFDIR}/system/portage/makeconf.backup" "${CCONFDIR}/system/portage/make.conf"
+						vim "${CCONFDIR}/system/portage/make.conf"
+						break;;
+					* )
+				esac
+			done
+			unset ANS
 			_STAY=0;;
 		III|iii|3		)
 			# FEATURES & CCACHE
 			vim "${CCONFDIR}/system/coptions"
 			_STAY=0;;
 		IV|iv|4			)
-			# EDIT DISTCC
+			# EDIT DISTCC HOSTS
 			vim "${CCONFDIR}/system/portage/hosts"
 			_STAY=0;;
 		V|v|5			)
@@ -2050,14 +2254,10 @@ portage_men_f() {
 			vim "${CCONFDIR}/system/portage/package.use/sysbuild"
 			_STAY=0;;
 		VI|vi|6			)
-			# PREVIEW OF USEFLAGS: WILL BE REMOVED AS AN OPTION
-			less "${CCONFDIR}/system/portage/package.use/sysbuild"
-			_STAY=0;;
-		VII|vii|7		)
-			# REGENERATES MAKE.CONF TO DEFAULT
+			# REGENERATES PACKAGE.USE TO DEFAULT, INCASE THE FILE IS MISSING
 			cp "${CCONFDIR}/system/portage/package.use/sysbuild.backup" "${CCONFDIR}/system/portage/package.use/sysbuild"
 			_STAY=0;;
-		VIII|viii|8		)
+		VII|vii|7		)
 			_PARENT=0;;
 		[tT]			)
 			subterm_f "${lppar[@]}"
@@ -2193,7 +2393,7 @@ selectdef_f() {
 # THE CONTROLLER MENU
 controller_f() {
 	clear; amiroot "$UID"; echo "You selected: build the controller image"; echo
-	source cinit.sh
+	# source "${CWORKDIR}/scripts/controller"
 	_PARENT=0
 }
 
@@ -2202,16 +2402,16 @@ doc_f(){
 	read -rp "Choose a document you wish to read: " SELCT
 	case ${SELCT:-5} in
 		I|i|1			)
-			clear; echo "Documentations submenu option a)"
+			man "${CWORKDIR}/docs/documentations/overview_gse.5"
 			_STAY=0;;
 		II|ii|2			)
-			clear; echo "Documentations submenu option b)"
+			man "${CWORKDIR}/docs/documentations/overview_controller.5"
 			_STAY=0;;
 		III|iii|3		)
-			clear; echo "Documentations submenu option c)"
+			man "${CWORKDIR}/docs/documentations/overview_config.d.5"
 			_STAY=0;;
-		IV|iv			)
-			clear; echo "Documentations submenu option d)"
+		IV|iv|4			)
+			man "${CWORKDIR}/docs/documentations/overview_scripts.5"
 			_STAY=0;;
 		V|v|5			)
 			_PARENT=0;;
@@ -2223,13 +2423,13 @@ about_f() {
 	read -rp "Choose a journey: " SELCT
 	case ${SELCT:-4} in
 		I|i|1			)
-			clear; echo "About submenu option a)"
+			echo "About submenu option a)"
 			_STAY=0;;
 		II|ii|2			)
-			clear; echo "About submenu option b)"
+			echo "About submenu option b)"
 			_STAY=0;;
 		III|iii|3		)
-			clear; echo "About submenu option c)"
+			echo "About submenu option c)"
 			_STAY=0;;
 		IV|iv|4			)
 			_PARENT=0;;
