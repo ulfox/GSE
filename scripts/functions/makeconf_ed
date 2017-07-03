@@ -11,9 +11,9 @@ fi
 
 clear
 while true; do
-echo "You can automatically generate the make.conf based on the machine or configure it following the guider"
-echo "Configure manually with the guider? "
 	if [[ "$1" != 'int' ]]; then
+		echo "You can automatically generate the make.conf based on the machine or configure it following the guider"
+		echo "Configure manually with the guider? "
 		read -rp "Select an option: " SELCT
 	else
 		SELCT='n'

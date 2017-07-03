@@ -743,34 +743,120 @@ _export_args() {
 
 _edit_subc() {
 	case "$1" in
-		portage 	)
+		I|1|portage 	)
 			_o_report_back "I   ) make.conf"
 			_o_report_back "II  ) package.use"
-			_o_report_back "III ) Features"
+			_o_report_back "III ) features"
 			;;
-		catalyst 	)
+		II|2|catalyst 	)
 			_o_report_back "I   ) catalyst.conf"
 			_o_report_back "II  ) catalystrc"
 			_o_report_back "III ) spec1"
 			_o_report_back "IV  ) spec2"
 			_o_report_back "V   ) spec3"
 			;;
-		config 		)
+		III|3|conf		)
 			_o_report_back "I   ) fstab"
-			_o_report_back "II  ) drives interface"
-			_o_report_back "III ) hostname"
-			_o_report_back "IV  ) /etc/conf.d/net"
-			_o_report_back "V   ) locales"
-			_o_report_back "VI  ) consolefont"
-			_o_report_back "VII ) sshd"
-			_o_report_back "VIII) sshkey {pub}"
-			_o_report_back "IX  ) symlinks"
-			_o_report_back "X   ) scripts"
-			_o_report_back "XI  ) packages"
-			_o_report_back "XII ) default grub"
-			_o_report_back "XIII) runlevels"
-			_o_report_back "XIV ) custom files"
+			_o_report_back "II  ) file system entries (fstab.info)"
+			_o_report_back "III ) drives interface (drvin)"
+			_o_report_back "IV  ) hostname"
+			_o_report_back "V   ) /etc/conf.d/net"
+			_o_report_back "VI  ) locales"
+			_o_report_back "VII ) consolefont"
+			_o_report_back "VIII) sshd"
+			_o_report_back "IX  ) sshkey {pub}"
+			_o_report_back "X   ) symlinks"
+			_o_report_back "XI  ) scripts"
+			_o_report_back "XII ) packages"
+			_o_report_back "XIII) default grub (grub)"
+			_o_report_back "XIV ) runlevels"
+			_o_report_back "XV  ) custom files (cmfiles)"
 			;;
+	esac
+}
+
+_edit_args() {
+	if [[ "$1" != *'='* ]]; then
+		die "Missing = after $2"
+	fi
+
+	if [[ "${1#*=}" == '' ]]; then
+		_e_report_back "No argument specified"
+		_e_report_back "Please select on of:"
+		_edit_subc "$2"
+		die
+	fi
+
+	_edit_configs "${1#*=}" "$2"
+}
+
+_edit_configs() {
+	echo "$2"
+	echo "$1"
+	case "$2" in
+		I|1|portage 	)
+			case "$1" in
+				I|1|make.conf 	 	)
+					vim "${CCONFDIR}/system/portage/make.conf";;
+				II|2|package.use 	)
+					vim "${CCONFDIR}/system/portage/package.use/sysbuild";;
+				III|3|features 	 	)
+					vim "${CCONFDIR}/system/coptions";;
+				*				 	)
+					die "No such a file $1 under $2 category";;
+			esac;;
+
+		II|2|catalyst 	)
+			case "$1" in
+				I|1|catalyst.conf 	)
+					vim "${CCONFDIR}/system/catalyst/catalyst.conf";;
+				II|2|catalystrc 	)
+					vim "${CCONFDIR}/system/catalyst/catalystrc";;
+				III|3|spec1 		)
+					vim "${CCONFDIR}/system/catalyst/spec1";;
+				IV|4|spec2 			)
+					vim "${CCONFDIR}/system/catalyst/spec2";;
+				V|5|spec3 			)
+					vim "${CCONFDIR}/system/catalyst/spec3";;
+				* 					)
+					die "No such a file $1 under $2 category";;
+			esac;;
+
+		III|3|conf 		)
+			case "$1" in
+				I|1|fstab 			)
+					vim "${CCONFDIR}/system/fstab";;
+				II|2|fstab.infi 	)
+					vim "${CCONFDIR}/system/fstab.info";;
+				III|3|drvin 		)
+					vim "${CCONFDIR}/system/devname.info";;
+				IV|4|hostname 		)
+					vim "${CCONFDIR}/system/hostname";;
+				V|5|net 			)
+					vim "${CCONFDIR}/system/net";;
+				VI|6|locales 		)
+					vim "${CCONFDIR}/system/locale.gen";;
+				VII|7|consolefont 	)
+					vim "${CCONFDIR}/system/consolefont";;
+				VIII|8|sshd 		)
+					vim "${CCONFDIR}/system/sshd";;
+				IX|9|ssh.pub 		)
+					vim "${CCONFDIR}/system/ssh.pub";;
+				X|10|symlinks 		)
+					vim "${CCONFDIR}/system/system_links";;
+				XI|11|scripts 		)
+					vim "${CCONFDIR}/system/custom_scripts";;
+				XII|12|packages 	)
+					vim "${CCONFDIR}/system/custom_pacl";;
+				XIII|13|grub 		)
+					vim "${CCONFDIR}/system/grub";;
+				XIV|14|runlevels 	)
+					vim "${CCONFDIR}/system/runlevels";;
+				XV|15|cmfiles 		)
+					vim "${CCONFDIR}/system/inject_files";;
+				* 					)
+					die "No such a file $1 under $2 category";;
+			esac;;
 	esac
 }
 
@@ -818,7 +904,7 @@ librarium() {
 		
 			--help|-h 					)
 				help_f
-			_e_report_back "===================================================================================================================="
+				_e_report_back "===================================================================================================================="
 				exit 0;;
 			--base*|-b* 					)
 				if [[ "$1" != *'='* ]]; then
@@ -942,48 +1028,20 @@ librarium() {
 				esac
 
 				case "$1" in
-					portage* 	)
-						_edit_args() {
-							if [[ "$1" != *'='* ]]; then
-								die "Missing = after $2"
-							fi
+					I|1|portage* 	)
+						_edit_args "$1" "portage";;
 
-							if [[ "${1#*=}" == '' ]]; then
-								_e_report_back "No argument specified"
-								_e_report_back "Please select on of:"
-								_edit_subc "$2"
-								die
-							fi
-						}
-						
-						_edit_args "$1" "portage"
-						;;
-					catalyst* 	)
-						if [[ "$1" != *'='* ]]; then
-							die "Missing = after catalyst"
-						fi
+					II|2|catalyst* 	)
+						_edit_args "$1" "catalyst";;
 
-						if [[ "${1#*=}" == '' ]]; then
-							_e_report_back "No argument specified"
-							_e_report_back "Please select on of:"
-							_edit_subc "catalyst"
-						fi
-						;;
-					conf* 		)
-						if [[ "$1" != *'='* ]]; then
-							die "Missing = after conf"
-						fi
+					III|3|conf* 		)
+						_edit_args "$1" "conf";;
 
-						if [[ "${1#*=}" == '' ]]; then
-							_e_report_back "No argument specified"
-							_e_report_back "Please select on of:"
-							_edit_subc "config"
-						fi
-						;;
 					*			)
-						die "Wrong category"
+						die "Wrong category";;
 				esac
-exit 1;;
+
+				exit;;
 
 			--build-controller*|-bc*	)
 				if [[ "$1" != *'='* ]]; then
