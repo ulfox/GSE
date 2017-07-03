@@ -1,0 +1,54 @@
+.TH "GSE CORE SCRIPTS OVERVIEW" "5"
+
+.PP
+.nf
+The core script's that consist GSE are:
+			I)		gse under /bin
+			II)		sinit under /usr/lib64/gse/scripts
+			III)	sinit_functions under /usr/lib64/gse/scripts/functions
+			IV)		catalyst_functions under /usr/lib64/gse/scripts/functions
+			V)		drv_interface under /usr/lib64/gse/scripts/functions
+			VI)		init_stage3_seq under /usr/lib64/gse/scripts/functions
+			VII)	makeconf_ed	under /usr/lib64/gse/scripts/functions
+			VIII)	men_opt under /usr/lib64/gse/scripts/functions
+			IX)		chroot_sinit under /usr/lib64/gse/scripts/chroot_functions
+			X)		cfunctions under /usr/lib64/gse/scripts/chroot_functions
+.fi
+.PP
+The gse script is the first script that runs. From this script the paths, workdirs, configdirs, distdirs are set
+and everything that follows is sourced. The most important thing function that this script provides, is a way to call
+warp function after ensuring that all the above paths and directories have been set and exported. The warp function is
+the main function that initiates the building sequence. It's and autonomous process, meaning that someone could call just
+this function if he had set manually the above directories and paths.
+.fi
+.PP
+The sinit script is the main script that controls Stage: A. For more information about stages and parts, see man 5 gse.
+.fi
+.PP
+The sinit_functions is a file with all the functions that sinit requires to complete the process. Actually this file holds
+almost all functions of Stage: A and it in fact is sourced even before the warp function is called.
+.fi
+.PP
+The catalyst_functions are the set all of functions that are required by the init_stage3_seq scrip.
+.fi
+.PP
+The drv_interfface is a script which generates the driver interface to be created on all host files. From this script, someone
+can set the boot,system,userdata file-systems types and sizes.
+.fi
+.PP
+The init_stage3_seq is a script that is sourced when the catalyst base option is provided. This script will scan for portage snapshot,
+create or download a new one if no local snapshot is found or the one provided fails to satisfy certain conditions. Then, it will initiate
+the building sequence of stage{1,2,3}. For each stage it will automatically read, filter and export the spec files that are provided for the process.
+.fi
+.PP
+Makeconf_ed is a simple script that is either initiated manually from the main menu or automatically by the warp function. This script will use
+a default make.conf files and edit it with MAKEOPTS, EMERGE_DEFAULT_OPTS, SYSTEM ARCH, FEATURES and GENTOO MIRRORS. A completely optional script, that
+wont harm the process if it's missing, however it is recommended to keep it and use it, since it provides a fast way of creating a simple make.conf file, 
+optimized for compilation as described in GCC Optimization wiki page.
+.fi
+.PP
+The chroot_sinit script is the script that controls the Stage: B. This stage actually is a chroot stage, meaning that GSE will chroot to the new
+system, configure it, update it and apply all requested packages, profiles and system links.
+.fi
+.PP The cfunctions is the same as catalyst_functions and sinit_functions. All functions that are required by chroot_sinit lie here.
+.fi

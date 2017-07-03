@@ -1,0 +1,58 @@
+.TH "GSE CONFIG.D OVERVIEW" "5"
+
+.PP
+The config.d directory hosts all the configuration files that are used to build a system.
+While the building process depends on those files, they are not considered core files (except three), meaning that
+GSE is not requiring those to function. If they miss, GSE will simply skip the part that depends on those.
+.fi
+.PP
+However, while those configuration files are not runtime dependencies for GSE, they are the incarnation
+of GSE, since from those, it provides the means to configure and build the system the way someone wishes and
+control the hosts that run upon that. Therefore, someone can argue, that these files are the most important aspect of
+GSE, since from those, derive all the functions that someone would find interesting and install GSE in the 
+first place.
+.fi
+
+.PP
+.nf
+The config.d directory lies under /usr/lib64/gse and hosts two main sub-directories.
+	I)  System
+	II) Controller
+.fi
+.PP
+The system sub-directory hosts all the configuration files that are used during the system built and configuration.
+Configuration files like hostname, make.conf, portage profile, package.use, system links, fstab entries are common
+files under this sub-directory. 
+
+It was noted above that three files under the config.d directory are considered core files. Those files lie under this
+sub-directory and are:
+.fi
+.PP
+.nf
+	I)   Fstab entries
+	II)  Driver interface
+	III) Catalyst
+.fi
+
+.PP
+The fstab and driver interface files are considered core items, since from those GSE will read what kind of interface 
+it should expect to see or create on the new hosts. For example, boot/system/userdata file system type/size and mount options.
+
+The third and last entry (Catalyst) is important if catalyst is used as the foundation of the new system. The catalyst directory
+hosts the spec files, catalyst.conf and catalystrc files, which will inform catalyst about the built and options it should apply.
+.fi
+
+.PP
+The second main sub-directory is called controller. The controller sub-directory hosts all the configuration files that are used
+from the initramfs functions on the hosts, during the boot-up. Those files are fetched from the hosts on boot-up and are considered
+as a way of server-client communication.
+.fi
+.PP
+Each time a host boots-up, it will search for network connection and if it can establish one, then it will proceed with fetching this
+directory from the server. From those file, the host will be informed about new changes, e.g. fstab changes, hostname changes, server
+IP changes, ssh pub key changes, gpg public key changes,...
+.fi
+.PP
+Since those files provide a way of control from the server to clients, GSE provides an option for masking a specific file or directory.
+A mask informs the controller that no change should happen to that file, whatever the new fetched version instructs.
+.fi

@@ -1,0 +1,51 @@
+.TH "CONTROLLER OVERVIEW" "5"
+
+.PP
+Note: The following entries are part of man 5 gse. For more information about GSE, please refer there.
+.fi
+.SH "CONTROLLER"
+.nf
+\fBThe controller\fR consists from a set of scripts, functions and files that lie inside the initramfs.
+The concept of it, derives from the need to controll and make changes to multiple systems that host the
+images created from the builder. By names definition, the controller is responsible making dicisions
+before the system begins booting, that is, before the initramfs handles the control to the main system.
+
+.TP
+\fBController's functions\fR
+-Fetch configuration data from the server
+-Check local version with the server's version
+-Check the health integrity of SYSFS and BACKUPFS
+-Apply new configuration files to the SYSFS
+-Update runlevels
+-Create new drive interfaces
+-Create filesystems
+-Create and modify LABELS
+-Switch BOOTFS
+-Mount /etc and other directories as tmpfs
+-Decide which partition will be named SYSFS
+-Create,delete and modify subvolumes
+-Even wipe the whole setup and start new
+.fi
+.PP
+.nf
+The above features can be acceced and modifed, while not recommended from the controller modules.
+The modules are located at "$GSE/config.d/controller/modules" and are orginized by categories.
+.fi
+.PP
+.nf
+The controller is built inside the initramfs at the end of the chroot part. While that makes the
+reproduction of the controller a slower process, the reason to include be included at that part,
+is to shield off rebuilding the host's kernel. This feature will be transfered outside the chroot
+phase in the future, making it independent from the rest of the process. Meaning that Part H. and
+Part I. would be moved out of Stage B.
+.fi
+.SH "GSE PROFILE"
+.nf
+The GSE profile, is an experimental profile which aims to enable early functions, features and flags
+for the purpose of assisting computer labs on Research facilities and University labs. 
+The projects idea was born to aid such needs, and the profile is a way reflecting those.
+
+The profile enables global support for programming languages and global support for math functions.
+This profile will be split in other parts in the future, to support embedded systems, by enabling
+fewer flags and emerging as much as possible fewer packages. But for now it is simply tested.
+.fi

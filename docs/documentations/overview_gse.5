@@ -1,0 +1,36 @@
+.TH "GSE OVERVIEW" "5"
+
+.PP
+.nf
+There are 5 important directories regarding GSE.
+.PP
+	I)		The config.d directory under /usr/lib64/gse
+	II)		The scripts directory under /usr/lib64/gse
+	III)	The gse directory under /etc
+	IV)		The dist.d directory, default under /var/tmp/gse
+	V)		The local directory under /var/tmp/gse
+.fi
+
+.PP
+The config.d directory holds all configuration files that describe the items and features to be added or enabled on the system to be built.
+.fi
+.PP
+The scripts directory actually is GSE. This directory holds all the functions that are either initiated directly from /bin/gse or sourced
+during the process. It is not recommended to modify those files, since gse provides many configuration files targeted for the system and additionally
+it provides a custom script mechanism, with which someone could source whatever he wishes, without modifying any core scripts.
+.fi
+.PP
+GSE configuration files. Those files instruct GSE where to look for important items that regard mostly the Part: A Fundamentals, for example: 
+the GSE pub key, stage3 tarball, portage snapshot.
+.fi
+.PP
+The dist.d directory is where GSE will do all the work after the catalyst part, which is a separate process. Under dist.d GSE keeps all the workdirs,
+and Downloaded items (stage3 tarball, portage snapshot, md5sum files,...).
+.fi
+.PP
+The local directory holds all the gse log files, states and extra files important for controlling the building sequence.
+.fi
+.PP
+.nf
+Note: For more technical details of GSE functions and features, please check man 1 gse.
+.fi
