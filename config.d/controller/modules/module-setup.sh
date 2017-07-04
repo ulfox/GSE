@@ -19,7 +19,14 @@ install() {
     inst_multiple chroot chown chmod ls sed awk mount ls ln umount \
     cp mv busybox rsync ssh gpg bash rmmod dmesg modprobe findmnt \
     tar bzip2 ping clear mkfs.ext2 mkfs.ext3 mkfs.ext4 mkfs.btrfs mkfs.vfat \
-    e2label mlabel swaplabel scp md5sum sha512sum lsblk tee
+    e2label mlabel swaplabel scp md5sum sha512sum lsblk tee sed awk arping \
+    dhclient
+
+    inst_simple "/lib64/libnss_dns.so.2"
+    inst_simple "/lib64/libnss_files.so.2"
+    inst_simple "/lib64/ld-linux-x86-64.so.2"
+    inst_simple "/lib64/libresolv.so.2"
+    inst_simple "/lib64/libc.so.6"
 
     mkdir -m 0755 -p ${initdir}/config.d/fetchdir,confdir}
     mkdir -m 0755 -p ${initdir}/config.d/confdir/{local,keys,jobs}
@@ -27,11 +34,12 @@ install() {
     mkdir -m 0755 -p ${initdir}/usr/local/controller
     mkdir -m 700 -p ${initdir}/root/.ssh
     mkdir -m 0755 -p ${initdir}/mnt/{rfs,bfs}
-    mkdir -m 0755 -p ${initdir}/mnt/{etc_tmpfs,tmp_tmpfs,var_tmp_tmpfs,workdir_tmp_tmpfs}
+    mkdir -m 0755 -p ${initdir}/mnt/{etc_tmpfs,tmp_tmpfs,var_tmp_tmpfs,workdir}
     mkdir -m 0755 -p ${initdir}/user-data/persistent/{local,nfs,log,var,etc}
     mkdir -m 0755 -p ${initdir}/user-data/persistent/local/{root,home,data,mnt,media}
 
     inst_script "$moddir/cchroot.sh" "/usr/local/controller/cchroot.sh"
+    inst_script "$moddir/net_script.sh" "/bin/net_script.sh"
     inst_script "$moddir/cbootflags.sh" "/usr/local/controller/cbootflags.sh"
     inst_script "$moddir/cfetch.sh" "/usr/local/controller/cfetch.sh"
     inst_script "$moddir/cfunctions.sh" "/usr/local/controller/cfunctions.sh"
@@ -60,7 +68,7 @@ install() {
     inst_simple "${CHDIR}/controller/csystem_links" "/config.d/confdir/system_links"
 
     inst_hook pre-mount 01 "$moddir/cinit_pre-mount.sh"
-    inst_hook mount 01 "$moddir/cinit_mount.sh"
-    inst_hook clean 01 "$moddir/cinit_clean.sh"
+    #inst_hook mount 01 "$moddir/cinit_mount.sh"
+    #inst_hook clean 01 "$moddir/cinit_clean.sh"
 
 }

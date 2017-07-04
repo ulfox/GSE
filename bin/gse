@@ -145,6 +145,10 @@ if echo "$@" | grep -q '\--time-warp' && [[ "$#" != 1 ]]; then
 	die "Error: Time Warp must be the only entry"
 fi
 
+if echo "$@" | grep -q '\--edit' && [[ "$#" != 2 ]]; then
+	die "Error: Edit must be the only entry"
+fi
+
 lppar=()
 for i in "$@"; do
 	lppar+=("$i")
