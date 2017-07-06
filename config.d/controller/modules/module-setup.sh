@@ -20,7 +20,7 @@ install() {
     cp mv busybox rsync ssh gpg bash rmmod dmesg modprobe findmnt \
     tar bzip2 ping clear mkfs.ext2 mkfs.ext3 mkfs.ext4 mkfs.btrfs mkfs.vfat \
     e2label mlabel swaplabel scp md5sum sha512sum lsblk tee sed awk arping \
-    dhclient
+    dhclient ifconfig
 
     inst_simple "/lib64/libnss_dns.so.2"
     inst_simple "/lib64/libnss_files.so.2"
@@ -68,7 +68,19 @@ install() {
     inst_simple "${CHDIR}/controller/csystem_links" "/config.d/confdir/system_links"
 
     inst_hook pre-mount 01 "$moddir/cinit_pre-mount.sh"
-    #inst_hook mount 01 "$moddir/cinit_mount.sh"
-    #inst_hook clean 01 "$moddir/cinit_clean.sh"
+    inst_hook mount 01 "$moddir/cinit_mount.sh"
+    inst_hook clean 01 "$moddir/cinit_clean.sh"
 
+}
+
+# called by dracut
+installkernel() {
+    instmods "=drivers"
+    instmods "=arch"
+    instmods "=crypto"
+    instmods "=fs"
+    instmods "=lib"
+    instmods "=mm"
+    instmods "=net"
+    instmods "=sound"
 }
