@@ -20,7 +20,7 @@ install() {
     cp mv busybox rsync ssh gpg bash rmmod dmesg modprobe findmnt \
     tar bzip2 ping clear mkfs.ext2 mkfs.ext3 mkfs.ext4 mkfs.btrfs mkfs.vfat \
     e2label mlabel swaplabel scp md5sum sha512sum lsblk tee sed awk arping \
-    dhclient ifconfig
+    dhclient ifconfig scp
 
     inst_simple "/lib64/libnss_dns.so.2"
     inst_simple "/lib64/libnss_files.so.2"

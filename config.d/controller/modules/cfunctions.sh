@@ -184,6 +184,85 @@ _check_version() {
 	fi
 }
 
+mv_pseudo() {	# ${rsys}
+	# Moving sys proc dev to rfs
+	echo "Moving sys proc dev to rfs"
+	for i in sys proc dev
+	do
+		echo "Moved ${i} to $1/${i}"
+		mount --move "$2/${i}" "$1/${i}"
+	done
+}
+
+mount_pseudo() {
+	mount -t proc /proc "$1/proc" || return 1
+	mount --rbind /dev "$1/dev" || return 1
+	mount --rbind /sys "$1/sys" || return 1
+	mount --make-rslave "$1/dev" || return 1
+	mount --make-rslave "$1/sys" || return 1
+}
+
+umount_pseudo() {
+	umount -l "$1/proc" >/dev/null 2>&1
+	umount -l "$1/dev" >/dev/null 2>&1
+	umount -l "$1/sys" >/dev/null 2>&1
+	umount -l "$1"/* >/dev/null 2>&1
+}
+
+_unmount() {
+	k=0
+	if [[ -n "$(grep "mnt/$2" "/proc/mounts" | awk -F ' ' '{ print $2 }')" ]]; then
+		while true; do
+			while read -r i; do
+				eval umount -l "$i"/* >/dev/null 2>&1
+				eval umount -l "$i" >/dev/null 2>&1
+			done < <(grep "/mnt/$2" "/proc/mounts" | awk -F ' ' '{ print $2 }')
+			
+			if [[ -z $(grep "/mnt/$2" "/proc/mounts" | awk -F ' ' '{ print $2 }') ]]; then
+				break
+			fi
+		
+			[[ "$k" -ge 20 ]] && return 1
+			((++k))
+		done
+	return 0
+	fi
+}
+
+_chroot_config(){
+	if _unmount "$1" "$2"; then
+		if mount_pseudo "$1"; then
+			mkdir -p "$1/var/tmp/ctworkdir"
+			cp -r "${CTCONFDIR}/confdir" "$1/var/tmp/ctworkdir/"
+			cp "/usr/local/controller/cchroot.sh" "$1/var/tmp/ctworkdir/cchroot"
+			
+			if chroot "$1" "var/tmp/ctworkdir/cchroot"; then
+				echo "Configuration was successful"
+			else
+				echo "Configuration failed"
+				echo "Reverting changes"
+				if _revert_chroot; then
+					echo "Changes reverted"
+				else
+					echo "Failed reverting changes"
+					echo "Calling backup system"
+				fi
+			fi
+		else
+			echo "Failed mounting pseudo filesystems"
+			echo "Configuration can not proceed"
+			_flag_config_check=1
+			export _flag_config_check
+			echo "Proceeding"
+		fi
+	else
+		echo "Something went wrong"
+		echo "Proceeding without configuration"
+		_flag_config_check=1
+		export _flag_config_check
+	fi
+}
+
 _remake_sysfs() {
 	if umount "/mnt/workdir"; then
 		if [[ "${SYSFS}" == 'btrfs' ]]; then
