@@ -22,3 +22,8 @@ if [[ "${_ctflag_sysfetch}" == 0 ]]; then
 	_fetch_new_sys
 fi
 
+# CONFIGURATION
+if [[ "${_ctflag_net}" ]]; then
+	_mount_sysfs
+	_chroot_config "$/mnt/workdir" "workdir"
+fi

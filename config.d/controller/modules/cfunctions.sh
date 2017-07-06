@@ -53,7 +53,9 @@ _bsu_dfs() {
 	USERDATASFS="$(cat "${CTCONFDIR}/confdir/devname.info" | sed '/^#/ d' | sed '/^\s*$/d' | grep USERDATA | awk -F ' ' '{ print $3 }')"
 	export USERDATASFS
 
-	_sources_exp
+	if [[ "$_ctflag_net" ]]; then
+		_sources_exp
+	fi
 }
 
 server_exp() {
@@ -109,7 +111,7 @@ _call_net() {
 }
 
 _mount_sysfs() {
-	if mount -t "${SYSFS}" -o rw "${SYSDEV}" "/mnt/workdir"; then
+	if mount -t "${SYSFS}" -o rw "${SYSDEV}" "$1"; then
 		return 0
 	else
 		return 1
@@ -231,7 +233,7 @@ _unmount() {
 
 _chroot_config(){
 	if _unmount "$1" "$2"; then
-		if mount_pseudo "$1"; then
+		if mount_fs && mount_pseudo "$1"; then
 			mkdir -p "$1/var/tmp/ctworkdir"
 			cp -r "${CTCONFDIR}/confdir" "$1/var/tmp/ctworkdir/"
 			cp "/usr/local/controller/cchroot.sh" "$1/var/tmp/ctworkdir/cchroot"
@@ -287,7 +289,7 @@ _remake_sysfs() {
 }
 
 _fetch_new_sys() {
-	if _mount_sysfs; then
+	if _mount_sysfs "/mnt/workdir"; then
 		if sync -aAXhq "${_M_SERVER}/dist.d/stage3-amd64-${_server_version}.tar.bz2"  "${CTCONFDIR}/version"; then
 			echo "New system was fetched successfully"
 			_ctflag_active_system="SYSDEV"
