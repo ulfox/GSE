@@ -160,7 +160,8 @@ dist_ccashe_f() {
 
 	export emerge_mode
 	rc-service distccd start
-
+echo "$emerge_mode"
+exit 1
 	if [[ "${_cflag_ccache}" ]]; then
 		if [[ ! "$(command -v ccache)" ]]; then
 			echo -e "Configuring [\e[32mccache\e[0m]"

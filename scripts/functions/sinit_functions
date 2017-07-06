@@ -24,9 +24,9 @@ parameters_check() {
 		sleep 2
 	fi
 
-	if [[ "$(echo "$@" | grep '\--verbose')" || "$(echo "$@" | grep '\-v')" ]] && ! echo "$@" | grep -q '\--auto=yes'; then
-		die "Error: Verbose & interactive mode can not be set at the same time. To use verbose, please set --auto=yes"
-	fi
+	#if [[ "$(echo "$@" | grep '\--verbose')" || "$(echo "$@" | grep '\-v')" ]] && ! echo "$@" | grep -q '\--auto=yes'; then
+	#	die "Error: Verbose & interactive mode can not be set at the same time. To use verbose, please set --auto=yes"
+	#fi
 
 	if [[ "$(echo "$@" | grep '\--quiet')" || "$(echo "$@" | grep '\-q')" ]] && [[ "$(echo "$@" | grep '\--verbose')" || "$(echo "$@" | grep '\-v')" ]]; then
 		die "Error: verbose & quiet can not be set at the same time"
@@ -369,7 +369,7 @@ _start_again() {
 	fi
 
 	unset YN
-	set -x
+	set_x
 }
 
 _extract_tarball() {
@@ -2165,7 +2165,7 @@ _prepare_chroot() {
 			die "Chrooting configuration failed"
 		fi
 	else
-		if chroot "$1" "sinit.d/chroot_init" "$@" "_flag_new"; then
+		if chroot "$1" "sinit.d/chroot_init" "$@"; then
 			_o_report_back "Chroot staged finished"
 		else
 			die "Chrooting configuration failed"
