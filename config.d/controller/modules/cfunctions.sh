@@ -321,6 +321,9 @@ _fetch_new_sys() {
 		export _sys_archive
 
 		if sync -aAXhq "${_act_user}@${_act_ser}/${_dist_dir}/${_sys_archive}"  "$1/"; then
+			scp "${_act_user}@${_act_ser}/${_dist_dir}/${_sys_archive}.md5sum"  "$1/"
+			scp "${_act_user}@${_act_ser}/${_dist_dir}/${_sys_archive}.gpg"  "$1/"
+			_verify_t
 			echo "New system was fetched successfully"
 			_ctflag_extract=0
 		else
@@ -331,6 +334,42 @@ _fetch_new_sys() {
 	else
 		echo "Failed mounting ${SYSDEV} to $1"
 		_call_backup_switch
+	fi
+}
+
+_verify_t() {
+	_verify_md5sum() {
+			if md5sum -c "${_sys_archive}.md5sum"; then
+				return 0
+			else
+				return 1
+			fi
+	}
+
+	_verify_origin() {
+		(
+			cd "$1"
+
+			if gpg --verify "$1/${_sys_archive}.gpg"; then
+				echo "PASS" > verify.info
+			else
+				echo "FAILED" > verify.info
+			fi
+		)
+	}
+
+	if _verify_origin "$1"; then
+		echo "Image's integrity verified"
+		_verify_md5sum "$1"
+		if [[ "$(cat verify.info)" == 'PASS' ]]; then
+			echo "Image's authentication verified"
+		elif [[ "$(cat verify.info)" == 'FAILED' ]]; then
+			echo "Failed to verify the authentication of the image"
+			_call_backup_switch
+		fi
+		rm -f verify.info
+	else
+		echo "Image integrity failed"
 	fi
 }
 

@@ -34,4 +34,3 @@ if [[ "${_ctflag_net}" ]]; then
 	# CHROOT SYSTEM AND INITIATE THE CCHROOT.SH
 	_chroot_config "$/mnt/workdir" "var/tmp/ctworkdir/cchroot"
 fi
-
