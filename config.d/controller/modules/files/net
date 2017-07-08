@@ -1,0 +1,11 @@
+# Please note that for now, only ethernet is supported by the controller.
+# Meaning that dracut will require extra configuration options from the kernel command line
+# for the boot process, to enable early networking. Therefore don't confuse this area the controllers
+# networking options. Exotic options imply exotic boot commands
+#
+# For more informations about the boot command line, please visit the documentations submenu
+# 
+config_net-int=("dhcp")
+# modules_net-int=(" ")
+
+# EOF

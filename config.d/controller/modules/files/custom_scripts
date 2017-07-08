@@ -1,0 +1,16 @@
+# Custom scripts configuration file
+# Please input the path to your script ( absolute path ) to make it start and run once on bootup.
+#
+# It requires no explanation about the effects of a miss-configured script that runs on bootup.
+# So please include scripts that have been checked and must really be included.
+#
+# For now, this services provides only the features of /etc/local.d
+# In the future a new file will be added with guided interface for configuring Initscripts, which for now
+# go way beyond the scope of this project.
+#
+# Syntax: {/path/to/script}
+
+
+
+
+# EOF

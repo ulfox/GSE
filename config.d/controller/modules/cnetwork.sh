@@ -6,9 +6,6 @@ if _call_net; then
 	export _ctflag_net
 fi
 
-# CONFIG.D LOCATION
-# DIST.D LOCATION
-
 # CHECK NETWORK FLAG AND FETCH VERSION AND CONFIG.D DIRECTORY
 if [[ "${_ctflag_net}" ]]; then
 	# DEFINE BEST ACTIVE SERVER
@@ -25,7 +22,7 @@ if [[ "${_ctflag_net}" ]]; then
 	fi
 
 	# MOUNT SYSFS AS RO
-	_mount_sysfs
+	_mount_sysfs "/mnt/workdir"
 	# CHECK LOCAL VERSION OF SYSFS WITH SERVERS VERSION
 	_check_version
 fi
