@@ -23,8 +23,12 @@ if [[ "${_ctflag_sysfetch}" == 0 && -n "${_ctflag_net}" ]]; then
 	_remake_sysfs "/mnt/workdir"
 	# FETCH NEW SYSTEM
 	_fetch_new_sys "/mnt/workdir"
+	# VERIFY FETCHED IMAGE
+	_verify_t "/mnt/workdir"
 	# EXTRACT NEW SYSTEM
-	_extract_sys "/mnt/workdir" "${_sys_archive}"
+	_extract_sys "/mnt/workdir"
+	rm -f "/mnt/workdir/verify.info"
+	_check_s "/mnt/workdir"
 fi
 
 # CONFIGURATION

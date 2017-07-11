@@ -279,7 +279,7 @@ _chroot_config(){
 				echo "Could not initiate system configuration, aborting phase and proceeding"
 			fi
 			_sys_config=1
-			export _no_config
+			export _sys_config
 		fi
 	}
 
@@ -287,8 +287,7 @@ _chroot_config(){
 		_prep_chroot "$@"
 	else
 		_sys_config=1
-		export _no_config
-		controller_master_loop "Could not umount pseudos"
+		export _sys_config
 	fi
 }
 
@@ -339,18 +338,10 @@ _fetch_new_sys() {
 
 _verify_t() {
 	_verify_md5sum() {
-			if md5sum -c "${_sys_archive}.md5sum"; then
-				return 0
-			else
-				return 1
-			fi
-	}
-
-	_verify_origin() {
 		(
 			cd "$1"
 
-			if gpg --verify "$1/${_sys_archive}.gpg"; then
+			if md5sum -c "${_sys_archive}.md5sum"; then
 				echo "PASS" > verify.info
 			else
 				echo "FAILED" > verify.info
@@ -358,25 +349,57 @@ _verify_t() {
 		)
 	}
 
-	if _verify_origin "$1"; then
-		echo "Image's integrity verified"
-		_verify_md5sum "$1"
-		if [[ "$(cat verify.info)" == 'PASS' ]]; then
-			echo "Image's authentication verified"
-		elif [[ "$(cat verify.info)" == 'FAILED' ]]; then
-			echo "Failed to verify the authentication of the image"
+	_verify_origin() {
+		(
+			cd "$1"
+
+			if gpg --verify "${_sys_archive}.gpg"; then
+				echo "PASS" > verify.info
+			else
+				echo "FAILED" > verify.info
+			fi
+		)
+	}
+	
+	rm -f "$1/verify.info"
+
+	_verify_origin "$1" 
+	if _check_s "$1"; then
+		echo "Image's authentication verified"
+		_verify_md5sum
+		if _check_s "$1"; then
+			echo "Image's integrity is healthy"
+			return 0
+		else
+			echo "Image's integrity check failed"
 			_call_backup_switch
+			return 1
 		fi
-		rm -f verify.info
 	else
-		echo "Image integrity failed"
+		echo "Failed to verify the authentication of the image"
+		_call_backup_switch
+		return 1
+	fi
+}
+
+_check_s() {
+	if [[ "$(cat "$1/verify.info")" == 'PASS' ]]; then
+		rm -f "$1/verify.info"
+		return 0
+	elif [[ "$(cat "$1/verify.info")" == 'FAILED' ]]; then
+		rm -f "$1/verify.info"
+		return 1
 	fi
 }
 
 _extract_sys() {
 	(
 		cd "$1"
-		tar xvjpf "$2" --xattrs --numeric-owner
+		if tar xvjpf "$2" --xattrs --numeric-owner; then
+			echo "PASS" > verify.info
+		else
+			echo "FAILED" > verify.info
+		fi
 	)
 }
 
