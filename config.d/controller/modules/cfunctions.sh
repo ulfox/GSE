@@ -58,7 +58,7 @@ _bsu_dfs() {
 	fi
 }
 
-server_exp() {
+_server_exp() {
 	echo "Selecting server..."
 	_ser_list=()
 	while read -r "s";do
@@ -181,14 +181,14 @@ _check_version() {
 			else
 				_ctflag_sysfetch=1
 			fi
-			export _ctflag_sysfetch
 		else
 			_ctflag_sysfetch=0
-			export _ctflag_sysfetch
 		fi
 	else
 		echo "Remote version matches the local"
+		_ctflag_sysfetch=1
 	fi
+	export _ctflag_sysfetch
 }
 
 mv_pseudo() {	# ${rsys}
@@ -263,7 +263,7 @@ _chroot_config(){
 			fi
 			_sys_config=1
 		fi
-		export _no_config
+		export _sys_config
 	}
 
 	_prep_chroot() {
@@ -296,22 +296,25 @@ _remake_sysfs() {
 		if [[ "${SYSFS}" == 'btrfs' ]]; then
 			if eval "mkfs.${SYSFS}" -L ROOTFS -f "${SYSDEV}"; then
 				echo "File system created"
+				_ctflag_remake=0
 			else
 				echo "Failed creating new filesystem"
-				_call_backup_switch
+				_ctflag_remake=1
 			fi
 		else
 			if eval "mkfs.${SYSFS}" -L ROOTFS "${SYSDEV}"; then
 				echo "File system created"
+				_ctflag_remake=0
 			else
 				echo "Failed creating new filesystem"
-				_call_backup_switch
+				_ctflag_remake=1
 			fi
 		fi
 	else
 		echo "Failed unmounting workdir"
-		_call_backup_switch
+		_ctflag_remake=1
 	fi
+	export _ctflag_remake
 }
 
 _fetch_new_sys() {
@@ -322,18 +325,17 @@ _fetch_new_sys() {
 		if sync -aAXhq "${_act_user}@${_act_ser}/${_dist_dir}/${_sys_archive}"  "$1/"; then
 			scp "${_act_user}@${_act_ser}/${_dist_dir}/${_sys_archive}.md5sum"  "$1/"
 			scp "${_act_user}@${_act_ser}/${_dist_dir}/${_sys_archive}.gpg"  "$1/"
-			_verify_t
 			echo "New system was fetched successfully"
-			_ctflag_extract=0
+			_ctflag_fetch=0
 		else
 			echo "Fetching new system FAILED"
-			_ctflag_extract=1
+			_ctflag_fetch=1
 		fi
-		export _ctflag_extract
 	else
 		echo "Failed mounting ${SYSDEV} to $1"
-		_call_backup_switch
+		_ctflag_fetch=1
 	fi
+	export _ctflag_fetch
 }
 
 _verify_t() {
@@ -369,17 +371,16 @@ _verify_t() {
 		_verify_md5sum
 		if _check_s "$1"; then
 			echo "Image's integrity is healthy"
-			return 0
+			_ctflag_verify=0
 		else
 			echo "Image's integrity check failed"
-			_call_backup_switch
-			return 1
+			_ctflag_verify=1
 		fi
 	else
 		echo "Failed to verify the authentication of the image"
-		_call_backup_switch
-		return 1
+		_ctflag_verify=1
 	fi
+	export _ctflag_verify
 }
 
 _check_s() {
