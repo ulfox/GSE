@@ -50,7 +50,7 @@ install() {
     inst_script "$moddir/functions/cfunctions.sh" "/usr/local/controller/cfunctions.sh"
     inst_script "$moddir/functions/chealth.sh" "/usr/local/controller/chealth.sh"
     inst_script "$moddir/functions/cnetwork.sh" "/usr/local/controller/cnetwork.sh"
-    inst_script "$moddir/functions/cverify.sh" "/usr/local/controller/cverify.sh"
+    inst_script "$moddir/functions/ccrevert_chroot" "/usr/local/controller/ccrevert_chroot"
     
     # Install configuration files
     inst_simple "$moddir/sources/sources.conf" "config.d/confdir/sources/sources.conf"
