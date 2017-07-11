@@ -3,6 +3,10 @@
 die() {
 	echo "$@" 1>&2 ; exit 1
 }
+	
+pass() {
+	echo -e "[\e[34mDone\e[0m]"
+}
 
 _configure_timezone() {
 	if [[ "${TIMEZONE}" != TMZ ]]; then
@@ -21,7 +25,7 @@ _configure_timezone() {
 }
 
 _configure_locale() {
-	if [[ -z $(cat "${CHROOT_DIR}/locale.gen" | sed '/^#/ d' | sed '/^\s*$/d') ]]; then
+	if [[ -z $(cat "${CHROOT_DIR}/clocale.gen" | sed '/^#/ d' | sed '/^\s*$/d') ]]; then
 		sed -i '/en_US.UTF-8/d' /etc/locale.gen
 		
 		if echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen; then
@@ -30,7 +34,7 @@ _configure_locale() {
 			echo -e "[\e[31m*\e[0m] Configuring [\e[34mlocale\e[0m]"
 		fi
 	else
-		echo "$(cat "${CHROOT_DIR}/locale.gen")" > /etc/locale.gen
+		echo "$(cat "${CHROOT_DIR}/clocale.gen")" > /etc/locale.gen
 		sed -i '/en_US.UTF-8/d' /etc/locale.gen
 		
 		if echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen; then
@@ -52,9 +56,9 @@ _configure_locale() {
 }
 
 _configure_fstab() {
-	if cat "${CHROOT_DIR}/fstab" > /etc/fstab; then
+	if cat "${CHROOT_DIR}/cfstab" > /etc/fstab; then
 		echo -e "[\e[32m*\e[0m] Creating [\e[34mfstab\e[0m] entries"
-		if [[ -n $(cat "${CHROOT_DIR}/system_links" | sed '/^#/ d' | sed '/^\s*$/d') ]]; then
+		if [[ -n $(cat "${CHROOT_DIR}/csystem_links" | sed '/^#/ d' | sed '/^\s*$/d') ]]; then
 			BREAKVAR=0
 			 while read -r i; do
 				case $(echo "$i" | awk -F ' ' '{ print $1 }') in
@@ -105,18 +109,11 @@ _configure_fstab() {
 						unset OVLFSWD
 						;;
 				esac
-			done < <(cat "${CHROOT_DIR}/system_links" | sed '/^#/ d' | sed '/^\s*$/d') && pass || die "Failed"
+			done < <(cat "${CHROOT_DIR}/csystem_links" | sed '/^#/ d' | sed '/^\s*$/d') && pass || die "Failed"
 			if [[ "${BREAKVAR}" == 0 ]]; then
 				echo -e "[\e[32m*\e[0m] Creating \e[34msystem links\e[0m and requested \e[34mfstab\e[0m entries"
 			else
-				echo -e "[\e[31m*\e[0m] Creating \e[34msystem links\e[0m and requested \e[34mfstab\e[0m entries"
-				echo "###################################" >> issues.info
-				echo "Issue: System links $(date)" >> issues.info
-				echo "Command: Could not get issued command" >> issues.info
-				echo "Items --->" >> issues.info
-				cat "${CHROOT_DIR}/system_links" >> issues.info
-				echo "###################################" >> issues.info
-				ask_for_shell "Failed configuring system links"
+				_rescue_shell "Failed configuring system links"
 			fi
 		fi
 	else
@@ -135,8 +132,9 @@ _copy_function() {
 }
 
 configure_system_f() {
-	env-update > /dev/null 2>&1 && source /etc/profile && export PS1="( 'Part E: Configuring system' ) $PS1"
-	export PATH=${PATH}:${CHROOT_DIR}
+	env-update > /dev/null 2>&1 && source /etc/profile
+	PATH=${PATH}:${CHROOT_DIR}
+	export PATH
 
 	# TIMEZONE CONFIGURATION
 	_configure_timezone
@@ -148,64 +146,43 @@ configure_system_f() {
 	_configure_fstab
 
 	# CONFIGURE HOSTNAME
-	_copy_function "hostname" "hostname" "hostname"
+	_copy_function "chostname" "hostname" "hostname"
 
 	# CONFIGURE /ETC/CONF.D/NET
-	_copy_function "net" "net" "/etc/conf.d/net"
+	_copy_function "cnet" "net" "/etc/conf.d/net"
 
 	# CONFIGURE /ETC/DEFAULT/GRUB
-	_copy_function  "grub" "grub" "/etc/default/grub"
+	_copy_function  "cgrub" "grub" "/etc/default/grub"
 
 	### CUSTOM SCRIPTS ENTRIES WILL BE INCLUDED HERE
 
 	### INSCRIPT ENTRIES WILL BE INCLUDED HERE
 
 	# CONFIGURE SSHD
-	_copy_function "sshd" "sshd" "/etc/ssh/sshd_config"
+	_copy_function "csshd" "sshd" "/etc/ssh/sshd_config"
 
 	# CONFIGURE SSH.PUB
-	[[ -n $(cat "${CHROOT_DIR}/ssh.pub" | sed '/^#/ d' | sed '/^\s*$/d') ]] && mkdir -p /root/.ssh \
-	&& if cat "${CHROOT_DIR}/ssh.pub" | sed '/^#/ d' | sed '/^\s*$/d' > /root/.ssh/authorized_keys; then
+	[[ -n $(cat "${CHROOT_DIR}/cssh.pub" | sed '/^#/ d' | sed '/^\s*$/d') ]] && mkdir -p /root/.ssh \
+	&& if cat "${CHROOT_DIR}/cssh.pub" | sed '/^#/ d' | sed '/^\s*$/d' > /root/.ssh/authorized_keys; then
 		echo -e "\e[33m----------------------------------------------------------------------------\e[0m"
 		echo -e "[\e[32m*\e[0m] Adding ssh.pub key to [\e[34m/root/.ssh/authorized_keys\e[0m]"
 		echo -e "\e[33m----------------------------------------------------------------------------\e[0m"
 	else
-		echo -e "\e[31m----------------------------------------------------------------------------\e[0m"
-		echo -e "[\e[31m*\e[0m] Adding ssh.pub key to [\e[34m/root/.ssh/authorized_keys\e[0m]"
-		echo -e "\e[31m----------------------------------------------------------------------------\e[0m"
-		echo "###################################" >> issues.info
-		echo "Issue: ssh.pub.key $(date)" >> issues.info
-		echo "Command: cat ${CHROOT_DIR}/ssh.pub | sed '/^#/ d' | sed '/^\s*$/d' > /root/.ssh/authorized_keys" >> issues.info
-		echo "Items --->" >> issues.info
-		cat /etc/conf.d/"$2" >> issues.info
-		echo "###################################" >> issues.info
-		ask_for_shell "Failed configuring ssh.pub key"
+		exit 1
 	fi
-	_monitor_chroot_flow "CONFIGURE"
 }
 
 # RUNLEVEL UPDATE FUNCTION
 _runlevel_configuration() {
-	echo
-	echo "----------------------------------------------------------------------------"
-	echo -e "\e[35mPart G: Updating Runlevel Entries\e[0m"
-	echo "----------------------------------------------------------------------------"
 	env-update > /dev/null 2>&1 && source /etc/profile && export PS1="( 'Part G: Updating Runlevel Entries' ) $PS1"
-	export PATH=${PATH}:${CHROOT_DIR}
+	PATH=${PATH}:${CHROOT_DIR}
+	export PATH
 	{ while read -r i; do
 		rc-update "$(echo "$i" | awk -F ' ' '{ print $2 }')" "$(echo $i | awk -F ' ' '{ print $1 }')" \
 		"$(echo "$i" | awk -F ' ' '{ print $3 }')"
 		sleep 0.5
-	done < <(cat "${CHROOT_DIR}/runlevels" | sed '/^#/ d' | sed '/^\s*$/d'); } \
-	&& { echo -e "[\e[32m*\e[0m] Updated successfully" && _monitor_chroot_flow "RUNLEVEL"; } \
-	|| { echo "###################################" >> issues.info
-	echo "Issue: Runlevels $(date)" >> issue.info
-	echo "Command: rc-update \$(echo \$i | awk -F ' ' '{ print \$2 }') \$(echo \$i | awk -F ' ' '{ print \$1 }') \
-		\$(echo \$i | awk -F ' ' '{ print \$3 }')" >> issues.info
-	echo "Items --->" >> issues.info
-	cat "${CHROOT_DIR}/runlevels" >> issues.info
-	echo "###################################" >> issues.info
-	ask_for_shell "Failed updating runlevels"; }
+	done < <(cat "${CHROOT_DIR}/crunlevels" | sed '/^#/ d' | sed '/^\s*$/d'); } \
+	&& { echo -e "[\e[32m*\e[0m] Updated successfully"; }
 }
 
 _shell() {
@@ -268,7 +245,6 @@ controller_master_loop() {
 				subshell_loop;;
 			EXITSHELL)
 				break;;
-				
 		esac
 	done
 }
