@@ -46,7 +46,6 @@ install() {
     inst_script "$moddir/functions/cchroot.sh" "/usr/local/controller/cchroot.sh"
     inst_script "$moddir/functions/net_script.sh" "/bin/net_script.sh"
     inst_script "$moddir/functions/cbootflags.sh" "/usr/local/controller/cbootflags.sh"
-    inst_script "$moddir/functions/cfetch.sh" "/usr/local/controller/cfetch.sh"
     inst_script "$moddir/functions/cfunctions.sh" "/usr/local/controller/cfunctions.sh"
     inst_script "$moddir/functions/chealth.sh" "/usr/local/controller/chealth.sh"
     inst_script "$moddir/functions/cnetwork.sh" "/usr/local/controller/cnetwork.sh"
