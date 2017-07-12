@@ -12,3 +12,12 @@ else
 	echo "Failed to export chroot functions, aborting"
 	exit 1
 fi
+
+_ctflag_chroot="chroot"
+export _ctflag_chroot
+
+# Configuration files
+_configure_system
+
+# Runlevels
+_runlevel_configuration
