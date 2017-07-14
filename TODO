@@ -1,37 +1,8 @@
 # TODO
 
 System Builder list
-	Catalyst
-
-		Sinit
-			Include localbuild
-			Include catalyst
-				Include stage selection
-				Include stageX check existence
-			Include precompiled stage3
-
-		Include script to manage catalyst stage1,2,3 builds
-		Include script to create a portage custom stateless profile
-		Include script to generate the stage1,2,3 spec files
-		Include x86, amd64, arm,armx64 stage builds {For the project amd64 will be supported}
-		Include the generated stage3 tarball to the rest of the process as it is.
-
-	Create Server menu entry
-		Create submenu entry for editing trusted hosts
-		Create submenu entry to create a new user & group given by the user
-		Add the dist.d and config.d directory to that group
-		Generate ssh keys for server-client dist
-		Add ssh pub.trusted.hosts to that user
-		Create bind-mount or symlink of the above directories to the above user dir
-		Include those keys to config.d/controller directory
-		Include gpg
-
 	Include kernel commandline editor
 	Include ro autoconf
-		Should:
-			Create the /proc/mounts symlinks # If /etc is not selected by the user to be mounted as tmpfs from the controller
-	Include sys cleaner
-	Include version creator
 	Include snapshot creator
 	Include stage4 tarball create option
 
@@ -39,11 +10,7 @@ End of System Builder list
 
 Controller list {Initramfs}
 	
-	Include early netowrking script hooks
-	Include option to fetch confs from server
-	Include option to define newroot based on the above configurations
 	Include HDD interface creator
-	Include version checker
 	Include rootfs label checker
 	Include backupfs label checker
 	Include configuration service for the rootfs
