@@ -16,8 +16,8 @@ fi
 _ctflag_chroot="chroot"
 export _ctflag_chroot
 
-# Configuration files
+# CONFIGURATION FILES
 _configure_system
 
-# Runlevels
+# RUNLEVELS
 _runlevel_configuration
