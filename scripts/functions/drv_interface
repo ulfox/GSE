@@ -3,7 +3,7 @@
 #
 # THIS SCRIPT PROVIDES A SIMPLE GUIDES CONFIGURATION FOR THE FSTAB
 #
-
+CCONFDIR="$PWD"
 if echo "${_flag_tty}" | grep -q 'sshd'; then
 	LC_COLLATE="C"
 	LC_ALL="en_US.UTF-8"
@@ -26,7 +26,7 @@ fs_opt() {
 	esac
 }
 
-FS_OPTS=(BOOT SYS USERDATA)
+FS_OPTS=(BOOTFS SYS USERDATAFS)
 
 for i in "${FS_OPTS[@]}"; do
 		clear; fs_opt 1
@@ -46,14 +46,29 @@ for i in "${FS_OPTS[@]}"; do
 		esac
 done
 
-[[ $BOOT == btrfs ]] && { FBOPTIONS='ro,noatime,subvol=/bootfs'; BDPPS='0 0'; } \
-|| { FBOPTIONS='ro,noatime'; BDPPS='0 2'; }
+if [[ "${BOOTFS}" == 'btrfs' ]]; then
+	FBOPTIONS='ro,noatime,subvol=/bootfs'
+	BDPPS='0 0'
+else
+	FBOPTIONS='ro,noatime'
+	BDPPS='0 2'
+fi
 
-[[ $SYS == btrfs ]] && { FSOPTIONS='ro,noatime,subvol=/sysfs'; SDPPS='0 0'; } \
-|| { FSOPTIONS="ro,noatime"; SDPPS="0 1"; }
+if [[ "${SYSFS}" == 'btrfs' ]]; then
+	FSOPTIONS='ro,noatime,subvol=/sysfs'
+	SDPPS='0 0'
+else
+	FSOPTIONS="ro,noatime"
+	SDPPS="0 1"
+fi
 
-[[ $USERDATA == btrfs ]] && { FUOPTIONS='defaults,noatime,subvol=/userdata'; UDPPS='0 0'; } \
-|| { FUOPTIONS='defaults,noatime'; UDPPS='0 1'; }
+if [[ "${USERDATAFS}" == 'btrfs' ]]; then
+	FUOPTIONS='defaults,noatime,subvol=/userdata'
+	UDPPS='0 0'
+else
+	FUOPTIONS='defaults,noatime'
+	UDPPS='0 1'
+fi
 
 cat >"${CCONFDIR}/system/fstab" <<\EOF
 # /etc/fstab: static file system information.
@@ -87,100 +102,167 @@ cat >"${CCONFDIR}/system/fstab" <<\EOF
 #/dev/cdrom             /mnt/cdrom      auto            noauto,ro       0 0
 EOF
 
-# Boot
+# BOOT
 echo >> "${CCONFDIR}/system/fstab"
-echo "# BOOT" >> "${CCONFDIR}/system/fstab"
-echo "LABEL=BOOT /boot ${BOOT} ${FBOPTIONS} ${BDPPS}" >>"${CCONFDIR}/system/fstab"
+echo "# BOOTFS" >> "${CCONFDIR}/system/fstab"
+echo "LABEL=BOOTFS /boot ${BOOTFS} ${FBOPTIONS} ${BDPPS}" >>"${CCONFDIR}/system/fstab"
 
-# System
+# SYSTEM
 echo >> "${CCONFDIR}/system/fstab"
 echo "# SYSTEM"	>> "${CCONFDIR}/system/fstab"
 echo "LABEL=SYSTEM / ${SYS} ${FSOPTIONS} ${SDPPS}" >>"${CCONFDIR}/system/fstab"
 
-# User-data
+# USERDATA
 echo >> "${CCONFDIR}/system/fstab"
 echo "# USER-DATA" >> "${CCONFDIR}/system/fstab"
-echo "LABEL=USERDATA /user-data ${USERDATA}	${FUOPTIONS} ${UDPPS}" >>"${CCONFDIR}/system/fstab"
+echo "LABEL=USERDATAFS /user-data ${USERDATAFS}	${FUOPTIONS} ${UDPPS}" >>"${CCONFDIR}/system/fstab"
 
-# Home
+# HOME
 echo >> "${CCONFDIR}/system/fstab"
 echo "# HOME" >> "${CCONFDIR}/system/fstab"
 echo "/user-data/persistent/home /home/ none rw,bind 0 0" >>"${CCONFDIR}/system/fstab"
 
-# var/tmp
-echo >> "${CCONFDIR}/system/fstab"
-echo "# HOME" >> "${CCONFDIR}/system/fstab"
-echo "tmpfs /var/tmp tmpfs nodev,nosuid,size=512M 0 0" >>"${CCONFDIR}/system/fstab"
+_BOOTFSTYPE="${BOOTFS}"
+_SYSFSTYPE="${SYSFS}"
+_BACKUPFSTYPE="${SYSFS}"
+_USERDATAFSTYPE="${USERDATAFS}"
 
-# tmp
-echo >> "${CCONFDIR}/system/fstab"
-echo "# HOME" >> "${CCONFDIR}/system/fstab"
-echo "tmpfs /tmp tmpfs nodev,nosuid,size=512M 0 0" >>"${CCONFDIR}/system/fstab"
-
-echo "BOOT ${BOOT}" > "${CCONFDIR}/system/fstab.info"
-echo "SYS ${SYS}" >> "${CCONFDIR}/system/fstab.info"
-echo "USERDATA ${USERDATA}" >> "${CCONFDIR}/system/fstab.info"
-
-unset BOOT
-unset SYS
-unset USERDATA
+unset BOOTFS
+unset SYSFS
+unset USERDATAFS
 unset FS_OPTSS
 
-FS_OPTS=(BOOT SYS USERDATA)
-echo "${FS_OPTS[@]}"
+dev_fs=(BOOTFS SYSFS BACKUPFS USERDATAFS)
 
-while true; do
-	for i in "${FS_OPTS[@]}"; do
-		clear; echo "Please give the device name of $i"
-		echo "Example: sda1"
-		echo "This device, on creation, will inherit the $i label"
-		read -rp "$i device name: /dev/" DEVNAME
-		while true; do
-			echo "Your input was: /dev/${DEVNAME}"
-			read -rp "Are you sure? " SELCT
-			case ${SELCT:-1} in
-			[Yy][eE][sS]|[yY])
-				eval "$i"="/dev/$DEVNAME"; break;;
-			[nN][oO]|[nN])
-				echo "Give a new value: "
-				read -rp "$i device name: /dev/" DEVNAME;;
-			*)
-				clear; echo "Wrong option";;
-			esac
-		done
+_dev_opts() {
+	echo -e "################  \e[94m~~Device ID~~\e[39m   #################"
+	echo "##						 ##"
+	echo -e "## [ \e[32mI\e[39m  ]	BY-ID	        	         ##"
+	echo -e "## [ \e[32mII\e[39m ]	UUID				 ##"
+	echo -e "## [ \e[32mIII\e[39m]	SDX				 ##"
+	echo "##						 ##"
+	echo "###################################################"
+}
+
+_dev_id() {
+	case "$1" in
+		BOOTFS)
+			_BOOTID="$2";;
+		SYSFS)
+			_SYSID="$2";;
+		BACKUPFS)
+			_BACKUPID="$2";;
+		USERDATAFS)
+			_USERDATAID="$2";;
+	esac
+}
+
+_dev_size() {
+	case "$1" in
+		BOOTFS)
+			_BOOTSIZE="$2";;
+		SYSFS)
+			_SYSSIZE="$2";;
+		BACKUPFS)
+			_BACKUPSIZE="$2";;
+		USERDATAFS)
+			_USERDATASIZE="$2";;
+	esac
+}
+
+_ask_dev_size() {
+	while true; do
+		echo "Please give the device $2 for $1"
+		echo "$3"
+		read -rp "Device $2: " _DSIZE
+		echo "Your input was:"
+		echo "${_DSIZE}"
+		read -rp "Are you sure? Y/N " _ANS1
+		case "${_ANS1}" in
+			[yY])
+				_dev_size "$1" "${_DSIZE}"
+				break;;
+			[nN])
+				;;
+			*	)
+				clear
+				echo "Wrong Answer"
+				echo;;
+		esac
 	done
+	unset _ANS1
+	unset _DSIZE
+}
 
-if [[ -n "${BOOT}" && -n "${SYS}" && -n "${USERDATA}" ]]; then
-if [[ "${BOOT}" == "${SYS}" || "${BOOT}" == "${USERDATA}" ]]; then
-case "${BOOT}" in
-	"${SYS}")
-		echo "BOOT partition can not be the same with SYSTEM partition";;
-	*)
-		echo "BOOT partition can not be the same with USERDATA partition";;
-esac
-echo "Resetting the process"
-sleep 5
-else
-if [[ "${SYS}" == "${USERDATA}" ]]; then
-	echo "SYSTEM partition can not be the same with USERDATA partition"
-	echo "Resetting the process"
-	sleep 5
-else
-	break
-fi
-fi
-fi
+_ask_opts() {
+	while true; do
+		echo "Please give the device $2 for $1"
+		echo "$3"
+		read -rp "Device $2: " _DID
+		echo "Your input was:"
+		echo "${_DID}"
+		read -rp "Are you sure? Y/N " _ANS
+		case "${_ANS}" in
+			[yY])
+				_dev_id "$1" "${_DID}"
+				_ask_dev_size "$1" "size" "Number-G/M"
+				break;;
+			[nN])
+				;;
+			*	)
+				clear
+				echo "Wrong Answer"
+				echo;;
+		esac
+	done
+	unset _ANS
+	unset _DID
+}
 
+clear
+for i in "${dev_fs[@]}"; do
+	while true; do
+		_dev_opts
+		echo "Please select the device ID method for $i"
+		echo
+		echo
+		echo "Warning: SDX is not a safe method, because switch between sdaX and sdbX can happen."
+		echo "Note: UUID and SDX most probably will change when the controller creates the new driver's interface"
+		echo "The most safe way is to give device name by-id."
+		echo "This ensures that controller will always target the device you wish."
+		echo "This device, when configured, will inherit the $i label"
+		read -rp "Input :: <= " ANS
+		case "${ANS}" in
+			[iI]|1			)
+				eval "$i"="BY-ID"
+				_ask_opts "$i" "ID" "Example ID: ata-Corsair_Force_LE_SSD16388018000104170290:0"
+				break
+				;;
+			[II]|[ii]|2		)
+				eval "$i"="UUID"
+				_ask_opts "$i" "UUID" "Example UUID: 85bcc799-d907-4db7-87fb-8773ca1b9a76"
+				break
+				;;
+			[III]|[iii]|3	)
+				eval "$i"="SDX"
+				_ask_opts "$i" "SDX" "Example SDX: /dev/sda3"
+				break
+				;;
+			*				)
+				clear;;
+		esac
+	done
 done
 
-echo "BOOT ${BOOT}" > "${CCONFDIR}/system/devname.info"
-echo "SYS ${SYS}" >> "${CCONFDIR}/system/devname.info"
-echo "USERDATA ${USERDATA}" >> "${CCONFDIR}/system/devname.info"
+echo "BOOTFS ${BOOTFS} ${_BOOTID} ${_BOOTSIZE} ${_BOOTFSTYPE}" > "${CCONFDIR}/system/devname.info"
+echo "SYSFS ${SYSFS} ${_SYSID} ${_SYSSIZE} ${_SYSFSTYPE}" >> "${CCONFDIR}/system/devname.info"
+echo "USERDATAFS ${USERDATAFS} ${_USERDATAID} ${_USERDATASIZE} ${_USERDATAFSTYPE}" >> "${CCONFDIR}/system/devname.info"
+echo "BACKUPFS ${BACKUPFS} ${_BACKUPID} ${_BACKUPSIZE} ${_BACKUPFSTYPE}" >> "${CCONFDIR}/system/devname.info"
 
 unset DEVNAME
-unset BOOT
-unset SYS
-unset USERDATA
+unset BOOTFS
+unset SYSFS
+unset USERDATAFS
 unset FBOPTIONS
 unset FSOPTIONS
 unset FUOPTIONS
