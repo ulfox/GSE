@@ -5,52 +5,124 @@ die() {
 }
 
 _bsu_dfs() {
-	# EXPORT BOOT DEVICE
-	BOOTDEV="$(cat "${CTCONFDIR}/confdir/devname.info" | sed '/^#/ d' | sed '/^\s*$/d' | grep BOOT | awk -F ' ' '{ print $2 }')"
+	_scan_id_ty() {
+		_a_priori_devices() {
+			if [[ -e "/dev/disk/by-label/SYSFS" ]]; then
+				_ctflag_syslabel=0
+			else
+				_ctflag_syslabel=1
+			fi
+			
+			export _ctflag_syslabel
+
+			if [[ -e "/dev/disk/by-label/BOOTFS" ]]; then
+				_ctflag_bootlabel=0
+			else
+				_ctflag_bootlabel=1
+			fi
+
+			export _ctflag_bootlabel
+
+			if [[ -e "/dev/disk/by-label/BACKUPFS" ]]; then
+				_ctflag_backupfs=0
+			else
+				_ctflag_backupfs=1
+			fi
+
+			export _ctflag_backupfs
+
+			if [[ -e "/dev/disk/by-label/USERDATAFS" ]]; then
+				_ctflag_userdatafs=0
+			else
+				_ctflag_userdatafs=1
+			fi
+
+			export _ctflag_userdatafs
+		}
+
+		_case_id() {
+			eval _SYID="$(grep "$1" "${CTCONFDIR}/confdir/devname.info" | sed '/^#/ d' | sed '/^\s*$/d' | grep $1 | awk -F ' ' '{ print $2 }')"
+			case "${_SYID}" in
+				BYID)
+					_tmp_id="$(grep "$1" "${CTCONFDIR}/confdir/devname.info" | sed '/^#/ d' | sed '/^\s*$/d' | awk -F ' ' '{ print $3 }')"
+					_tmp_type="$(blkid /dev/disk/by-id/${_tmp_id} | awk -F 'UUID=' '{ print $2 }' | cut -d ' ' -f 1 | cut -d '"' -f 2)"
+					eval "$2"="$(blkid | grep "${_tmp_type}" | awk -F ':' '{ print $1 }')"
+					;;
+				UUID)
+					_tmp_id="$(grep "$1" "${CTCONFDIR}/confdir/devname.info" | sed '/^#/ d' | sed '/^\s*$/d' | awk -F ' ' '{ print $3 }')"
+					eval "$2"="$(blkid | grep "${_tmp_id}" | awk -F ':' '{ print $1 }')"
+					;;
+				SDAX)
+					eval "$2"="$(grep "$1" "${CTCONFDIR}/confdir/devname.info" | sed '/^#/ d' | sed '/^\s*$/d' | awk -F ' ' '{ print $3 }')"
+					;;
+			esac
+		
+			unset _tmp_id
+			unset _tmp_type
+		}
+
+		_a_priori_devices
+
+		if [[ "${_ctflag_syslabel}" == 0 ]]; then
+			SYSDEV="$(blkid | grep "SYSFS" | awk -f ':' '{ print $1 }')"
+		elif [[ "${_ctflag_syslabel}" == 0 ]]; then
+			_case_id "SYSFS" "SYSDEV"
+		fi
+
+		if [[ "${_ctflag_bootlabel}" == 0 ]]; then
+			SYSDEV="$(blkid | grep "BOOTFS" | awk -f ':' '{ print $1 }')"
+		elif [[ "${_ctflag_bootlabel}" == 0 ]]; then
+			_case_id "BOOTFS" "BOOTDEV"
+		fi
+
+		if [[ "${_ctflag_backupfs}" == 0 ]]; then
+			SYSDEV="$(blkid | grep "BACKUPFS" | awk -f ':' '{ print $1 }')"
+		elif [[ "${_ctflag_backupfs}" == 0 ]]; then
+			_case_id "BACKUPFS" "BACKUPDEV"
+		fi
+
+		if [[ "${_ctflag_userdatafs}" == 0 ]]; then
+			SYSDEV="$(blkid | grep "USERDATAFS" | awk -f ':' '{ print $1 }')"
+		elif [[ "${_ctflag_userdatafs}" == 0 ]]; then
+			_case_id "USERDATAFS" "USERDATADEV"
+		fi
+	}
+
 	export BOOTDEV
-
-	# EXPORT SYSTEM DEVICE
-	SYSDEV="$(cat "${CTCONFDIR}/confdir/devname.info" | sed '/^#/ d' | sed '/^\s*$/d' | grep SYS | awk -F ' ' '{ print $2 }')"
 	export SYSDEV
-
-	# EXPORT BACKUP DEVICE
-	BACKUPDEV="$(cat "${CTCONFDIR}/confdir/devname.info" | sed '/^#/ d' | sed '/^\s*$/d' | grep BACKUP | awk -F ' ' '{ print $2 }')"
 	export BACKUPDEV
-
-	# EXPORT USERDATA DEVICE
-	USERDATADEV="$(cat "${CTCONFDIR}/confdir/devname.info" | sed '/^#/ d' | sed '/^\s*$/d' | grep USERDATA | awk -F ' ' '{ print $2 }')"
 	export USERDATADEV
-
+	
 	# EXPORT THE BOOT FILE SYSTEM TYPE
-	BOOTFS="$(cat "${CTCONFDIR}/confdir/fstab.info" | sed '/^#/ d' | sed '/^\s*$/d' | grep BOOT | awk -F ' ' '{ print $2 }')"
+	BOOTFS="$(cat "${CTCONFDIR}/confdir/devname.info" | sed '/^#/ d' | sed '/^\s*$/d' | grep BOOTFS | awk -F ' ' '{ print $5 }')"
 	export BOOTFS
 
 	# EXPORT THE SYSTEM FILE SYSTEM TYPE
-	SYSFS="$(cat "${CTCONFDIR}/confdir/fstab.info" | sed '/^#/ d' | sed '/^\s*$/d' | grep SYS | awk -F ' ' '{ print $2 }')"
+	SYSFS="$(cat "${CTCONFDIR}/confdir/devname.info" | sed '/^#/ d' | sed '/^\s*$/d' | grep SYSFS | awk -F ' ' '{ print $5 }')"
 	export SYSFS
 
 	# EXPORT THE BACKUP FILE SYSTEM TYPE
-	BACKUPFS="$(cat "${CTCONFDIR}/confdir/fstab.info" | sed '/^#/ d' | sed '/^\s*$/d' | grep BACKUP | awk -F ' ' '{ print $2 }')"
+	BACKUPFS="$(cat "${CTCONFDIR}/confdir/devname.info" | sed '/^#/ d' | sed '/^\s*$/d' | grep BACKUPFS | awk -F ' ' '{ print $5 }')"
 	export BACKUPFS
 
 	# EXPORT THE USERDATA FILE STSTEM TYPE
-	USERDATAFS="$(cat "${CTCONFDIR}/confdir/fstab.info" | sed '/^#/ d' | sed '/^\s*$/d' | grep USERDATA | awk -F ' ' '{ print $2 }')"
+	USERDATAFS="$(cat "${CTCONFDIR}/confdir/devname.info" | sed '/^#/ d' | sed '/^\s*$/d' | grep USERDATAFS | awk -F ' ' '{ print $5 }')"
 	export USERDATAFS
 
 	# EXPORT BOOT SIZE
-	BOOTSFS="$(cat "${CTCONFDIR}/confdir/devname.info" | sed '/^#/ d' | sed '/^\s*$/d' | grep BOOT | awk -F ' ' '{ print $3 }')"
+	BOOTSFS="$(cat "${CTCONFDIR}/confdir/devname.info" | sed '/^#/ d' | sed '/^\s*$/d' | grep BOOTFS | awk -F ' ' '{ print $4 }')"
 	export BOOTSFS
 
 	# EXPORT SYSTEM SIZE
-	SYSSFS="$(cat "${CTCONFDIR}/confdir/devname.info" | sed '/^#/ d' | sed '/^\s*$/d' | grep SYS | awk -F ' ' '{ print $3 }')"
+	SYSSFS="$(cat "${CTCONFDIR}/confdir/devname.info" | sed '/^#/ d' | sed '/^\s*$/d' | grep SYSFS | awk -F ' ' '{ print $4 }')"
 	export SYSSFS
 
 	# EXPORT BACKUP SIZE
-	BACKUPSFS="$(cat "${CTCONFDIR}/confdir/devname.info" | sed '/^#/ d' | sed '/^\s*$/d' | grep BACKUP | awk -F ' ' '{ print $3 }')"
+	BACKUPSFS="$(cat "${CTCONFDIR}/confdir/devname.info" | sed '/^#/ d' | sed '/^\s*$/d' | grep BACKUPFS | awk -F ' ' '{ print $4 }')"
 	export BACKUPSFS
 
 	# EXPORT USERDATA SIZE
-	USERDATASFS="$(cat "${CTCONFDIR}/confdir/devname.info" | sed '/^#/ d' | sed '/^\s*$/d' | grep USERDATA | awk -F ' ' '{ print $3 }')"
+	USERDATASFS="$(cat "${CTCONFDIR}/confdir/devname.info" | sed '/^#/ d' | sed '/^\s*$/d' | grep USERDATAFS | awk -F ' ' '{ print $4 }')"
 	export USERDATASFS
 
 	if [[ "${_ctflag_confd}" == 0 ]]; then
@@ -462,4 +534,22 @@ controller_master_loop() {
 				
 		esac
 	done
+}
+
+_call_tmpfs() {
+	_other_points() {
+		mkdir -p "$NEWROOT/.var"
+		mkdir -p "$NEWROOT/.tmp"
+		mount -t tmpfs -o size=2G tmpfs "$NEWROOT/.var"
+		mount -t tmpfs -o size=5G tmpfs "$NEWROOT/.tmp"
+		rsync -aAXPhrv "$NEWROOT/var/" "$NEWROOT/.var" >/dev/null 2>&1
+		rsync -aAXPhrv "$NEWROOT/tmp/" "$NEWROOT/.tmp" >/dev/null 2>&1
+		mount --move "$NEWROOT/.var" "$NEWROOT/var"
+		mount --move "$NEWROOT/.tmp" "$NEWROOT/tmp"
+	}
+
+	mkdir -p "$NEWROOT/.etc"
+	mount -t tmpfs tmpfs "$NEWROOT/.etc"
+	rsync -aAXPhrv "$NEWROOT/etc/" "$NEWROOT/.etc" >/dev/null 2>&1
+	mount --move "$NEWROOT/.etc" "$NEWROOT/etc"
 }
