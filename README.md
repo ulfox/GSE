@@ -122,9 +122,9 @@ Create a minimal system (by bootsptrap??? script on /usr/portage/scripts)
 Configure the system to be functional and bootable 
 Configure the system to function as readonly by 
 -configure /var and /etc 
+	- mount /etc as tmpfs on bootup
 -tmpfs filesystems for some directories 
 -using overlays 
--using aufs? 
 Clean as many leftovers and unused files from the above steps
 ```
 #### The system’s tree
