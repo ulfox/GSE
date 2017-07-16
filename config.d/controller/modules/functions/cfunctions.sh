@@ -139,7 +139,7 @@ _server_exp() {
 	_act_ser_ar=()
 	
 	# POPULATE THE ABOVE TWO ARRAYS
-	while read -r s;do
+	while read -r s; do
 		echo "Checking $s"
 		# DROP AN ENTRY IF PING FAILS
 		if ping -c 1 "$s" >/dev/null 2>&1; then
