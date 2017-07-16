@@ -132,29 +132,61 @@ _bsu_dfs() {
 
 _server_exp() {
 	echo "Selecting server..."
-	_ser_list=()
-	while read -r "s";do
-		_ser_list+=("${s}")
-	done < "${CTCONFDIR}/sources/servers"
-	
-	if [[ "${#_ser_list[@]}" -ge 1 ]]; then
-		_act_ser_ar=()
-		for i in "${_ser_list[@]}"; do
-			avms=$(ping -c 3 "$i" | tail -1| awk -F '/' '{print $5}')
-			_act_ser+=("${avms}")
-		done
-	else
-		avms=$(ping -c 3 "${_ser_list[0]}" | tail -1| awk -F '/' '{print $5}')
-		_act_ser="${avms}"
-	fi
 
-	_max_entry="${_ser_list[0]}"
-	for n in "${_ser_list[@]}" ; do
-	    if [[ "$n" != '' ]]; then
-		    ((${n%.*} > ${_max_entry%.*})) && _max_entry="$n"
+	# CREATE AN ARRAY WHICH HOLDS THE SERVERS
+	_ser_list=()
+	# CREATE AN ARRAY WHICH HOLDS THE SERVERS AVERAGE LETENCIES
+	_act_ser_ar=()
+	
+	# POPULATE THE ABOVE TWO ARRAYS
+	while read -r s;do
+		echo "Checking $s"
+		# DROP AN ENTRY IF PING FAILS
+		if ping -c 1 "$s" >/dev/null 2>&1; then
+			echo "Connection for $s is true"
+			# GET AVERAGE LETENCY FROM 3 PING ACTIONS ON THE ENTRY
+			avms=$(ping -c 3 "$s" | tail -1 | awk -F '/' '{print $5}')
+			if [[ -n "${avms}" ]]; then
+				# SET THE SERVER THAT COULD BE PINGED
+				_ser_list+=("${s}")
+				# SET THE AVERAGE LETENCY FOR THE ABOVE SERVER AS 1:1
+				_act_ser_ar+=("${avms}")
+			else
+				# SKIP ENTRY
+				echo "Could not get average value for $i"
+				echo "Rejecting this entry"
+			fi
+		else
+			# SKIP ENTRY
+			echo "Connection with $s could not be established"
+			echo "Rejecting this entry"
 		fi
+
+	done < <(cat ${CTCONFDIR}/sources/servers | sed '/^#/ d' | sed '/^\s*$/d')
+
+	# EXPORT SERVER ARRAY SIZE -1
+	# WE SUBSTRACT -1 BECAUSE ARRAYS START FROM 0 ENTRY
+	_tmp_var_ms="$(( ${#_ser_list[@]} - 1 ))"
+	
+	# SET MINIMUM MS AS THE FIRST ENTRY
+	_min_ms="${_act_ser_ar[0]}"
+
+	# COMPARE THE ENTRIES AND KEEP THE MINIMUM
+	for i in $(eval echo "{0..${_tmp_var_ms}}"); do
+		 if ((${_act_ser_ar[$i]%.*} <= ${_min_ms%.*})); then
+		 	_min_ms="${_act_ser_ar[$i]%.*}"
+		 	_act_ser="${_ser_list[$i]}"
+		 fi
 	done
-	_act_ser="${_max_entry}"
+
+	# THE ACTIVE SERVER _ACT_SER IS THE ENTRY WHICH HAD THE LOWEST MS FROM THE 1:1 MS ARRAY
+	echo "Most effective server is: ${_act_ser} with average ms: ${_min_ms}"
+
+	unset _tmp_var_ms
+	unset _min_ms
+	unset _ser_list
+	unset _act_ser_ar
+	unset avms
 }
 
 _sources_exp() {
@@ -178,8 +210,10 @@ _sources_exp() {
 }
 
 _call_net() {
-	ifconfig "${_net_interface}" up
-	udhcpc -t 5 -q -s "/bin/net_script.sh"
+	if [[ -n "$(cat /proc/cmdline | grep "ip=dhcp")" ]]; then
+		ifconfig "${_net_interface}" up
+		udhcpc -t 5 -q -s "/bin/net_script.sh"
+	fi
 }
 
 _mount_sysfs() {
