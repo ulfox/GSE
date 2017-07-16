@@ -1,13 +1,21 @@
 #!/bin/bash
 
-# SIMPLE DHCP NETWORKING
+# CALL NETWORK FUNCtiON
 if _call_net; then
-	_ctflag_net=0
+	# CALL ACTIVE SERVER DEFINITION FUNCTION
+	_server_exp
+
+	# SET NET FLAG TO 0 IF AN ACTIVE SERVER HAS BEEN SET, OTHERWISE SET TO 1
+	if [[ -n "${_act_ser}" ]]; then
+		_ctflag_net=0
+	else
+		_ctflag_net=1
+	fi
 	export _ctflag_net
 fi
 
 # CHECK NETWORK FLAG AND FETCH VERSION AND CONFIG.D DIRECTORY
-if [[ "${_ctflag_net}" ]]; then
+if [[ "${_ctflag_net}" == 0 ]]; then
 	# DEFINE BEST ACTIVE SERVER
 	_server_exp
 
