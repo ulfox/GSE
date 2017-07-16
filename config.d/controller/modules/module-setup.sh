@@ -22,7 +22,7 @@ install() {
     inst_multiple e2label mlabel swaplabel scp md5sum sha512sum lsblk tee sed awk arping
     inst_multiple dhclient ifconfig scp lsmod fusermount rmmod strace rm
     inst_multiple fsck fsck.ext2 fsck.ext4 fsck.ext3 fsck.ext4dev fsck.vfat e2fsck
-    inst_multiple ping6 netstat vi grep ps
+    inst_multiple ping6 netstat vi grep ps dhcpcd
 
     # Install libs for the dns functions
     inst_simple "/lib64/libnss_dns.so.2"
@@ -49,7 +49,7 @@ install() {
     inst_script "$moddir/functions/cfunctions.sh" "/usr/local/controller/cfunctions.sh"
     inst_script "$moddir/functions/chealth.sh" "/usr/local/controller/chealth.sh"
     inst_script "$moddir/functions/cnetwork.sh" "/usr/local/controller/cnetwork.sh"
-    inst_script "$moddir/functions/ccrevert_chroot" "/usr/local/controller/ccrevert_chroot"
+    inst_script "$moddir/functions/ccrevert_chroot.sh" "/usr/local/controller/ccrevert_chroot.sh"
     
     # Install configuration files
     inst_simple "$moddir/sources/sources.conf" "config.d/confdir/sources/sources.conf"
