@@ -863,19 +863,15 @@ _edit_configs() {
 # THE CONTROLLER MENU
 controller_f() {
 	clear; amiroot "$UID"; echo "You selected: build the controller image"; echo
-	_call_ct_function "$@"
+	_make_cimage
 	_PARENT=0
-}
-
-_call_ct_function() {
-
 }
 
 _make_cimage() {
 	dracut --force --show-modules --printsize --nostrip  --early-microcode \
 	--fscks "fsck.btrfs fsck.ext4 fsck.fat fsck.hfs fsck.hfsplus fsck.jfs fsck.minix fsck.reiser4 fsck.reiserfs fsck.vfat fsck.xfs" \
 	--filesystems "btrfs ext4 fat hfs hfsplus jfs minix reiser4 reiserfs vfat xfs" \
-	"${CDISTDIR}/initramfs-${GSEVER}-4.9.16-gentoo"
+	--kmoddir="$1" "${CDISTDIR}/initramfs-${GSEVER}-4.9.16-gentoo"
 }
 
 # FLAGS AND ARGUMENTS
@@ -1392,7 +1388,9 @@ witch_hunt() {
 	_tmp_catdir=$(df -h "$CATDIR" | awk -F ' ' '{ print $4 }' | tail -n +2)
 	_tmp_distdir=$(df -h "$CDISTDIR" | awk -F ' ' '{ print $4 }' | tail -n +2)
 
-	_free_space "${_tmp_catdir}" "50" "Catalysts storedir" "catalyst will use for a stage3 tarball will be around 50G"
+	if [[ "${_flag_base}" == 'catalyst' ]]; then
+		_free_space "${_tmp_catdir}" "50" "Catalysts storedir" "catalyst will use for a stage3 tarball will be around 50G"
+	fi
 	_free_space "${_tmp_distdir}" "15" "Dist.d dir" "dist.d will use is at least 15G"
 	unset CATDIR
 	unset _tmp_distdir
