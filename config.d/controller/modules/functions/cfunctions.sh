@@ -4,56 +4,70 @@ die() {
 	echo "$@" 1>&2 ; exit 1
 }
 
+_a_priori_devices() {
+	if [[ -e "/dev/disk/by-label/SYSFS" ]]; then
+		_ctflag_syslabel=0
+	else
+		_ctflag_syslabel=1
+	fi
+
+	export _ctflag_syslabel
+
+	if [[ -e "/dev/disk/by-label/BOOTFS" ]]; then
+		_ctflag_bootlabel=0
+	else
+		_ctflag_bootlabel=1
+	fi
+
+	export _ctflag_bootlabel
+
+	if [[ -e "/dev/disk/by-label/BACKUPFS" ]]; then
+		_ctflag_backupfs=0
+	else
+		_ctflag_backupfs=1
+	fi
+
+	export _ctflag_backupfs
+
+	if [[ -e "/dev/disk/by-label/USERDATAFS" ]]; then
+		_ctflag_userdatafs=0
+	else
+		_ctflag_userdatafs=1
+	fi
+
+	export _ctflag_userdatafs
+}
+
 _bsu_dfs() {
 	_scan_id_ty() {
-		_a_priori_devices() {
-			if [[ -e "/dev/disk/by-label/SYSFS" ]]; then
-				_ctflag_syslabel=0
-			else
-				_ctflag_syslabel=1
-			fi
-			
-			export _ctflag_syslabel
-
-			if [[ -e "/dev/disk/by-label/BOOTFS" ]]; then
-				_ctflag_bootlabel=0
-			else
-				_ctflag_bootlabel=1
-			fi
-
-			export _ctflag_bootlabel
-
-			if [[ -e "/dev/disk/by-label/BACKUPFS" ]]; then
-				_ctflag_backupfs=0
-			else
-				_ctflag_backupfs=1
-			fi
-
-			export _ctflag_backupfs
-
-			if [[ -e "/dev/disk/by-label/USERDATAFS" ]]; then
-				_ctflag_userdatafs=0
-			else
-				_ctflag_userdatafs=1
-			fi
-
-			export _ctflag_userdatafs
-		}
-
 		_case_id() {
-			eval _SYID="$(grep "$1" "${CTCONFDIR}/confdir/devname.info" | sed '/^#/ d' | sed '/^\s*$/d' | grep $1 | awk -F ' ' '{ print $2 }')"
+			# EXPORT THE ID OPTION FOR THE TARGET
+			eval _SYID="$(grep "$1" "${CTCONFDIR}/confdir/devname.info" | sed '/^#/ d' | sed '/^\s*$/d' | grep "$1" | awk -F ' ' '{ print $2 }')"
 			case "${_SYID}" in
 				BYID)
+					# EXPORT SDX{Y} DEVICE FROM DEVICE ID
 					_tmp_id="$(grep "$1" "${CTCONFDIR}/confdir/devname.info" | sed '/^#/ d' | sed '/^\s*$/d' | awk -F ' ' '{ print $3 }')"
-					_tmp_type="$(blkid /dev/disk/by-id/${_tmp_id} | awk -F 'UUID=' '{ print $2 }' | cut -d ' ' -f 1 | cut -d '"' -f 2)"
+					_tmp_type="$(blkid "/dev/disk/by-id/${_tmp_id}" | awk -F 'UUID=' '{ print $2 }' | cut -d ' ' -f 1 | cut -d '"' -f 2)"
 					eval "$2"="$(blkid | grep "${_tmp_type}" | awk -F ':' '{ print $1 }')"
 					;;
 				UUID)
+					# EXPORT SDX{Y} DEVICE FROM UUID
 					_tmp_id="$(grep "$1" "${CTCONFDIR}/confdir/devname.info" | sed '/^#/ d' | sed '/^\s*$/d' | awk -F ' ' '{ print $3 }')"
 					eval "$2"="$(blkid | grep "${_tmp_id}" | awk -F ':' '{ print $1 }')"
 					;;
 				SDAX)
-					eval "$2"="$(grep "$1" "${CTCONFDIR}/confdir/devname.info" | sed '/^#/ d' | sed '/^\s*$/d' | awk -F ' ' '{ print $3 }')"
+					if ls "${_SYID}" >/dev/null 2>&1; then
+						# SDX{Y} DEVICE
+						eval "$2"="$(grep "$1" "${CTCONFDIR}/confdir/devname.info" | sed '/^#/ d' | sed '/^\s*$/d' | awk -F ' ' '{ print $3 }')"
+					else
+						# SDX{Y} DEVICE
+						_tmp_fs01="$(grep "$1" "${CTCONFDIR}/confdir/devname.info" | sed '/^#/ d' | sed '/^\s*$/d' | awk -F ' ' '{ print $3 }')"
+						eval "$2"="${_tmp_fs01}"
+						# THIS OPTION WILL BE USED TO IDENTIFY THE DEVICE.
+						# IN SDX{Y} PARTITION IS MISSING, THE PROCESS WILL CREATE A NEW INTERFACE.
+						eval "_PAR_$2"="$(echo "${_tmp_fs01}" | sed 's/[!0-9]//g')"
+						eval "_PAR_NUM_$2"="${_tmp_fs01: -1}"
+					fi
 					;;
 			esac
 		
@@ -61,8 +75,10 @@ _bsu_dfs() {
 			unset _tmp_type
 		}
 
+		# CHECK IF { SYSFS, BOOTFS, BACKUPFS, USERDATAFS } LABELS EXIST
 		_a_priori_devices
 
+		# EXPORT SDX{Y} FOR SYSFS/BOOTFS/BACKUPFS/USERDATAFS
 		if [[ "${_ctflag_syslabel}" == 0 ]]; then
 			SYSDEV="$(blkid | grep "SYSFS" | awk -f ':' '{ print $1 }')"
 		elif [[ "${_ctflag_syslabel}" == 0 ]]; then
@@ -94,35 +110,35 @@ _bsu_dfs() {
 	export USERDATADEV
 	
 	# EXPORT THE BOOT FILE SYSTEM TYPE
-	BOOTFS="$(cat "${CTCONFDIR}/confdir/devname.info" | sed '/^#/ d' | sed '/^\s*$/d' | grep BOOTFS | awk -F ' ' '{ print $5 }')"
+	BOOTFS="$(grep BOOTFS "${CTCONFDIR}/confdir/devname.info" | sed '/^#/ d' | sed '/^\s*$/d' | awk -F ' ' '{ print $5 }')"
 	export BOOTFS
 
 	# EXPORT THE SYSTEM FILE SYSTEM TYPE
-	SYSFS="$(cat "${CTCONFDIR}/confdir/devname.info" | sed '/^#/ d' | sed '/^\s*$/d' | grep SYSFS | awk -F ' ' '{ print $5 }')"
+	SYSFS="$(grep SYSFS "${CTCONFDIR}/confdir/devname.info" | sed '/^#/ d' | sed '/^\s*$/d' | awk -F ' ' '{ print $5 }')"
 	export SYSFS
 
 	# EXPORT THE BACKUP FILE SYSTEM TYPE
-	BACKUPFS="$(cat "${CTCONFDIR}/confdir/devname.info" | sed '/^#/ d' | sed '/^\s*$/d' | grep BACKUPFS | awk -F ' ' '{ print $5 }')"
+	BACKUPFS="$(grep BACKUPFS "${CTCONFDIR}/confdir/devname.info" | sed '/^#/ d' | sed '/^\s*$/d' | awk -F ' ' '{ print $5 }')"
 	export BACKUPFS
 
 	# EXPORT THE USERDATA FILE STSTEM TYPE
-	USERDATAFS="$(cat "${CTCONFDIR}/confdir/devname.info" | sed '/^#/ d' | sed '/^\s*$/d' | grep USERDATAFS | awk -F ' ' '{ print $5 }')"
+	USERDATAFS="$(grep USERDATAFS "${CTCONFDIR}/confdir/devname.info" | sed '/^#/ d' | sed '/^\s*$/d' | awk -F ' ' '{ print $5 }')"
 	export USERDATAFS
 
 	# EXPORT BOOT SIZE
-	BOOTSFS="$(cat "${CTCONFDIR}/confdir/devname.info" | sed '/^#/ d' | sed '/^\s*$/d' | grep BOOTFS | awk -F ' ' '{ print $4 }')"
+	BOOTSFS="$(grep BOOTFS "${CTCONFDIR}/confdir/devname.info" | sed '/^#/ d' | sed '/^\s*$/d' | awk -F ' ' '{ print $4 }')"
 	export BOOTSFS
 
 	# EXPORT SYSTEM SIZE
-	SYSSFS="$(cat "${CTCONFDIR}/confdir/devname.info" | sed '/^#/ d' | sed '/^\s*$/d' | grep SYSFS | awk -F ' ' '{ print $4 }')"
+	SYSSFS="$(grep SYSFS "${CTCONFDIR}/confdir/devname.info" | sed '/^#/ d' | sed '/^\s*$/d' | awk -F ' ' '{ print $4 }')"
 	export SYSSFS
 
 	# EXPORT BACKUP SIZE
-	BACKUPSFS="$(cat "${CTCONFDIR}/confdir/devname.info" | sed '/^#/ d' | sed '/^\s*$/d' | grep BACKUPFS | awk -F ' ' '{ print $4 }')"
+	BACKUPSFS="$(grep BACKUPFS "${CTCONFDIR}/confdir/devname.info" | sed '/^#/ d' | sed '/^\s*$/d' | awk -F ' ' '{ print $4 }')"
 	export BACKUPSFS
 
 	# EXPORT USERDATA SIZE
-	USERDATASFS="$(cat "${CTCONFDIR}/confdir/devname.info" | sed '/^#/ d' | sed '/^\s*$/d' | grep USERDATAFS | awk -F ' ' '{ print $4 }')"
+	USERDATASFS="$(grep USERDATAFS "${CTCONFDIR}/confdir/devname.info" | sed '/^#/ d' | sed '/^\s*$/d' | awk -F ' ' '{ print $4 }')"
 	export USERDATASFS
 
 	if [[ "${_ctflag_confd}" == 0 ]]; then
@@ -193,16 +209,19 @@ _sources_exp() {
 	# SOURCE THE SOURCES CONFIGURATION FILES FOR EXPORTING THE SERVER INFORMATIONS
 	source "${CTCONFDIR}/confdir/sources/sources.conf"
 
+	# THIS PATH INDICATES THE LOCATION OF THE CONFIG.D DIRECTORY ON THE SERVER SIDE. EXAMPLE: /home/user1/gse/config.d
 	if [[ -z "${_conf_dir}" ]]; then
 		_conf_dir="$(grep "confdir" "${CTCONFDIR}/confdir/sources/sources.conf" | sed '/^#/ d' | sed '/^\s*$/d' | awk -F ':' '{ print $2 }')"
 		export _conf_dir
 	fi
 
+	# THIS PATH INDICATES THE LOCATION OF THE DIST.D DIRECTORY. SEE CONFDIR EXAMPLE
 	if [[ -z "${_dist_dir}" ]]; then
 		_dist_dir="$(grep "distdir" "${CTCONFDIR}/confdir/sources/sources.conf" | sed '/^#/ d' | sed '/^\s*$/d' | awk -F ':' '{ print $2 }')"
 		export _dist_dir
 	fi
 
+	# THIS VARIABLE IS THE USER THAT WILL BE USED FOR THE CONNECTION BETWEEN THE HOST AND THE SERVER.
 	if [[ -z "${_ser_user}" ]]; then
 		_ser_user="$(grep "user" "${CTCONFDIR}/confdir/sources/sources.conf" | sed '/^#/ d' | sed '/^\s*$/d' | awk -F ':' '{ print $2 }')"
 		export _ser_user
@@ -210,13 +229,20 @@ _sources_exp() {
 }
 
 _call_net() {
-	if [[ -n "$(cat /proc/cmdline | grep "ip=dhcp")" ]]; then
+	# CALL A SIMPLE DHPCD BUSYBOX NETWORK FUNCTION
+	if grep -q "ip=dhcp" "/proc/cmdline"; then
 		ifconfig "${_net_interface}" up
-		udhcpc -t 5 -q -s "/bin/net_script.sh"
+		busybox udhcpc -t 5 -q -s "/bin/net_script.sh"
 	fi
+
+	# HERE WILL BE ADDED A CUSTOM NETWORK FUNCTION
+	# MEANING THAT INSTEAD OF RUNNING THE ABOVE DHCP NET FUNCTION
+	# ONE WILL BE ABLE TO SOURCE HIS OWN NETWORKING SCRIPT.
 }
 
+# MOUNT SYSTEM
 _mount_sysfs() {
+	# IF MOUNT, THEN REMOUNT
 	if [[ -n "$(grep "$1" "/proc/mounts" | awk -F ' ' '{ print $2 }')" ]]; then
 		_unmount "$1"
 	fi
@@ -228,11 +254,15 @@ _mount_sysfs() {
 	fi
 }
 
+# THIS FUNCTION CHANGES THE BOOTFLAG FROM SYSFS TO BACKUP
+# LATER ON, THIS DEVICE WILL REPLACE THE CURRENT DEVICE HOSTING THE SYSTEM.
 _call_backup_switch() {
 	_ctflag_bootflag="BACKUP"
 	export _ctflag_bootflag
 }
 
+# INTERACTIVE FUNCTION
+# DISABLED BY DEFAULT, PROBABLY WILL BE REMOVED
 _question() {
 	for i in "$@"; do
 		[[ "$i" ]] && echo "$i"
@@ -256,6 +286,7 @@ _question() {
 	unset _question_no_action
 }
 
+# FETCH THE DEFAULT VERSION FROM THE SERVER
 _fetch_version() {
 	if scp "${_act_user}@${_act_ser}/${_dist_dir}" "${CTCONFDIR}/version"; then
 		_ctflag_sverison=0
@@ -265,6 +296,7 @@ _fetch_version() {
 	export _ctflag_sversion
 }
 
+# FETCH NEW CONFIG.D DIRECTORY
 _fetch_confd() {
 	if rsync -aAXPhrv "${_act_user}@${_act_ser}/${_conf_dir}" "${CTCONFDIR}/confdir/"; then
 		_ctflag_confd=0
@@ -280,21 +312,22 @@ _check_version() {
 	if [[ "${_ctflag_sversion}" == 0 ]]; then
 		_local_version="$(cat "/mnt/workdir/var/lib/version")"
 		_server_version="$(cat "${CTCONFDIR}/version")"
-	if [[ "${_local_version}" != "${_server_version}" ]]; then
-		if [[ -n "${_ctflag_human}" ]]; then
-			if _question "A new System Version is present on the server" "Do you wish to fetch the new system?"; then
-				_ctflag_sysfetch=0
+		if [[ "${_local_version}" != "${_server_version}" ]]; then
+			if [[ -n "${_ctflag_human}" ]]; then
+				if _question "A new System Version is present on the server" "Do you wish to fetch the new system?"; then
+					_ctflag_sysfetch=0
+				else
+					_ctflag_sysfetch=1
+				fi
 			else
-				_ctflag_sysfetch=1
+				_ctflag_sysfetch=0
 			fi
 		else
-			_ctflag_sysfetch=0
+			echo "Remote version matches the local"
+			_ctflag_sysfetch=1
 		fi
-	else
-		echo "Remote version matches the local"
-		_ctflag_sysfetch=1
-	fi
 	export _ctflag_sysfetch
+	fi
 }
 
 mv_pseudo() {	# ${rsys}
@@ -352,6 +385,7 @@ _chroot_config(){
 			return 0
 		else
 			return 1
+		fi
 	}
 
 	_init_chroot() {
@@ -392,10 +426,56 @@ _chroot_config(){
 	fi
 }
 
+#_ctflag_syslabel
+#_ctflag_bootlabel
+#_ctflag_backupfs
+#_ctflag_userdatafs
+#						eval "_PAR_$2"="$(echo "${_tmp_fs01}" | sed 's/[!0-9]//g')"
+#						eval "_PAR_NUM_$2"="${_tmp_fs01: -1}"
+_create_interface() {
+	_interface_x() {
+		case "$1" in
+			dos)
+				echo "o
+n
+p
+
+$2
+w" | fdisk /dev/sdc;;
+			gpg)
+				echo "o
+n
+p
+
+$2
+w" | fdisk /dev/sdc;;
+esac
+	}
+
+
+	if [[ "${_ctflag_syslabel}" == 1 ]]; then
+		if [[ -n "${_PAR_SYSFS}" ]]; then
+			_interface_x 
+		else
+			:
+		fi
+	else
+		:
+	fi
+}
+
+_remake() {
+	if eval "mkfs.$1" "$2" "$3" "$4"; then
+		return 0
+	else
+		return 1
+	fi
+}
+
 _remake_sysfs() {
 	if _unmount "$1"; then
 		if [[ "${SYSFS}" == 'btrfs' ]]; then
-			if eval "mkfs.${SYSFS}" -L ROOTFS -f "${SYSDEV}"; then
+			if _remake "${SYSFS}" "-f -L" "SYSFS" "${SYSDEV}"; then
 				echo "File system created"
 				_ctflag_remake=0
 			else
@@ -403,7 +483,7 @@ _remake_sysfs() {
 				_ctflag_remake=1
 			fi
 		else
-			if eval "mkfs.${SYSFS}" -L ROOTFS "${SYSDEV}"; then
+			if _remake "${SYSFS}" "-L" "SYSFS" "${SYSDEV}"; then
 				echo "File system created"
 				_ctflag_remake=0
 			else
@@ -557,7 +637,6 @@ subshell_loop() {
 
 # CONTROLLER LOOP FUNCTION
 controller_master_loop() {
-	[[ -z $(echo "$@") ]] && _print_info 3
 	LOOPVAR="$1"
 	while true; do
 		case "${LOOPVAR}" in
