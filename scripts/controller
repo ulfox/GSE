@@ -1,73 +1,46 @@
 #!/bin/bash
 
-# directory structure
-echo "Creating initramfs directories"
-mkdir -p initramfs/mnt/{root,boot}
+# FLAGS AND ARGUMENTS
+_controller_args() {
+	while true; do
+		[[ -z "$*" ]] && return 0
+		case "$1" in
+			--build-controller*|-bc*	)
+				if [[ "$1" != *'='* ]]; then
+					die "Missing argument for controller's path"
+				else
+					_flag_controller_path="${1#*=}"
+					
+					if [[ ${_flag_controller_path:0:1} != "/" ]]; then
+						_flag_controller_path="/${_flag_controller_path}"
+					fi
 
-# root filesystem & backup filesystem
-echo "Creating /mnt/bfs, mnt/rfs"
-mkdir -p initramfs/mnt/bfs
-mkdir -p initramfs/mnt/rfs
-mkdir -p initramfs/usr/lib64/locale
+					if [[ "${_flag_controller_path}" == '/' ]]; then
+						die "Root is not allowed to be set as moddir path. Aborting..."
+					else
+						if [[ -d "${_flag_controller_path}" ]]; then
+							_flag_controller=0
+							export _flag_controller
+							export _flag_controller_path
+							_e_report_back "Controller flag enabled"
+						else
+							die "Error: moddir's target is not a directory"
+						fi
+					fi
+				fi
+			*							)
+				die "Unknown $1 operation"
+				;;
+		esac
+		shift
+	done
+}
 
-# version will lie in data
-echo "Creating /var/data"
-mkdir -p initramfs/var/data/
-mkdir -p initramfs/var/data/
-mkdir -p initramfs/config.d
-mkdir -p initramfs/config.d/{controller,sources,system}
-mkdir -p initramfs/config.d/controller/{examples,server,services}
-mkdir -p initramfs/config.d/controller/services/default-runlevel
-mkdir -p initramfs/config.d/system/examples
+_controller_args "$@"
 
-dracut --force --show-modules --printsize --nostrip  --early-microcode  --bzip2 \
---fscks "fsck.btrfs fsck.ext4 fsck.fat fsck.hfs fsck.hfsplus fsck.jfs fsck.minix fsck.reiser4 fsck.reiserfs fsck.vfat fsck.xfs" \
---filesystems "btrfs ext4 fat hfs hfsplus jfs minix reiser4 reiserfs vfat xfs" \
---install /bin/busybox \
---install /bin/tar \
---include initramfs / \
---add kernel-network-modules \
---install /lib64/libmount.so.1		initramfs/lib64/ \
---install /lib64/libblkid.so.1		initramfs/lib64/ \
---install /lib64/libc.so.6		initramfs/lib64/ \
---install /lib64/libuuid.so.1		initramfs/lib64/ \
---install /lib64/ld-linux-x86-64.so.2	initramfs/lib64/ \
---install /lib64/libext2fs.so.2	initramfs/lib64/libext2fs.so.2 \
---install /lib64/libcom_err.so.2	initramfs/lib64/libcom_err.so.2 \
---install /lib64/libe2p.so.2		initramfs/lib64/libe2p.so.2 \
---install /lib64/libpthread.so.0	initramfs/lib64/libpthread.so.0 \
---install /lib64/libdl.so.2            initramfs/lib64/libdl.so.2 \
---install /sbin/mkfs.btrfs		initramfs/sbin/mkfs.btrfs \
---install /lib64/libz.so.1		initramfs/lib64/libz.so.1 \
---install /lib64/liblzo2.so.2		initramfs/usr/lib64/liblzo2.so.2 \
---install /usr/lib64/libfdisk.so.1.1.0	initramfs/usr/lib64/libfdisk.so.1 \
---install /lib64/libsmartcols.so.1	initramfs/lib64/ \
---install /lib64/libreadline.so.6	initramfs/lib64/libreadline.so.6 \
---install /lib64/libncurses.so.6	initramfs/lib64/libncurses.so.6 \
---install /usr/lib64/libncursesw.so    initramfs/usr/lib64/libncursesw.so \
---install /usr/lib64/libncursesw.so    initramfs/usr/lib64/libncursesw.so.5 \
---install /usr/lib64/libmagic.so.1     initramfs/usr/lib64/libmagic.so.1 \
---install /lib64/libncursesw.so.6	initramfs/lib64/libncursesw.so.6 \
---install /lib64/libnss_files.so.2     initramfs/lib64/libnss_files.so.2 \
---install /lib64/libattr.so.1		initramfs/lib64/libattr.so.1 \
---install /lib64/libacl.so.1		initramfs/lib64/libacl.so.1 \
---install /usr/lib64/libpopt.so.0      initramfs/usr/lib64/libpopt.so.0 \
---install /lib64/libnss_compat.so.2    initramfs/lib64/libnss_compat.so.2 \
---install /lib64/libnsl.so.1           initramfs/lib64/libnsl.so.1 \
---install /lib64/libnss_nis.so.2       initramfs/lib64/libnss_nis.so.2 \
---install /lib64/libnss_dns.so.2	initramfs/lib64/ \
---install /lib64/libnss_files.so.2	initramfs/lib64/ \
---install /lib64/libresolv.so.2	initramfs/lib64/ \
---install /lib64/ld-linux-x86-64.so.2	initramfs/lib64/ \
-/boot/"initramfs-${GSEVER}-4.9.16-gentoo"
-
-#--install /sbin/btrfs			initramfs/sbin/btrfs \
-#--install /sbin/btrfs-convert		initramfs/sbin/btrfs-convert \
-#--install /sbin/btrfs-debug-tree	initramfs/sbin/btrfs-debug-tree \
-#--install /sbin/btrfs-find-root	initramfs/sbin/btrfs-find-root \
-#--install /sbin/btrfs-image		initramfs/sbin/btrfs-image \
-#--install /sbin/btrfs-map-logical	initramfs/sbin/btrfs-map-logical \
-#--install /sbin/btrfs-show-super	initramfs/sbin/btrfs-show-super \
-#--install /sbin/btrfs-zero-log		initramfs/sbin/btrfs-zero-log \
-#--install /sbin/btrfsck		initramfs/sbin/btrfsck \
-#--install /sbin/btrfstune		initramfs/sbin/btrfstune \
+_make_image() {
+	dracut --force --show-modules --printsize --nostrip  --early-microcode \
+	--fscks "fsck.btrfs fsck.ext4 fsck.fat fsck.hfs fsck.hfsplus fsck.jfs fsck.minix fsck.reiser4 fsck.reiserfs fsck.vfat fsck.xfs" \
+	--filesystems "btrfs ext4 fat hfs hfsplus jfs minix reiser4 reiserfs vfat xfs" \
+	"${CDISTDIR}/initramfs-${GSEVER}-4.9.16-gentoo"
+}
