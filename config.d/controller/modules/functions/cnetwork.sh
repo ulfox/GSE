@@ -19,6 +19,9 @@ if [[ "${_ctflag_net}" == 0 ]]; then
 	# DEFINE BEST ACTIVE SERVER
 	_server_exp
 
+	# MOUNT SYSFS AS RW
+	_mount_sysfs "/mnt/workdir"
+
 	# SOURCES EXP
 	_sources_exp
 
@@ -29,7 +32,7 @@ if [[ "${_ctflag_net}" == 0 ]]; then
 		_bsu_dfs
 	fi
 
-	# MOUNT SYSFS AS RO
+	# MOUNT SYSFS AS RW
 	_mount_sysfs "/mnt/workdir"
 	# CHECK LOCAL VERSION OF SYSFS WITH SERVERS VERSION
 	_check_version
