@@ -6,7 +6,7 @@
 # Example 3 SYS /dev/sdb1 full will create a partition /dev/sdb1 which will take all the available space and LABEL=SYS
 # The filesystem type is located at the fstab.info file which is automatically created from the guided fstab entry
 # and it can also be configured manually from the same submenu.
-BOOT /dev/sda 500M
+BOOT /dev/sda1 500M
 SYS /dev/sdb
 USERDATA /dev/sdc
 
