@@ -863,8 +863,12 @@ _edit_configs() {
 # THE CONTROLLER MENU
 controller_f() {
 	clear; amiroot "$UID"; echo "You selected: build the controller image"; echo
-	# source "${CWORKDIR}/scripts/controller"
+	_call_ct_function "$@"
 	_PARENT=0
+}
+
+_call_ct_function() {
+
 }
 
 _make_cimage() {
@@ -1057,10 +1061,29 @@ librarium() {
 
 				exit;;
 
-			--build-controller|-bc	)
-				_flag_controller=0
-				export _flag_controller
-				_e_report_back "Controller flag enabled"
+			--build-controller*|-bc*	)
+				if [[ "$1" != *'='* ]]; then
+					die "Missing argument for controller's path"
+				else
+					_flag_controller_path="${1#*=}"
+					
+					if [[ ${_flag_controller_path:0:1} != "/" ]]; then
+						_flag_controller_path="/${_flag_controller_path}"
+					fi
+
+					if [[ "${_flag_controller_path}" == '/' ]]; then
+						die "Root is not allowed to be set as moddir path. Aborting..."
+					else
+						if [[ -d "${_flag_controller_path}" ]]; then
+							_flag_controller=0
+							export _flag_controller
+							export _flag_controller_path
+							_e_report_back "Controller flag enabled"
+						else
+							die "Error: moddir's target is not a directory"
+						fi
+					fi
+				fi
 				;;
 			--auto*						)
 				if [[ "$1" != *'='* ]]; then
