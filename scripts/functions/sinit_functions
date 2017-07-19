@@ -868,10 +868,23 @@ controller_f() {
 }
 
 _make_cimage() {
-	dracut --force --show-modules --printsize --nostrip  --early-microcode \
-	--fscks "fsck.btrfs fsck.ext4 fsck.fat fsck.hfs fsck.hfsplus fsck.jfs fsck.minix fsck.reiser4 fsck.reiserfs fsck.vfat fsck.xfs" \
-	--filesystems "btrfs ext4 fat hfs hfsplus jfs minix reiser4 reiserfs vfat xfs" \
-	--kmoddir="$1" "${CDISTDIR}/initramfs-${GSEVER}-4.9.16-gentoo"
+	_KVER_="kver_"$(uname -r)""
+	# CREATE CONFIGURATION FILES TO READ ARGS
+	# CREATE A CUSTON NETWORK INTERFACE FUNCTION TO ENABLE NETWORKING
+	# CREATE A HOOK SCRIPT FUNCTION TO SOURCE SOURCE ENABLE CUSTOM SCRIPTS INSIDE THE DRACUT HOOKPOINTS
+	if [[ "${_flag_dracut}" == '0' ]]; then
+		dracut --force --show-modules --printsize --nostrip  --early-microcode \
+		--fscks "fsck.btrfs fsck.ext4 fsck.fat fsck.vfat fsck.ext2 fsck.ext3 fsck.ext4dev fsck.minix fsck.cramfs" \
+		--filesystems "btrfs ext4 fat ext2 ext3 minix vfat" \
+		"${_flag_dracut_args}" "${CDISTDIR}/initramfs-${GSEVER}-${_KVER_}"
+	else
+		dracut --force --show-modules --printsize --nostrip  --early-microcode \
+		--fscks "fsck.btrfs fsck.ext4 fsck.fat fsck.vfat fsck.ext2 fsck.ext3 fsck.ext4dev fsck.minix fsck.cramfs" \
+		--filesystems "btrfs ext4 fat ext2 ext3 minix vfat" \
+		"${CDISTDIR}/initramfs-${GSEVER}-${_KVER_}"
+	fi
+
+	unset _KVER_
 }
 
 # FLAGS AND ARGUMENTS
@@ -1057,27 +1070,52 @@ librarium() {
 
 				exit;;
 
-			--build-controller*|-bc*	)
-				if [[ "$1" != *'='* ]]; then
-					die "Missing argument for controller's path"
-				else
-					_flag_controller_path="${1#*=}"
-					
-					if [[ ${_flag_controller_path:0:1} != "/" ]]; then
-						_flag_controller_path="/${_flag_controller_path}"
-					fi
+			--build-controller|-bc	)
+				_flag_controller=0
+				export _flag_controller
+				_e_report_back "Controller flag enabled"
 
-					if [[ "${_flag_controller_path}" == '/' ]]; then
-						die "Root is not allowed to be set as moddir path. Aborting..."
-					else
-						if [[ -d "${_flag_controller_path}" ]]; then
-							_flag_controller=0
-							export _flag_controller
-							export _flag_controller_path
-							_e_report_back "Controller flag enabled"
-						else
-							die "Error: moddir's target is not a directory"
-						fi
+				if [[ "$2" == *'--install'* ]]; then
+					shift
+					if [[ "$1" == *'='* ]]; then
+						_flag_dinst=0
+						export _flag_dinst
+						_flag_dinst_entries="${1#*=}"
+						export _flag_dinst_entries
+						echo "${_flag_dinst_entries}"
+					fi
+				fi
+
+				if [[ "$2" == *'--force'* ]]; then
+					shift
+					_flag_darg=0
+					export _flag_darg
+					_flag_darg_force=0
+					export _flag_darg_force
+					_e_report_back "Dracut force flag has been enabled"
+				fi
+
+				if [[ "$2" == *'--install'* ]]; then
+					shift
+					if [[ "$1" == *'='* ]]; then
+						_flag_dinclude=0
+						export _flag_dinclude
+						_e_report_back "Dracut include flag has been enabled with arguments: "
+						_flag_dinclude_entries="${1#*=}"
+						export _flag_dinclude_entries
+						_o_report_back "${_flag_dinclude_entries}"
+					fi
+				fi
+
+				if [[ "$2" == *'--cmdline'* ]]; then
+					shift
+					if [[ "$1" == *'='* ]]; then
+						_flag_dcmdl=0
+						export _flag_dcmdl
+						_e_report_back "Dracut command line flag has been enabled with arguments: "
+						_flag_dcmdl_entries="${1#*=}"
+						export _flag_dcmdl_entries
+						_o_report_back "${_flag_dcmdl_entries}"
 					fi
 				fi
 				;;
