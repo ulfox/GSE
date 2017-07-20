@@ -888,6 +888,111 @@ _make_cimage() {
 }
 
 # FLAGS AND ARGUMENTS
+_controller_args() {
+	while [[ -n "$*" ]]; do
+		case "$1" in
+			--install*			)
+				if [[ "$1" == *'='* ]]; then
+					_flag_dinst=0
+					export _flag_dinst
+					_flag_dinst_entries="${1#*=}"
+					export _flag_dinst_entries
+					echo "${_flag_dinst_entries}"
+				fi
+				;;
+
+			--force 			)
+				_flag_darg=0
+				export _flag_darg
+				_flag_darg_force=0
+				export _flag_darg_force
+				_e_report_back "Dracut force flag has been enabled"
+				;;
+
+			--include*			)
+				if [[ "$1" == *'='* ]]; then
+					_flag_dinclude=0
+					export _flag_dinclude
+					_e_report_back "Dracut include flag has been enabled with arguments: "
+					_flag_dinclude_entries="${1#*=}"
+					export _flag_dinclude_entries
+					_o_report_back "${_flag_dinclude_entries}"
+				fi
+				;;
+
+			--cmdline*			)
+				if [[ "$1" == *'='* ]]; then
+					_flag_dcmdl=0
+					export _flag_dcmdl
+					_e_report_back "Dracut command line flag has been enabled with arguments: "
+					_flag_dcmdl_entries="${1#*=}"
+					export _flag_dcmdl_entries
+					_o_report_back "${_flag_dcmdl_entries}"
+				fi
+				;;
+
+			--hook*				)
+				if [[ "$1" == *'='* ]]; then
+					if [[ "${1#*=}" == '' ]]; then
+						die "No arguments after hook were given"
+					else
+						_flag_dhok=0
+						export _flag_dhook
+						_e_report_back "Dracut hook flag has been enabled with hooks: "
+						_flag_dhook_entries="${1#*=}"
+						export _flag_dhook_entries
+						_o_report_back "${_flag_dhook_entries}"
+						while true; do
+							echo "${_flag_dhook_entries}"
+							exit
+						done
+					fi
+				elif [[ "$1" != *'='* ]]; then
+					die "No arguments after hook were given"
+				fi
+
+				if [[ "$2" == *'-hookp'* ]]; then
+				#	if [[ "$1" == *'='* ]]; then
+				:	
+				#	fi
+				fi
+				;;
+
+			--net*				)
+				if [[ "$1" != *'='* ]]; then
+					die "No arguments after net were given"
+				else
+					_flag_drnet="${1#*=}"
+
+					if [[ "${_flag_drnet:0:1}" != "/" ]]; then
+						_flag_drnet="/${_flag_drnet}"
+					fi
+
+					if ! ls "${_flag_drnet}" >/dev/null 2>&1; then
+						echo "No such file or directory: ${_flag_drnet}"
+						die
+					fi
+				fi
+				;;
+
+			--module*			)
+				;;
+
+			--modeprobe*		)
+				;;
+
+			--dracut_opt*		)
+				;;
+
+			*							)
+				die "Unknown $1 operation"
+				;;
+		esac
+		shift
+	done
+}
+
+# FLAGS AND ARGUMENTS
 librarium() {
 	_e_report_back "===================================================================================================================="
 	_flag_fetch=''
@@ -898,7 +1003,6 @@ librarium() {
 	_flag_keep=''
 	_flag_initrd=''
 	_flag_minimal=''
-	_flag_controller=''
 	_flag_enforce=''
 	_flag_lawful=''
 	_flag_verbose=''
@@ -1069,56 +1173,7 @@ librarium() {
 				esac
 
 				exit;;
-
-			--build-controller|-bc	)
-				_flag_controller=0
-				export _flag_controller
-				_e_report_back "Controller flag enabled"
-
-				if [[ "$2" == *'--install'* ]]; then
-					shift
-					if [[ "$1" == *'='* ]]; then
-						_flag_dinst=0
-						export _flag_dinst
-						_flag_dinst_entries="${1#*=}"
-						export _flag_dinst_entries
-						echo "${_flag_dinst_entries}"
-					fi
-				fi
-
-				if [[ "$2" == *'--force'* ]]; then
-					shift
-					_flag_darg=0
-					export _flag_darg
-					_flag_darg_force=0
-					export _flag_darg_force
-					_e_report_back "Dracut force flag has been enabled"
-				fi
-
-				if [[ "$2" == *'--install'* ]]; then
-					shift
-					if [[ "$1" == *'='* ]]; then
-						_flag_dinclude=0
-						export _flag_dinclude
-						_e_report_back "Dracut include flag has been enabled with arguments: "
-						_flag_dinclude_entries="${1#*=}"
-						export _flag_dinclude_entries
-						_o_report_back "${_flag_dinclude_entries}"
-					fi
-				fi
-
-				if [[ "$2" == *'--cmdline'* ]]; then
-					shift
-					if [[ "$1" == *'='* ]]; then
-						_flag_dcmdl=0
-						export _flag_dcmdl
-						_e_report_back "Dracut command line flag has been enabled with arguments: "
-						_flag_dcmdl_entries="${1#*=}"
-						export _flag_dcmdl_entries
-						_o_report_back "${_flag_dcmdl_entries}"
-					fi
-				fi
-				;;
+				
 			--auto*						)
 				if [[ "$1" != *'='* ]]; then
 					die "Missing = for --auto"
