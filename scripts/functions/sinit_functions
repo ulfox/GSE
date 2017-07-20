@@ -1039,7 +1039,7 @@ _controller_args() {
 				;;
 
 			--net*				)
-				if [[ "$1" != *'='* ]]; then
+				if [[ "$1" != *'='* || "${1#*=}" == '' ]]; then
 					die "No arguments after net were given"
 				else
 					_flag_drnet="${1#*=}"
@@ -1050,9 +1050,9 @@ _controller_args() {
 								_flag_drnet="/${_flag_drnet}"
 								if ! file "${_flag_drnet}" | grep -q "script"; then
 									die "The given file does not appear to be a script"
+								else
+									_e_report_back "Net script ${_flag_drnet} has been set"
 								fi
-
-								_e_report_back "Net script ${_flag_drnet} has been set"
 							fi
 						else
 							echo "No such file or directory: ${_flag_drnet}"
@@ -1061,20 +1061,111 @@ _controller_args() {
 					else
 						if ! file "${_flag_drnet}" | grep -q "script"; then
 							die "The given file does not appear to be a script"
+						else
+							_flag_drnet="${_flag_drnet}"
+							_e_report_back "Net script ${_flag_drnet} has been set"
 						fi
-						
-						_e_report_back "Net script ${_flag_drnet} has been set"
 					fi
 				fi
 				;;
 
-			--module*			)
-				;;
+			--module-*		)
+				_module_case() {
+					case "$1" in
+						'--module-probe'		)
+							return 0
+							;;
+						'--module-insmod'		)
+							return 1
+							;;
+						'--module-auto' 		)
+							return 2
+							;;
+						'--module-blacklist' 	)
+							return 3 
+							;;
+						*			)
+							die "_module_case error"
+					esac
+				}
 
-			--modeprobe*		)
+				_empty_arg_check() {
+					if [[ "$1" != *'='* || "$2" == '' ]]; then
+						return 1
+					else
+						return 0
+					fi
+				}
+
+				if _module_case "${1%=*}" == 0; then
+					if _empty_arg_check "$1" "${1#*=}"; then
+						_flag_dmod_prob="${1#*=}"
+						export _flag_dmod_prob
+					else
+						die "No arguments were given after --module-probe"
+					fi
+				elif _module_case "${1%=*}" == 1; then
+					if _empty_arg_check "$1" "${1#*=}"; then
+						_flag_dmod_ins="${1#*=}"
+						export _flag_dmod_ins
+					else
+						die "No arguments were given after --module-insmod"
+					fi
+				elif _module_case "${1%=*}" == 2; then
+					if _empty_arg_check "$1" "${1#*=}"; then
+						_flag_dmod_auto="${1#*=}"
+						export _flag_dmod_auto
+					else
+						die "No arguments were given after --module-auto"
+					fi
+				elif _module_case "${1%=*}" == 3; then
+					if _empty_arg_check "$1" "${1#*=}"; then
+						_flag_dmod_blacklist="${1#*=}"
+						export _flag_dmod_blacklist
+					else
+						die "No arguments were given after --module-blacklist"
+					fi
+				fi
+echo "$_flag_dmod_prob"
+echo "$_flag_dmod_ins"
+echo "$_flag_dmod_auto"
+echo "$_flag_dmod_blacklist"
+exit 1
+
+				if [[ "$1" != *'='* || "${1#*=}" == '' ]]; then
+					die "No arguments for modeprobe were given"
+				else
+					_flag_dmod=0
+					export _flag_dmod
+
+					_flag_dmod_entires="${1#*=}"
+					_dmod_entries=()
+					for i in ${_flag_dmod_entires}; do
+						if [[ ! -e "$i" ]]; then
+							if [[ -e "/$i" ]]; then
+								if [[ "${i:0:1}" != "/" ]]; then
+									_dmod_entries+=("/${i}")
+								fi
+							else
+								die "No such file or directory: $i"
+							fi
+						else
+							_dmod_entries+=("/${i}")
+						fi
+					done
+				fi
 				;;
 
 			--dracut_opt*		)
+				if [[ "$1" != *'='* || "${1#*=}" == '' ]]; then
+					die "No arguments after net were given"
+				else
+					_flag_dopt=0
+					export _flag_dopt
+					_flag_dopt_entries="${1#*=}"
+					export _flag_dopt_entries
+
+				fi
 				;;
 
 			*							)
