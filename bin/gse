@@ -141,21 +141,29 @@ while true; do
 done
 }
 
-if echo "$@" | grep -q '\--time-warp' && [[ "$#" != 1 ]]; then
-	die "Error: Time Warp must be the only entry"
-fi
-
-if echo "$@" | grep -q '\--edit' && [[ "$#" != 2 ]]; then
-	die "Error: Edit must be the only entry"
-fi
-
-lppar=()
-for i in "$@"; do
-	lppar+=("$i")
-done
-
-if [[ -z "$@" ]] || echo "$@" | grep -q '\-mm'; then
-	mainlp_f "MM" "${lppar[@]}" && unset BACKTO && exit 0
+if echo "$@" | grep -q '\--build-controller'; then
+	if _controller_args "$@"; then
+		_controller_only "$@"
+	else
+		die "Given controller arguments could not be exported"
+	fi
 else
-	warp "$@"
+	if echo "$@" | grep -q '\--time-warp' && [[ "$#" != 1 ]]; then
+		die "Error: Time Warp must be the only entry"
+	fi
+
+	if echo "$@" | grep -q '\--edit' && [[ "$#" != 2 ]]; then
+		die "Error: Edit must be the only entry"
+	fi
+
+	lppar=()
+	for i in "$@"; do
+		lppar+=("$i")
+	done
+
+	if [[ -z "$@" ]] || echo "$@" | grep -q '\-mm'; then
+		mainlp_f "MM" "${lppar[@]}" && unset BACKTO && exit 0
+	else
+		warp "$@"
+	fi
 fi
