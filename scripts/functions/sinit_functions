@@ -936,15 +936,67 @@ _controller_args() {
 					if [[ "${1#*=}" == '' ]]; then
 						die "No arguments after hook were given"
 					else
+						echo hi
+						if [[ "$2" != '-hp'* ]]; then
+							die "No hook points {-hp=...} were given"
+						else
+							if [[ "$2" != *'='* || "${2#*=}" == '' ]]; then
+								die "No hook point argument where given"
+							fi
+						fi
+
+						if [[ "$3" != '-prio'* ]]; then
+							die "Priority -prio could not be detected"
+						else
+							if [[ "$2" != *'='* || "${2#*=}" == '' ]]; then
+								die "No -prio entries were given"
+							fi
+						fi
+
 						_flag_dhok=0
 						export _flag_dhook
-						_e_report_back "Dracut hook flag has been enabled with hooks: "
+						
 						_flag_dhook_entries="${1#*=}"
 						export _flag_dhook_entries
-						_o_report_back "${_flag_dhook_entries}"
-						while true; do
-							echo "${_flag_dhook_entries}"
-							exit
+
+						_flag_dhook_hp="${1#*=}"
+						export _flag_dhook_hp
+
+						_flag_dhook_prio="${1#*=}"
+						export _flag_dhook_prio
+
+						_dhook_ar=()
+						_dhook_hp=()
+						_dhook_prio=()
+
+						for i in ${_flag_dhook_entries}; do
+							if [[ ! -e "$i" ]]; then
+								if [[ -e "/$i" ]]; then
+									if [[ "${i:0:1}" != "/" ]]; then
+										if ! file "$i" | grep -q "script"; then
+											die "The given file does not appear to be a script"
+										else
+											_dhook_ar+=("/${i}")
+										fi
+									fi
+								else
+									die "No such file or directory: $i"
+								fi
+							else
+								if ! file "$i" | grep -q "script"; then
+									die "The given file does not appear to be a script"
+								else
+									_dhook_ar+=("/${i}")
+								fi
+							fi
+						done
+
+						for i in ${_flag_dhook_hp}; do
+							_dhook_hp+=("${i}")
+						done
+
+						for i in ${_flag_dhook_prio}; do
+							_dhook_prio+=("${i}")
 						done
 					fi
 				elif [[ "$1" != *'='* ]]; then
@@ -956,6 +1008,10 @@ _controller_args() {
 				:	
 				#	fi
 				fi
+
+				_e_report_back "Dracut hook flag has been enabled with hooks: "
+				_o_report_back "${_flag_dhook_entries}"
+				shift 2
 				;;
 
 			--net*				)
@@ -964,13 +1020,26 @@ _controller_args() {
 				else
 					_flag_drnet="${1#*=}"
 
-					if [[ "${_flag_drnet:0:1}" != "/" ]]; then
-						_flag_drnet="/${_flag_drnet}"
-					fi
+					if [[ ! -e "${_flag_drnet}" ]]; then
+						if [[ -e "/${_flag_drnet}" ]]; then
+							if [[ "${_flag_drnet:0:1}" != "/" ]]; then
+								_flag_drnet="/${_flag_drnet}"
+								if ! file "${_flag_drnet}" | grep -q "script"; then
+									die "The given file does not appear to be a script"
+								fi
 
-					if ! ls "${_flag_drnet}" >/dev/null 2>&1; then
-						echo "No such file or directory: ${_flag_drnet}"
-						die
+								_e_report_back "Net script ${_flag_drnet} has been set"
+							fi
+						else
+							echo "No such file or directory: ${_flag_drnet}"
+							die
+						fi
+					else
+						if ! file "${_flag_drnet}" | grep -q "script"; then
+							die "The given file does not appear to be a script"
+						fi
+						
+						_e_report_back "Net script ${_flag_drnet} has been set"
 					fi
 				fi
 				;;
