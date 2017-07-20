@@ -113,7 +113,7 @@ install() {
     inst_hook clean 01 "$moddir/cinit_clean.sh"
  
     if [[ "${_flag_dracut_net}" == 0 ]]; then
-        inst_hook pre-mount 02 "${_dr_net}/cinit_pre-mount.sh"
+        inst_hook pre-mount 02 "${_flag_drnet}"
     fi
 
     if [[ "${_flag_dhok}" == 0 ]]; then
