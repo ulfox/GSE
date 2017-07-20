@@ -22,7 +22,7 @@ install() {
     inst_multiple e2label mlabel swaplabel scp md5sum sha512sum lsblk tee sed awk arping
     inst_multiple dhclient ifconfig scp lsmod fusermount rmmod strace rm
     inst_multiple fsck fsck.ext2 fsck.ext4 fsck.ext3 fsck.ext4dev fsck.vfat e2fsck
-    inst_multiple ping6 netstat vi grep ps dhcpcd
+    inst_multiple ping6 netstat vi grep ps dhcpcd uname
 
     # Install libs for the dns functions
     inst_simple "/lib64/libnss_dns.so.2"
@@ -71,6 +71,7 @@ install() {
     mkdir -m 0755 -p ${initdir}/mnt/{etc_tmpfs,tmp_tmpfs,var_tmp_tmpfs,workdir}
     mkdir -m 0755 -p ${initdir}/user-data/persistent/{local,nfs,log,var,etc}
     mkdir -m 0755 -p ${initdir}/user-data/persistent/local/{root,home,data,mnt,media}
+    mkdir -m 0755 -p ${initdir}/usr/local/{unet,uscripts}
 
     # Install scripts for the controller process
     inst_script "$moddir/functions/cchroot.sh" "/usr/local/controller/cchroot.sh"
@@ -110,6 +111,16 @@ install() {
     inst_hook pre-mount 01 "$moddir/cinit_pre-mount.sh"
     inst_hook mount 01 "$moddir/cinit_mount.sh"
     inst_hook clean 01 "$moddir/cinit_clean.sh"
+ 
+    if [[ "${_flag_dracut_net}" == 0 ]]; then
+        inst_hook pre-mount 02 "${_dr_net}/cinit_pre-mount.sh"
+    fi
+
+    if [[ "${_flag_dhok}" == 0 ]]; then
+        for i in $(eval echo {1..${_hp}});do
+            inst_hook "{_mp}" "{_pr}" "${_dr_scr}"
+        done
+    fi
 }
 
 # called by dracut
