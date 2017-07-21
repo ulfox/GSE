@@ -1019,12 +1019,16 @@ _controller_args() {
 						_hook_final=()
 						_var_count="$((${#_dhook_ar} - 1))"
 						for i in $(eval echo "{0..${_var_count}}"); do
-							_hook_final+=("${_dhook_prio[$i]} ${_dhook_hp[$i]} ${_dhook_ar[$i]}")
+							_hook_final+=("${_dhook_prio[$i]}","${_dhook_hp[$i]}","${_dhook_ar[$i]}")
 						done
 
 						_e_report_back "Dracut hook flag has been enabled with hooks: "
 						_o_report_back "${_hook_final[@]}"
 						shift 2
+						unset _var_count
+						unset _dhook_ar
+						unset _dhook_prio
+						unset _dhook_hp
 						unset _flag_dhook_hp
 						unset _flag_dhook_prio
 						unset _flag_dhook_entries			
@@ -1069,19 +1073,19 @@ _controller_args() {
 				_module_case() {
 					case "$1" in
 						'--module-probe'		)
-							return 0
+							_mopt_='probe'
 							;;
 						'--module-insmod'		)
-							return 1
+							_mopt_='insmod'
 							;;
 						'--module-auto' 		)
-							return 2
+							_mopt_='auto'
 							;;
 						'--module-blacklist' 	)
-							return 3 
+							_mopt_='blacklist'
 							;;
 						*			)
-							die "_module_case error"
+							die "Wrong entry. Please select one of --module--{probe,insmod,auto,blacklist}"
 					esac
 				}
 
@@ -1093,62 +1097,116 @@ _controller_args() {
 					fi
 				}
 
-				if _module_case "${1%=*}" == 0; then
+				_mod_ar() {
+					echo "$1"
+					if [[ -e "$1" ]]; then
+						return 0
+					elif [[ -n "$(find "/lib/modules/$(uname -r)" -name "$1")" ]]; then
+						return 0
+					elif [[ -n "$(find "/lib/modules/$(uname -r)" -name "${1}.ko")" ]]; then
+						return 0
+					else
+						return 1
+					fi
+				}
+
+				_module_case "${1%=*}"
+				if [[ "${_mopt_}" == 'probe' ]]; then
 					if _empty_arg_check "$1" "${1#*=}"; then
 						_flag_dmod_prob="${1#*=}"
-						export _flag_dmod_prob
+						_modprobe_ar=()
+						i=1
+						while true; do
+							_mod_var="$(echo ${_flag_dmod_prob} | awk -v n=$i -F ' ' '{print $n}')"
+							if [[ -n "${_mod_var}" ]];then
+								if _mod_ar "${_mod_var}"; then
+									_modprobe_ar+=("${_mod_var}")
+								else
+									die "Could not locate ${_mod_var} at /lib/modules/$(uname -r) or at ${PWD}"
+								fi
+							else
+								break
+							fi
+							((++i))
+						done
+						unset _flag_dmod_prob
+						unset _mod_var
+						unset i
 					else
 						die "No arguments were given after --module-probe"
 					fi
-				elif _module_case "${1%=*}" == 1; then
+				elif [[ "${_mopt_}" == 'insmod' ]]; then
 					if _empty_arg_check "$1" "${1#*=}"; then
 						_flag_dmod_ins="${1#*=}"
-						export _flag_dmod_ins
+						_insmod_ar=()
+						i=1
+						while true; do
+							_mod_var="$(echo ${_flag_dmod_ins} | awk -v n=$i -F ' ' '{print $n}')"
+							if [[ -n "${_mod_var}" ]];then
+								if _mod_ar "${_mod_var}"; then
+									_insmod_ar+=("${_mod_var}")
+								else
+									die "Could not locate ${_mod_var} at /lib/modules/$(uname -r) or at ${PWD}"
+								fi
+							else
+								break
+							fi
+							((++i))
+						done
+						unset _flag_dmod_ins
+						unset _mod_var
+						unset i
 					else
 						die "No arguments were given after --module-insmod"
 					fi
-				elif _module_case "${1%=*}" == 2; then
+				elif [[ "${_mopt_}" == 'auto' ]]; then
 					if _empty_arg_check "$1" "${1#*=}"; then
 						_flag_dmod_auto="${1#*=}"
-						export _flag_dmod_auto
+						_auto_ar=()
+						i=1
+						while true; do
+							_mod_var="$(echo ${_flag_dmod_auto} | awk -v n=$i -F ' ' '{print $n}')"
+							if [[ -n "${_mod_var}" ]];then
+								if _mod_ar "${_mod_var}"; then
+									_modprobe_ar+=("${_mod_var}")
+								else
+									die "Could not locate ${_mod_var} at /lib/modules/$(uname -r) or at ${PWD}"
+								fi
+							else
+								break
+							fi
+							((++i))
+						done
+						unset _flag_dmod_auto
+						unset _mod_var
+						unset i
 					else
 						die "No arguments were given after --module-auto"
 					fi
-				elif _module_case "${1%=*}" == 3; then
+				elif [[ "${_mopt_}" == 'blacklist' ]]; then
 					if _empty_arg_check "$1" "${1#*=}"; then
 						_flag_dmod_blacklist="${1#*=}"
-						export _flag_dmod_blacklist
+						_blacklist_ar=()
+						i=1
+						while true; do
+							_mod_var="$(echo ${_flag_dmod_blacklist} | awk -v n=$i -F ' ' '{print $n}')"
+							if [[ -n "${_mod_var}" ]];then
+								if _mod_ar "${_mod_var}"; then
+									_modprobe_ar+=("${_mod_var}")
+								else
+									die "Could not locate ${_mod_var} at /lib/modules/$(uname -r) or at ${PWD}"
+								fi
+							else
+								break
+							fi
+							((++i))
+						done
+						unset _flag_dmod_blacklist
+						unset _mod_var
+						unset i
 					else
 						die "No arguments were given after --module-blacklist"
 					fi
-				fi
-echo "$_flag_dmod_prob"
-echo "$_flag_dmod_ins"
-echo "$_flag_dmod_auto"
-echo "$_flag_dmod_blacklist"
-exit 1
-
-				if [[ "$1" != *'='* || "${1#*=}" == '' ]]; then
-					die "No arguments for modeprobe were given"
-				else
-					_flag_dmod=0
-					export _flag_dmod
-
-					_flag_dmod_entires="${1#*=}"
-					_dmod_entries=()
-					for i in ${_flag_dmod_entires}; do
-						if [[ ! -e "$i" ]]; then
-							if [[ -e "/$i" ]]; then
-								if [[ "${i:0:1}" != "/" ]]; then
-									_dmod_entries+=("/${i}")
-								fi
-							else
-								die "No such file or directory: $i"
-							fi
-						else
-							_dmod_entries+=("/${i}")
-						fi
-					done
 				fi
 				;;
 
@@ -1160,7 +1218,6 @@ exit 1
 					export _flag_dopt
 					_flag_dopt_entries="${1#*=}"
 					export _flag_dopt_entries
-
 				fi
 				;;
 
