@@ -62,16 +62,15 @@ install() {
     inst_simple "/lib64/ld-linux-x86-64.so.2"
     
     # Create controller directory, rfs, bfs and workdir
-    mkdir -m 0755 -p ${initdir}/config.d/fetchdir,confdir}
-    mkdir -m 0755 -p ${initdir}/config.d/confdir/{local,keys,jobs}
-    mkdir -m 0755 -p ${initdir}/etc/gse
-    mkdir -m 0755 -p ${initdir}/usr/local/controller
-    mkdir -m 700 -p ${initdir}/root/.ssh
-    mkdir -m 0755 -p ${initdir}/mnt/{rfs,bfs}
-    mkdir -m 0755 -p ${initdir}/mnt/{etc_tmpfs,tmp_tmpfs,var_tmp_tmpfs,workdir}
-    mkdir -m 0755 -p ${initdir}/user-data/persistent/{local,nfs,log,var,etc}
-    mkdir -m 0755 -p ${initdir}/user-data/persistent/local/{root,home,data,mnt,media}
-    mkdir -m 0755 -p ${initdir}/usr/local/{unet,uscripts}
+    mkdir -m 0755 -p "${initdir}/config.d/fetchdir,confdir}"
+    mkdir -m 0755 -p "${initdir}/config.d/confdir/{local,keys,jobs}"
+    mkdir -m 0755 -p "${initdir}/etc/gse"
+    mkdir -m 0755 -p "${initdir}/usr/local/controller"
+    mkdir -m 700 -p "${initdir}/root/.ssh"
+    mkdir -m 0755 -p "${initdir}/mnt/{rfs,bfs}"
+    mkdir -m 0755 -p "${initdir}/mnt/{etc_tmpfs,tmp_tmpfs,var_tmp_tmpfs,workdir}"
+    mkdir -m 0755 -p "${initdir}/user-data/persistent/{local,nfs,log,var,etc}"
+    mkdir -m 0755 -p "${initdir}/user-data/persistent/local/{root,home,data,mnt,media}"
 
     # Install scripts for the controller process
     inst_script "$moddir/functions/cchroot.sh" "/usr/local/controller/cchroot.sh"
@@ -113,13 +112,20 @@ install() {
     inst_hook clean 01 "$moddir/cinit_clean.sh"
  
     if [[ "${_flag_dracut_net}" == 0 ]]; then
+        mkdir -m 0755 -p "${initdir}/usr/local/unet"
         inst_hook pre-mount 02 "${_flag_drnet}"
+        cp "${_flag_drnet}" "${initdir}/usr/local/unet"
+        echo "net:0" > "${initdir}/usr/local/unet/udent_flag"
     fi
 
     if [[ "${_flag_dhok}" == 0 ]]; then
-        for i in $(eval echo {1..${_hp}});do
-            inst_hook "{_mp}" "{_pr}" "${_dr_scr}"
+        mkdir -m 0755 -p "${initdir}/usr/local/uscripts"
+        for i in $(eval echo "{0..${_var_count}}"); do
+            cp "${_dhook_ar[$i]}" "${initdir}/usr/local/uscripts/"
+            inst_hook "${_hook_final[$i]}"
         done
+        echo "uscripts:0" > "${initdir}/usr/local/uscripts/uscripts_flag"
+        echo "${_dhook_ar[@]}" >> "${initdir}/usr/local/uscripts/uscripts_flag"
     fi
 }
 
