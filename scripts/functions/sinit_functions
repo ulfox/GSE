@@ -1019,16 +1019,12 @@ _controller_args() {
 						_hook_final=()
 						_var_count="$((${#_dhook_ar} - 1))"
 						for i in $(eval echo "{0..${_var_count}}"); do
-							_hook_final+=("${_dhook_prio[$i]}","${_dhook_hp[$i]}","${_dhook_ar[$i]}")
+							_hook_final+=("${_dhook_prio[$i]} ${_dhook_hp[$i]} ${_dhook_ar[$i]}")
 						done
 
 						_e_report_back "Dracut hook flag has been enabled with hooks: "
 						_o_report_back "${_hook_final[@]}"
 						shift 2
-						unset _var_count
-						unset _dhook_ar
-						unset _dhook_prio
-						unset _dhook_hp
 						unset _flag_dhook_hp
 						unset _flag_dhook_prio
 						unset _flag_dhook_entries			
