@@ -1,8 +1,8 @@
 # /etc/fstab: static file system information.
 #
-# noatime turns off atimes for increased performance (atimes normally aren't 
-# needed); notail increases performance of ReiserFS (at the expense of storage 
-# efficiency).  It's safe to drop the noatime options if you want and to 
+# noatime turns off atimes for increased performance (atimes normally aren't
+# needed); notail increases performance of ReiserFS (at the expense of storage
+# efficiency).  It's safe to drop the noatime options if you want and to
 # switch between notail / tail freely.
 #
 # The root filesystem should have a pass number of either 0 or 1.
@@ -28,22 +28,14 @@
 #LABEL=swap             none            swap            sw              0 0
 #/dev/cdrom             /mnt/cdrom      auto            noauto,ro       0 0
 
-# BOOT
-LABEL=BOOT /boot btrfs ro,noatime,subvol=/bootfs 0 0
+# BOOTFS
+LABEL=BOOTFS /boot btrfs ro,noatime,subvol=/bootfs 0 0
 
 # SYSTEM
-LABEL=SYSTEM / btrfs ro,noatime,subvol=/sysfs 0 0
+LABEL=SYSTEM /  ro,noatime 0 1
 
 # USER-DATA
-LABEL=USERDATA /user-data btrfs	defaults,noatime,subvol=/userdata 0 0
+LABEL=USERDATAFS /user-data btrfs	defaults,noatime,subvol=/userdata 0 0
 
 # HOME
 /user-data/persistent/home /home/ none rw,bind 0 0
-
-# HOME
-tmpfs /var/tmp tmpfs nodev,nosuid,size=512M 0 0
-
-# HOME
-tmpfs /tmp tmpfs nodev,nosuid,size=512M 0 0
-
-# EOF
