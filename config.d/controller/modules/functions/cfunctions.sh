@@ -38,77 +38,80 @@ _a_priori_devices() {
 	export _ctflag_userdatafs
 }
 
+_case_id() {
+	# EXPORT THE ID OPTION FOR THE TARGET
+	eval _SYID="$(grep "$1" "${CTCONFDIR}/confdir/devname.info" | sed '/^#/ d' | sed '/^\s*$/d' | awk -F ' ' '{ print $2 }')"
+	case "${_SYID}" in
+		BYID)
+			# EXPORT SDX{Y} DEVICE FROM DEVICE ID
+			_tmp_id="$(grep "$1" "${CTCONFDIR}/confdir/devname.info" | sed '/^#/ d' | sed '/^\s*$/d' | awk -F ' ' '{ print $3 }')"
+			_tmp_type="$(blkid "/dev/disk/by-id/${_tmp_id}" | awk -F 'UUID=' '{ print $2 }' | cut -d ' ' -f 1 | cut -d '"' -f 2)"
+			eval "$2"="$(blkid | grep "${_tmp_type}" | awk -F ':' '{ print $1 }')"
+			;;
+		UUID)
+			# EXPORT SDX{Y} DEVICE FROM UUID
+			_tmp_id="$(grep "$1" "${CTCONFDIR}/confdir/devname.info" | sed '/^#/ d' | sed '/^\s*$/d' | awk -F ' ' '{ print $3 }')"
+			eval "$2"="$(blkid | grep "${_tmp_id}" | awk -F ':' '{ print $1 }')"
+			;;
+		SDX)
+			if ls "${_SYID}" >/dev/null 2>&1; then
+				# SDX{Y} DEVICE
+				eval "$2"="$(grep "$1" "${CTCONFDIR}/confdir/devname.info" | sed '/^#/ d' | sed '/^\s*$/d' | awk -F ' ' '{ print $3 }')"
+			else
+				# SDX{Y} DEVICE
+				_tmp_fs01="$(grep "$1" "${CTCONFDIR}/confdir/devname.info" | sed '/^#/ d' | sed '/^\s*$/d' | awk -F ' ' '{ print $3 }')"
+				eval "$2"="${_tmp_fs01}"
+				# THIS OPTION WILL BE USED TO IDENTIFY THE DEVICE.
+				# IN SDX{Y} PARTITION IS MISSING, THE PROCESS WILL CREATE A NEW INTERFACE.
+				eval "_PAR_$2"="$(echo "${_tmp_fs01}" | sed 's/[!0-9]//g')"
+				eval "_PAR_NUM_$2"="${_tmp_fs01: -1}"
+			fi
+			;;
+	esac
+	
+	unset _tmp_i
+	unset _tmp_type
+}
+
+_scan_id_ty() {
+	# CHECK IF { SYSFS, BOOTFS, BACKUPFS, USERDATAFS } LABELS EXIST
+	_a_priori_devices
+
+	# EXPORT SDX{Y} FOR SYSFS/BOOTFS/BACKUPFS/USERDATAFS
+	if [[ "${_ctflag_syslabel}" == 0 ]]; then
+		SYSDEV="$(blkid | grep "SYSFS" | awk -f ':' '{ print $1 }')"
+	elif [[ "${_ctflag_syslabel}" == 1 ]]; then
+		_case_id "SYSFS" "SYSDEV"
+	fi
+
+	if [[ "${_ctflag_bootlabel}" == 0 ]]; then
+		SYSDEV="$(blkid | grep "BOOTFS" | awk -f ':' '{ print $1 }')"
+	elif [[ "${_ctflag_bootlabel}" == 1 ]]; then
+		_case_id "BOOTFS" "BOOTDEV"
+	fi
+
+	if [[ "${_ctflag_backupfs}" == 0 ]]; then
+		SYSDEV="$(blkid | grep "BACKUPFS" | awk -f ':' '{ print $1 }')"
+	elif [[ "${_ctflag_backupfs}" == 1 ]]; then
+		_case_id "BACKUPFS" "BACKUPDEV"
+	fi
+
+	if [[ "${_ctflag_userdatafs}" == 0 ]]; then
+		SYSDEV="$(blkid | grep "USERDATAFS" | awk -f ':' '{ print $1 }')"
+	elif [[ "${_ctflag_userdatafs}" == 1 ]]; then
+		_case_id "USERDATAFS" "USERDATADEV"
+	fi
+}
+
 _bsu_dfs() {
-	_scan_id_ty() {
-		_case_id() {
-			# EXPORT THE ID OPTION FOR THE TARGET
-			eval _SYID="$(grep "$1" "${CTCONFDIR}/confdir/devname.info" | sed '/^#/ d' | sed '/^\s*$/d' | grep "$1" | awk -F ' ' '{ print $2 }')"
-			case "${_SYID}" in
-				BYID)
-					# EXPORT SDX{Y} DEVICE FROM DEVICE ID
-					_tmp_id="$(grep "$1" "${CTCONFDIR}/confdir/devname.info" | sed '/^#/ d' | sed '/^\s*$/d' | awk -F ' ' '{ print $3 }')"
-					_tmp_type="$(blkid "/dev/disk/by-id/${_tmp_id}" | awk -F 'UUID=' '{ print $2 }' | cut -d ' ' -f 1 | cut -d '"' -f 2)"
-					eval "$2"="$(blkid | grep "${_tmp_type}" | awk -F ':' '{ print $1 }')"
-					;;
-				UUID)
-					# EXPORT SDX{Y} DEVICE FROM UUID
-					_tmp_id="$(grep "$1" "${CTCONFDIR}/confdir/devname.info" | sed '/^#/ d' | sed '/^\s*$/d' | awk -F ' ' '{ print $3 }')"
-					eval "$2"="$(blkid | grep "${_tmp_id}" | awk -F ':' '{ print $1 }')"
-					;;
-				SDAX)
-					if ls "${_SYID}" >/dev/null 2>&1; then
-						# SDX{Y} DEVICE
-						eval "$2"="$(grep "$1" "${CTCONFDIR}/confdir/devname.info" | sed '/^#/ d' | sed '/^\s*$/d' | awk -F ' ' '{ print $3 }')"
-					else
-						# SDX{Y} DEVICE
-						_tmp_fs01="$(grep "$1" "${CTCONFDIR}/confdir/devname.info" | sed '/^#/ d' | sed '/^\s*$/d' | awk -F ' ' '{ print $3 }')"
-						eval "$2"="${_tmp_fs01}"
-						# THIS OPTION WILL BE USED TO IDENTIFY THE DEVICE.
-						# IN SDX{Y} PARTITION IS MISSING, THE PROCESS WILL CREATE A NEW INTERFACE.
-						eval "_PAR_$2"="$(echo "${_tmp_fs01}" | sed 's/[!0-9]//g')"
-						eval "_PAR_NUM_$2"="${_tmp_fs01: -1}"
-					fi
-					;;
-			esac
-		
-			unset _tmp_id
-			unset _tmp_type
-		}
-
-		# CHECK IF { SYSFS, BOOTFS, BACKUPFS, USERDATAFS } LABELS EXIST
-		_a_priori_devices
-
-		# EXPORT SDX{Y} FOR SYSFS/BOOTFS/BACKUPFS/USERDATAFS
-		if [[ "${_ctflag_syslabel}" == 0 ]]; then
-			SYSDEV="$(blkid | grep "SYSFS" | awk -f ':' '{ print $1 }')"
-		elif [[ "${_ctflag_syslabel}" == 0 ]]; then
-			_case_id "SYSFS" "SYSDEV"
-		fi
-
-		if [[ "${_ctflag_bootlabel}" == 0 ]]; then
-			SYSDEV="$(blkid | grep "BOOTFS" | awk -f ':' '{ print $1 }')"
-		elif [[ "${_ctflag_bootlabel}" == 0 ]]; then
-			_case_id "BOOTFS" "BOOTDEV"
-		fi
-
-		if [[ "${_ctflag_backupfs}" == 0 ]]; then
-			SYSDEV="$(blkid | grep "BACKUPFS" | awk -f ':' '{ print $1 }')"
-		elif [[ "${_ctflag_backupfs}" == 0 ]]; then
-			_case_id "BACKUPFS" "BACKUPDEV"
-		fi
-
-		if [[ "${_ctflag_userdatafs}" == 0 ]]; then
-			SYSDEV="$(blkid | grep "USERDATAFS" | awk -f ':' '{ print $1 }')"
-		elif [[ "${_ctflag_userdatafs}" == 0 ]]; then
-			_case_id "USERDATAFS" "USERDATADEV"
-		fi
-	}
+	# EXPORT SDX{Y} FOR SYSFS/BOOTFS/BACKUPFS/USERDATAFS
+	_scan_id_ty "$@"
 
 	export BOOTDEV
 	export SYSDEV
 	export BACKUPDEV
 	export USERDATADEV
-	
+
 	# EXPORT THE BOOT FILE SYSTEM TYPE
 	BOOTFS="$(grep BOOTFS "${CTCONFDIR}/confdir/devname.info" | sed '/^#/ d' | sed '/^\s*$/d' | awk -F ' ' '{ print $5 }')"
 	export BOOTFS
@@ -436,12 +439,7 @@ _create_interface() {
 	_interface_x() {
 		case "$1" in
 			dos)
-				echo "o
-n
-p
-
-$2
-w" | fdisk /dev/sdc;;
+				echo -e "o\nn\np\n$3\n\n\nt\nc\na\n1\nw" | fdisk "$2";;
 			gpg)
 				echo "o
 n
