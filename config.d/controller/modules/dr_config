@@ -1,0 +1,29 @@
+# Equivalent to cmdline option --drivers="modules..."
+#drivers+="module module module"
+
+# Equivalent to cmdline option --add-drivers
+#add_drivers+="module"
+
+# Equivalent to cmdline option --omit-drivers="modules"
+#omit_drivers+="module"
+
+# Equivalent to cmdline option --filesystems="filesystems"
+#filesystems+="filesystems"
+
+# Equivalent to cmdline option --kmoddir="/lib/modules/gentoo-ver"
+#drivers_dir="/lib/modules/gentoo-ver"
+
+# Equivalent to cmdline option --fwdir=":/lib/fw/alt:/lib/fw/alt2"
+#fw_dir+=":/lib/fw/alt:/lib/fw/alt2"
+
+# Equivalent to -H
+#hostonly="yes"
+
+# Equivalent to cmdline option -m "module module module"
+#dracutmodules+="dash kernel-modules rootfs-block udev-rules usrmount base fs-lib shutdown"
+
+# Equivalent to cmdline option -a "module"
+#add_dracutmodules+="module"
+
+# Equivalent to cmdline option -o "module"
+#omit_dracutmodules+="module"
