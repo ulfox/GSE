@@ -3,7 +3,7 @@
 #
 # THIS SCRIPT PROVIDES A SIMPLE GUIDES CONFIGURATION FOR THE FSTAB
 #
-CCONFDIR="$PWD"
+
 if echo "${_flag_tty}" | grep -q 'sshd'; then
 	LC_COLLATE="C"
 	LC_ALL="en_US.UTF-8"
@@ -26,7 +26,7 @@ fs_opt() {
 	esac
 }
 
-FS_OPTS=(BOOTFS SYS USERDATAFS)
+FS_OPTS=(BOOTFS SYSFS USERDATAFS)
 
 for i in "${FS_OPTS[@]}"; do
 		clear; fs_opt 1
@@ -254,7 +254,13 @@ for i in "${dev_fs[@]}"; do
 	done
 done
 
-echo "BOOTFS ${BOOTFS} ${_BOOTID} ${_BOOTSIZE} ${_BOOTFSTYPE}" > "${CCONFDIR}/system/devname.info"
+cat >"${CCONFDIR}/system/devname.info" <<\EOF
+# This file is will be automatically generated if you choose the guided fstab configuration entry
+# However there is a manual entry on the submenu to aid extra needs.
+# The general syntax of a line is as follows: {LABEL} {DEVID} {IDTYPE} {size{M,G}/all} {FSTYPE}
+EOF
+
+echo "BOOTFS ${BOOTFS} ${_BOOTID} ${_BOOTSIZE} ${_BOOTFSTYPE}" >> "${CCONFDIR}/system/devname.info"
 echo "SYSFS ${SYSFS} ${_SYSID} ${_SYSSIZE} ${_SYSFSTYPE}" >> "${CCONFDIR}/system/devname.info"
 echo "USERDATAFS ${USERDATAFS} ${_USERDATAID} ${_USERDATASIZE} ${_USERDATAFSTYPE}" >> "${CCONFDIR}/system/devname.info"
 echo "BACKUPFS ${BACKUPFS} ${_BACKUPID} ${_BACKUPSIZE} ${_BACKUPFSTYPE}" >> "${CCONFDIR}/system/devname.info"
