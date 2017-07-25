@@ -20,6 +20,7 @@ export CWORKDIR="$(dirname ${PWD})"
 export CCONFDIR="${CWORKDIR}/config.d"
 export CDISTDIR="${CWORKDIR}/dist.d"
 export CLOCALLG="${CWORKDIR}/local"
+export CSYSROOT="${CWORKDIR}/sysroot"
 export CREL="$(grep ^NAME /etc/*release | awk -F '=' '{ print $2 }')"
 
 # PATH DEFINITION FOR THE SCRIPTS WHICH WILL AID THE PROCESS
@@ -142,8 +143,8 @@ done
 }
 
 if echo "$@" | grep -q '\--build-controller'; then
-	if _controller_args "$@"; then
-		_controller_only "$@"
+	if _controller_args "${@:2}"; then
+		_make_cimage "${@:2}"
 	else
 		die "Given controller arguments could not be exported"
 	fi
