@@ -863,48 +863,45 @@ _edit_configs() {
 # THE CONTROLLER MENU
 controller_f() {
 	clear; amiroot "$UID"; echo "You selected: build the controller image"; echo
-	_make_cimage
+	_make_cimage "$@"
 	_PARENT=0
 }
 
 _make_cimage() {
 	_KVER_="kver_"$(uname -r)""
-	# CREATE CONFIGURATION FILES TO READ ARGS
-	# CREATE A CUSTON NETWORK INTERFACE FUNCTION TO ENABLE NETWORKING
-	# CREATE A HOOK SCRIPT FUNCTION TO SOURCE SOURCE ENABLE CUSTOM SCRIPTS INSIDE THE DRACUT HOOKPOINTS
-	if [[ "${_flag_dracut}" == '0' ]]; then
-		dracut --force --show-modules --printsize --nostrip  --early-microcode \
-		--fscks "fsck.btrfs fsck.ext4 fsck.fat fsck.vfat fsck.ext2 fsck.ext3 fsck.ext4dev fsck.minix fsck.cramfs" \
-		--filesystems "btrfs ext4 fat ext2 ext3 minix vfat" \
-		"${_flag_dracut_args}" "${CDISTDIR}/initramfs-${GSEVER}-${_KVER_}"
-	else
-		dracut --force --show-modules --printsize --nostrip  --early-microcode \
-		--fscks "fsck.btrfs fsck.ext4 fsck.fat fsck.vfat fsck.ext2 fsck.ext3 fsck.ext4dev fsck.minix fsck.cramfs" \
-		--filesystems "btrfs ext4 fat ext2 ext3 minix vfat" \
-		"${CDISTDIR}/initramfs-${GSEVER}-${_KVER_}"
-	fi
+	mkdir -p "/usr/lib64/dracut/modules.d/01controller"
+	cp -r "${CCONFDIR}/controller/modules"/* "/usr/lib64/dracut/modules.d/01controller"
+	
+	_dracut_f() {
+		echo "$@"
+		dracut "$@" --show-modules --printsize --nostrip --early-microcode \
+		--fscks "fsck.btrfs fsck.ext4 fsck.fat fsck.vfat fsck.ext2 fsck.ext3 fsck.ext4dev" \
+		--add "ssh-client btrfs crypt bash controller busybox network kernel-network-modules"
+	}
+
+	eval _dracut_f "${_flag_darg_force}" "${CDISTDIR}/initramfs-${GSEVER}-${_KVER_}" \
+	"${_flag_dinclude_entries}" "${_flag_dcmdl_entries}" "${_flag_dopt_entries}"
 
 	unset _KVER_
 }
 
 # FLAGS AND ARGUMENTS
 _controller_args() {
+	[[ -z "$*" ]] && return 0
 	while [[ -n "$*" ]]; do
 		case "$1" in
-			--install*			)
-				if [[ "$1" == *'='* ]]; then
-					_flag_dinst=0
-					export _flag_dinst
-					_flag_dinst_entries="${1#*=}"
-					export _flag_dinst_entries
-					echo "${_flag_dinst_entries}"
-				fi
-				;;
-
+			#--install*			)
+				#if [[ "$1" == *'='* ]]; then
+				#	_flag_dinst=0
+				#	export _flag_dinst
+				#	_flag_dinst_entries="${1#*=}"
+				#	export _flag_dinst_entries
+				#	echo "${_flag_dinst_entries}"
+				#fi
+				#;;
+				#
 			--force 			)
-				_flag_darg=0
-				export _flag_darg
-				_flag_darg_force=0
+				_flag_darg_force='-f'
 				export _flag_darg_force
 				_e_report_back "Dracut force flag has been enabled"
 				;;
@@ -914,9 +911,9 @@ _controller_args() {
 					_flag_dinclude=0
 					export _flag_dinclude
 					_e_report_back "Dracut include flag has been enabled with arguments: "
-					_flag_dinclude_entries="${1#*=}"
+					_flag_dinclude_entries="--include ${1#*=}"
 					export _flag_dinclude_entries
-					_o_report_back "${_flag_dinclude_entries}"
+					_o_report_back "${1#*=}"
 				fi
 				;;
 
@@ -925,9 +922,9 @@ _controller_args() {
 					_flag_dcmdl=0
 					export _flag_dcmdl
 					_e_report_back "Dracut command line flag has been enabled with arguments: "
-					_flag_dcmdl_entries="${1#*=}"
+					_flag_dcmdl_entries="--kernel-cmdline ${1#*=}"
 					export _flag_dcmdl_entries
-					_o_report_back "${_flag_dcmdl_entries}"
+					_o_report_back "${1#*=}"
 				fi
 				;;
 
@@ -1098,7 +1095,6 @@ _controller_args() {
 				}
 
 				_mod_ar() {
-					echo "$1"
 					if [[ -e "$1" ]]; then
 						return 0
 					elif [[ -n "$(find "/lib/modules/$(uname -r)" -name "$1")" ]]; then
@@ -1115,109 +1111,104 @@ _controller_args() {
 					if _empty_arg_check "$1" "${1#*=}"; then
 						_flag_dmod_prob="${1#*=}"
 						_modprobe_ar=()
-						i=1
-						while true; do
-							_mod_var="$(echo ${_flag_dmod_prob} | awk -v n=$i -F ' ' '{print $n}')"
-							if [[ -n "${_mod_var}" ]];then
-								if _mod_ar "${_mod_var}"; then
-									_modprobe_ar+=("${_mod_var}")
+						for i in ${_flag_dmod_prob}; do
+							if [[ -n "$i" ]];then
+								if _mod_ar "$i"; then
+									_modprobe_ar+=("$i")
 								else
 									die "Could not locate ${_mod_var} at /lib/modules/$(uname -r) or at ${PWD}"
 								fi
 							else
 								break
 							fi
-							((++i))
 						done
 						unset _flag_dmod_prob
-						unset _mod_var
-						unset i
 					else
 						die "No arguments were given after --module-probe"
 					fi
+
+					_e_report_back "The following modules will automatically load after udev has set: "
+					_o_report_back "${_modprobe_ar[@]}"
 				elif [[ "${_mopt_}" == 'insmod' ]]; then
 					if _empty_arg_check "$1" "${1#*=}"; then
 						_flag_dmod_ins="${1#*=}"
 						_insmod_ar=()
-						i=1
-						while true; do
-							_mod_var="$(echo ${_flag_dmod_ins} | awk -v n=$i -F ' ' '{print $n}')"
-							if [[ -n "${_mod_var}" ]];then
-								if _mod_ar "${_mod_var}"; then
-									_insmod_ar+=("${_mod_var}")
+						for i in ${_flag_dmod_ins}; do
+							if [[ -n "$i" ]];then
+								if _mod_ar "$i"; then
+									_insmod_ar+=("$i")
 								else
 									die "Could not locate ${_mod_var} at /lib/modules/$(uname -r) or at ${PWD}"
 								fi
 							else
 								break
 							fi
-							((++i))
 						done
 						unset _flag_dmod_ins
-						unset _mod_var
-						unset i
 					else
 						die "No arguments were given after --module-insmod"
 					fi
+
+					_e_report_back "The following modules will automatically load after udev has set: "
+					_o_report_back "${_insmod_ar[@]}"
 				elif [[ "${_mopt_}" == 'auto' ]]; then
 					if _empty_arg_check "$1" "${1#*=}"; then
 						_flag_dmod_auto="${1#*=}"
 						_auto_ar=()
-						i=1
-						while true; do
-							_mod_var="$(echo ${_flag_dmod_auto} | awk -v n=$i -F ' ' '{print $n}')"
-							if [[ -n "${_mod_var}" ]];then
-								if _mod_ar "${_mod_var}"; then
-									_modprobe_ar+=("${_mod_var}")
+						for i in ${_flag_dmod_auto}; do
+							if [[ -n "$i" ]];then
+								if _mod_ar "$i"; then
+									_auto_ar+=("$i")
 								else
 									die "Could not locate ${_mod_var} at /lib/modules/$(uname -r) or at ${PWD}"
 								fi
 							else
 								break
 							fi
-							((++i))
 						done
 						unset _flag_dmod_auto
-						unset _mod_var
-						unset i
+
 					else
 						die "No arguments were given after --module-auto"
 					fi
+
+					_e_report_back "The following modules will automatically load at cmdline hook: "
+					_o_report_back "${_auto_ar[@]}"
 				elif [[ "${_mopt_}" == 'blacklist' ]]; then
 					if _empty_arg_check "$1" "${1#*=}"; then
 						_flag_dmod_blacklist="${1#*=}"
 						_blacklist_ar=()
-						i=1
-						while true; do
-							_mod_var="$(echo ${_flag_dmod_blacklist} | awk -v n=$i -F ' ' '{print $n}')"
-							if [[ -n "${_mod_var}" ]];then
-								if _mod_ar "${_mod_var}"; then
-									_modprobe_ar+=("${_mod_var}")
+						for i in ${_flag_dmod_blacklist}; do
+							if [[ -n "$i" ]];then
+								if _mod_ar "$i"; then
+									_blacklist_ar+=("$i")
 								else
 									die "Could not locate ${_mod_var} at /lib/modules/$(uname -r) or at ${PWD}"
 								fi
 							else
 								break
 							fi
-							((++i))
 						done
 						unset _flag_dmod_blacklist
-						unset _mod_var
-						unset i
 					else
 						die "No arguments were given after --module-blacklist"
 					fi
+					
+					_e_report_back "The following modules will be added to blacklist: "
+					_o_report_back "${_blacklist_ar[@]}"
 				fi
 				;;
 
 			--dracut_opt*		)
 				if [[ "$1" != *'='* || "${1#*=}" == '' ]]; then
-					die "No arguments after net were given"
+					die "No arguments after --dracut_opt were given"
 				else
 					_flag_dopt=0
 					export _flag_dopt
+					_e_report_back "Dracut options flag has been set, with arguments: "
 					_flag_dopt_entries="${1#*=}"
 					export _flag_dopt_entries
+					_o_report_back "${_flag_dopt_entries}"
 				fi
 				;;
 
@@ -2387,7 +2378,7 @@ _prepare_chroot() {
 						while true; do
 							echo "Are you sure? Y/N "
 							read -p "Input :: <= " YN
-							case $YN in
+							case "${YN}" in
 								[yY])
 									echo "Proceeding"
 									INJFLESC=0
