@@ -279,14 +279,14 @@ optim
 cpuflagsx86
 
 if [[ ! -e "${CCONFDIR}/system/portage/usef" ]]; then
-cat >"${CCONFDIR}/system/portage/usef" <<\EOF
-USE=""
+	cat >"${CCONFDIR}/system/portage/usef" <<\EOF
+	USE=""
 EOF
 fi
 
 if [[ ! -e "${CCONFDIR}/system/portage/emdefopt" ]]; then
-cat >"${CCONFDIR}/system/portage/emdefopt" <<\EOF
-EMERGE_DEFAULT_OPTS=""
+	cat >"${CCONFDIR}/system/portage/emdefopt" <<\EOF
+	EMERGE_DEFAULT_OPTS=""
 EOF
 fi
 
