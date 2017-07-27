@@ -6,36 +6,39 @@ die() {
 
 _a_priori_devices() {
 	if [[ -e "/dev/disk/by-label/SYSFS" ]]; then
-		_ctflag_syslabel=0
+		_SYSLABEL=0
 	else
-		_ctflag_syslabel=1
+		_SYSLABEL=1
 	fi
 
-	export _ctflag_syslabel
+	export _SYSLABEL
 
 	if [[ -e "/dev/disk/by-label/BOOTFS" ]]; then
-		_ctflag_bootlabel=0
+		_BOOTLABEL=0
 	else
-		_ctflag_bootlabel=1
+		_BOOTLABEL=1
 	fi
 
-	export _ctflag_bootlabel
+	export _BOOTLABEL
 
 	if [[ -e "/dev/disk/by-label/BACKUPFS" ]]; then
-		_ctflag_backupfs=0
+		_BACKUPLABEL=0
 	else
-		_ctflag_backupfs=1
+		_BACKUPLABEL=1
 	fi
 
-	export _ctflag_backupfs
+	export _BACKUPLABEL
 
 	if [[ -e "/dev/disk/by-label/USERDATAFS" ]]; then
-		_ctflag_userdatafs=0
+		_USERDATALABEL=0
+		_NOUSERDATA=0
 	else
-		_ctflag_userdatafs=1
+		_USERDATALABEL=1
+		_NOUSERDATA=1
 	fi
 
-	export _ctflag_userdatafs
+	export _NOUSERDATA
+	export _USERDATALABEL
 }
 
 _case_id() {
@@ -56,19 +59,18 @@ _case_id() {
 		SDX)
 			if ls "${_SYID}" >/dev/null 2>&1; then
 				# SDX{Y} DEVICE
-				eval "$2"="$(grep "$1" "${CTCONFDIR}/confdir/devname.info" | sed '/^#/ d' | sed '/^\s*$/d' | awk -F ' ' '{ print $3 }')"
+				eval "$2"="${_SYID}"
 			else
 				# SDX{Y} DEVICE
 				_tmp_fs01="$(grep "$1" "${CTCONFDIR}/confdir/devname.info" | sed '/^#/ d' | sed '/^\s*$/d' | awk -F ' ' '{ print $3 }')"
 				eval "$2"="${_tmp_fs01}"
 				# THIS OPTION WILL BE USED TO IDENTIFY THE DEVICE.
 				# IN SDX{Y} PARTITION IS MISSING, THE PROCESS WILL CREATE A NEW INTERFACE.
-				eval "_PAR_$2"="$(echo "${_tmp_fs01}" | sed 's/[!0-9]//g')"
-				eval "_PAR_NUM_$2"="${_tmp_fs01: -1}"
 			fi
 			;;
 	esac
 	
+	unset _tmp_fs01
 	unset _tmp_i
 	unset _tmp_type
 }
@@ -78,33 +80,44 @@ _scan_id_ty() {
 	_a_priori_devices
 
 	# EXPORT SDX{Y} FOR SYSFS/BOOTFS/BACKUPFS/USERDATAFS
-	if [[ "${_ctflag_syslabel}" == 0 ]]; then
+	if [[ "${_SYSLABEL}" == 0 ]]; then
 		SYSDEV="$(blkid | grep "SYSFS" | awk -f ':' '{ print $1 }')"
-	elif [[ "${_ctflag_syslabel}" == 1 ]]; then
+	elif [[ "${_SYSLABEL}" == 1 ]]; then
 		_case_id "SYSFS" "SYSDEV"
 	fi
 
-	if [[ "${_ctflag_bootlabel}" == 0 ]]; then
+	if [[ "${_BOOTLABEL}" == 0 ]]; then
 		SYSDEV="$(blkid | grep "BOOTFS" | awk -f ':' '{ print $1 }')"
-	elif [[ "${_ctflag_bootlabel}" == 1 ]]; then
+	elif [[ "${_BOOTLABEL}" == 1 ]]; then
 		_case_id "BOOTFS" "BOOTDEV"
 	fi
 
-	if [[ "${_ctflag_backupfs}" == 0 ]]; then
+	if [[ "${_BACKUPLABEL}" == 0 ]]; then
 		SYSDEV="$(blkid | grep "BACKUPFS" | awk -f ':' '{ print $1 }')"
-	elif [[ "${_ctflag_backupfs}" == 1 ]]; then
+	elif [[ "${_BACKUPLABEL}" == 1 ]]; then
 		_case_id "BACKUPFS" "BACKUPDEV"
 	fi
 
-	if [[ "${_ctflag_userdatafs}" == 0 ]]; then
+	if [[ "${_USERDATALABEL}" == 0 ]]; then
 		SYSDEV="$(blkid | grep "USERDATAFS" | awk -f ':' '{ print $1 }')"
-	elif [[ "${_ctflag_userdatafs}" == 1 ]]; then
+	elif [[ "${_USERDATALABEL}" == 1 ]]; then
 		_case_id "USERDATAFS" "USERDATADEV"
 	fi
+
+	eval "_PAR_BOOTDEV"="$(echo "${BOOTDEV}" | sed 's/[!0-9]//g')"
+	eval "_PAR_NUM_BOOTDEV"="${BOOTDEV: -1}"
+
+	eval "_PAR_SYSDEV"="$(echo "${SYSDEV}" | sed 's/[!0-9]//g')"
+	eval "_PAR_NUM_SYSDEV"="${SYSDEV: -1}"
+
+	eval "_PAR_BACKUPDEV"="$(echo "${BACKUPDEV}" | sed 's/[!0-9]//g')"
+	eval "_PAR_NUM_BACKUPDEV"="${BACKUPDEV: -1}"
+
+	eval "_PAR_USERDATADEV"="$(echo "${USERDATADEV}" | sed 's/[!0-9]//g')"
+	eval "_PAR_NUM_USERDATADEV"="${USERDATADEV: -1}"
 }
 
 _bsu_dfs() {
-	# EXPORT SDX{Y} FOR SYSFS/BOOTFS/BACKUPFS/USERDATAFS
 	_scan_id_ty "$@"
 
 	export BOOTDEV
@@ -147,6 +160,140 @@ _bsu_dfs() {
 	if [[ "${_ctflag_confd}" == 0 ]]; then
 		_sources_exp
 	fi
+}
+
+_create_interface() {
+	_remake_x() {
+		if [[ "${_WRK_FS}" == 'btrfs' ]]; then	
+			if _remake "${_WRK_FS}" "-f -L" "${_WRK_LABEL}" "${_WRK_DEV}"; then
+				echo "${_WRK_FS} file system created on ${_WRK_DEV} with ${_WRK_LABEL} label"
+				return 0
+			else
+				echo "Failed creating ${_WRK_FS} filesystem on ${_WRK_DEV}"
+				return 1
+			fi
+		else
+			if _remake "${_WRK_FS}" "-L" "${_WRK_LABEL}" "${_WRK_DEV}"; then
+				echo "${_WRK_FS} file system created on ${_WRK_DEV} with ${_WRK_LABEL} label"
+				return 0
+			else
+				echo "Failed creating ${_WRK_FS} filesystem on ${_WRK_DEV}"
+				return 1
+			fi
+		fi
+	}
+
+	_interface_x() {
+		case "$1" in
+			dos)
+				if echo -e "n\np\n${_WRK_PAR_NUM}\n\n+${_WRK_SFS}\nw" | fdisk "${_WRK_PAR}"; then
+					return 0
+				else
+					return 1
+				fi
+				;;
+			gpt)
+				if echo -e "n\n${_WRK_PAR_NUM}\n\n+${_WRK_SFS}\nw" | fdisk "${_WRK_PAR}"; then
+					return 0
+				else
+					return 1
+				fi
+				;;
+			na)
+				if echo -e "g\nn\n${_WRK_PAR_NUM}\n\n${_WRK_SFS}\nw" | fdisk "${_WRK_PAR}"; then
+					return 0
+				else
+					return 1
+				fi
+				;;
+			*)
+				echo "Function: _interface_x: Something went wrong"
+				return 1
+				;;
+		esac
+	}
+
+	_check_drv_condition() {
+		if [[ "${_WRK_LABEL}" == 'USERDATA' && "${_NOUSERDATA}" == 0 ]]; then
+			echo "Skipping userdata partition"
+			return 0
+		fi
+
+		if [[ -n "${_WRK_LABEL}" ]]; then
+			if [[ -n "${_WRK_DEV}" && -n "${_WRK_PAR}" && -n "${_WRK_PAR_NUM}" && -n "${_WRK_SFS}" && -n "${_WRK_FS}" ]]; then
+				_disk_label_type="$(fdisk -l "${_WRK_PAR}" | grep 'Disklabel type:' | cut -d ' ' -f 3)"
+				_disk_partition="$(blkid "${_WRK_DEV}")"
+				
+				if [[ -z "${_disk_label_type}" ]]; then
+					if _interface_x "na"; then
+						echo "${_WRK_DEV} created"
+						if _remake_x; then
+							return 0
+						else
+							return 1
+						fi
+					else
+						echo "Failed to configure ${_WRK_DEV}"
+						return 1
+					fi
+				elif [[ -n "${_disk_label_type}" && -z "${_disk_partition}" ]]; then
+					if _interface_x "${_disk_label_type}"; then
+						echo "${_WRK_DEV} created"
+						if _remake_x; then
+							return 0
+						else
+							return 1
+						fi
+					else
+						echo "Failed to configure ${_WRK_DEV}"
+						return 1
+					fi
+				elif [[ -n "${_disk_label_type}" && -n "${_disk_partition}" ]]; then
+					if _remake_x; then
+						return 0
+					else
+						return 1
+					fi
+				fi
+			else
+				echo "Device is not set"
+				return 1
+			fi
+		fi
+	}
+
+	for i in "BOOT" "SYS" "USERDATA" "BACKUP"; do
+		_TMP_WRKDEV="${i}DEV"
+		_WRK_DEV="${!_TMP_WRKDEV}"
+		export _WRK_DEV
+
+		_TMP_WRKFS="${i}FS"
+		_WRK_FS="${!_TMP_WRKFS}"
+		export _WRK_FS
+
+		_TMP_WRKSFS="${i}SFS"
+		_WRK_SFS="${!_TMP_WRKSFS}"
+		export _WRK_SFS
+
+		_TMP_PARDEV="_PAR_${_TMP_WRKDEV}"
+		_WRK_PAR="${!_TMP_PARDEV}"
+		export _WRK_PAR
+
+		_TMP_PARDEV_NUM="_PAR_NUM_${_TMP_WRKDEV}"
+		_WRK_PAR_NUM="${!_TMP_PARDEV_NUM}"
+		export _WRK_PAR_NUM
+
+		_TMP_LABEL="_${i}LABEL"
+		_WRK_LABEL="${!_TMP_LABEL}"
+
+		echo "Checking $i"
+		if _check_drv_condition "$i"; then
+			echo "$i has been configured"
+			return 0
+		else
+			echo "Failed configuring $i"
+		fi
+	done
 }
 
 _server_exp() {
@@ -426,39 +573,6 @@ _chroot_config(){
 	else
 		_sys_config=1
 		export _sys_config
-	fi
-}
-
-#_ctflag_syslabel
-#_ctflag_bootlabel
-#_ctflag_backupfs
-#_ctflag_userdatafs
-#						eval "_PAR_$2"="$(echo "${_tmp_fs01}" | sed 's/[!0-9]//g')"
-#						eval "_PAR_NUM_$2"="${_tmp_fs01: -1}"
-_create_interface() {
-	_interface_x() {
-		case "$1" in
-			dos)
-				echo -e "o\nn\np\n$3\n\n\nt\nc\na\n1\nw" | fdisk "$2";;
-			gpg)
-				echo "o
-n
-p
-
-$2
-w" | fdisk /dev/sdc;;
-esac
-	}
-
-
-	if [[ "${_ctflag_syslabel}" == 1 ]]; then
-		if [[ -n "${_PAR_SYSFS}" ]]; then
-			_interface_x 
-		else
-			:
-		fi
-	else
-		:
 	fi
 }
 
