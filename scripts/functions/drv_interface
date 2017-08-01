@@ -63,7 +63,7 @@ else
 fi
 
 if [[ "${USERDATAFS}" == 'btrfs' ]]; then
-	FUOPTIONS='defaults,noatime,subvol=/userdata'
+	FUOPTIONS='defaults,noatime,subvol=/userdatafs'
 	UDPPS='0 0'
 else
 	FUOPTIONS='defaults,noatime'

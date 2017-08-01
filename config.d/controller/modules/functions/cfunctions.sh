@@ -162,6 +162,45 @@ _bsu_dfs() {
 	fi
 }
 
+#_bsu_dfs
+
+_btrfs_subvols() {
+	_create_subvol() {
+		case "${_WRK_LABEL}" in
+			BOOTFS)
+				btrfs subvolume create "$1/bootfs";;
+			SYSFS)
+				btrfs subvolume create "$1/sysfs";;
+			BACKUPFS)
+				btrfs subvolume create "$1/backupfs";;
+			USERDATAFS)
+				btrfs subvolume create "$1/userdatafs"
+				btrfs subvolume create "$1/userdatafs/persistent"
+				btrfs subvolume create "$1/userdatafs/persistent"
+				btrfs subvolume create "$1/userdatafs/persistent/local"
+				btrfs subvolume create "$1/userdatafs/persistent/local/home"
+				btrfs subvolume create "$1/userdatafs/persistent/local/data"
+				btrfs subvolume create "$1/userdatafs/persistent/local/root"
+				btrfs subvolume create "$1/userdatafs/persistent/local/config.d"
+				;;
+		esac
+	}
+
+	if [[ -n "$(grep "$1" "/proc/mounts" | awk -F ' ' '{ print $2 }')" ]]; then
+		_unmount "$1"
+	fi
+
+	if mount -t "${_WRK_FS}" -o rw "${_WRK_DEV}" "$1"; then
+		if _create_subvol "$1"; then
+			return 0
+		else
+			return 1
+		fi
+	else
+		return 1
+	fi
+}
+
 _create_interface() {
 	_remake_x() {
 		if [[ "${_WRK_FS}" == 'btrfs' ]]; then	
