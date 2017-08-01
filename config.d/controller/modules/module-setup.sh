@@ -17,13 +17,25 @@ check() {
 install() {
     # Install packages
     inst_multiple chroot chown chmod ls sed awk mount ls ln umount
-    inst_multiple cp mv busybox rsync ssh gpg bash rmmod dmesg modprobe findmnt
+    inst_multiple cp mv busybox rsync bash rmmod dmesg modprobe findmnt
     inst_multiple tar bzip2 ping clear mkfs.ext2 mkfs.ext3 mkfs.ext4 mkfs.btrfs mkfs.vfat
-    inst_multiple e2label mlabel swaplabel scp md5sum sha512sum lsblk tee sed awk arping
+    inst_multiple e2label mlabel swaplabel scp lsblk tee sed awk arping
     inst_multiple dhclient ifconfig scp lsmod fusermount rmmod strace rm
     inst_multiple fsck fsck.ext2 fsck.ext4 fsck.ext3 fsck.ext4dev fsck.vfat e2fsck
     inst_multiple ping6 netstat vi grep ps dhcpcd uname
 
+    if [[ "${_SSH_C}" == 0 ]]; then
+        inst_multiple ssh
+    fi
+
+    if [[ "${_GPG_C}" == 0 ]]; then
+        inst_multiple gpg
+    fi
+
+    if [[ "${_FCH_C}" == 0 ]]; them
+        inst_multiple md5sum sha224sum sha256sum sha384sum sha512sum
+    fi
+    
     # Install libs for the dns functions
     inst_simple "/lib64/libnss_dns.so.2"
     inst_simple "/lib64/libnss_files.so.2"
