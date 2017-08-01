@@ -162,8 +162,6 @@ _bsu_dfs() {
 	fi
 }
 
-#_bsu_dfs
-
 _btrfs_subvols() {
 	_create_subvol() {
 		case "${_WRK_LABEL}" in
