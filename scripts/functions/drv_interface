@@ -180,10 +180,17 @@ _ask_dev_size() {
 		read -rp "Are you sure? Y/N " _ANS1
 		case "${_ANS1}" in
 			[yY])
-				_dev_size "$1" "${_DSIZE}"
-				break;;
+				if [[ "${_DSIZE:0:1}" == [0-9] ]]; then
+					_dev_size "$1" "${_DSIZE}"
+					break
+				else
+					echo "Size must start with a number, followed by the magnitude of bytes it represents"
+				fi
+				;;
+
 			[nN])
 				;;
+
 			*	)
 				clear
 				echo "Wrong Answer"
@@ -207,8 +214,10 @@ _ask_opts() {
 				_dev_id "$1" "${_DID}"
 				_ask_dev_size "$1" "size" "Number-G/M"
 				break;;
+
 			[nN])
 				;;
+
 			*	)
 				clear
 				echo "Wrong Answer"
@@ -264,6 +273,9 @@ echo "BOOTFS ${BOOTFS} ${_BOOTID} ${_BOOTSIZE} ${_BOOTFSTYPE}" >> "${CCONFDIR}/s
 echo "SYSFS ${SYSFS} ${_SYSID} ${_SYSSIZE} ${_SYSFSTYPE}" >> "${CCONFDIR}/system/devname.info"
 echo "USERDATAFS ${USERDATAFS} ${_USERDATAID} ${_USERDATASIZE} ${_USERDATAFSTYPE}" >> "${CCONFDIR}/system/devname.info"
 echo "BACKUPFS ${BACKUPFS} ${_BACKUPID} ${_BACKUPSIZE} ${_BACKUPFSTYPE}" >> "${CCONFDIR}/system/devname.info"
+
+echo "Please check the devname.info at ${CCONFDIR}/system and verify that the entries are those you wish to use"
+echo "Keep in mind that controller will use these entries during the intiramfs phase and configure the drives based on those options"
 
 unset DEVNAME
 unset BOOTFS
