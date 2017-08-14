@@ -1,42 +1,20 @@
 #!/bin/bash
 
-# FLAGS AND ARGUMENTS
-_controller_args() {
-	while true; do
-		[[ -z "$*" ]] && return 0
-		case "$1" in
-			--build-controller*|-bc*	)
-				if [[ "$1" != *'='* ]]; then
-					die "Missing argument for controller's path"
-				else
-					_flag_controller_path="${1#*=}"
-					
-					if [[ ${_flag_controller_path:0:1} != "/" ]]; then
-						_flag_controller_path="/${_flag_controller_path}"
-					fi
-
-					if [[ "${_flag_controller_path}" == '/' ]]; then
-						die "Root is not allowed to be set as moddir path. Aborting..."
-					else
-						if [[ -d "${_flag_controller_path}" ]]; then
-							_flag_controller=0
-							export _flag_controller
-							export _flag_controller_path
-							_e_report_back "Controller flag enabled"
-						else
-							die "Error: moddir's target is not a directory"
-						fi
-					fi
-				fi
-			*							)
-				die "Unknown $1 operation"
-				;;
-		esac
-		shift
+_ct_conf() {
+	_ct_arg_ar=("include" "cmdline" "hook" "net" "module-probe" \
+		"module-insmod" "module-auto" "module-blacklist" "dracut_opt")
+	if grep -q "force" "${CTCONFDIR}/confdir/cdevname.info" | sed '/^#/ d' | sed '/^\s*$/d'; then
+		_controller_args '--force'
+	fi
+	
+	for i in "${_ct_arg_ar[@]}"; do
+		if grep -q "$i" "${CTCONFDIR}/confdir/cdevname.info" | sed '/^#/ d' | sed '/^\s*$/d' | awk -F '=' '{ print $2 }'; then
+			_TMPR099="$(grep "$i" "${CTCONFDIR}/confdir/cdevname.info" | sed '/^#/ d' | sed '/^\s*$/d' | awk -F '=' '{ print $2 }')"
+			_controller_args "${_TMPR099}"
+		fi
 	done
 }
 
-_controller_args "$@"
 
 _make_image() {
 	dracut --force --show-modules --printsize --nostrip  --early-microcode \

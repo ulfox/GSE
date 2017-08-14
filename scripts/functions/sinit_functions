@@ -885,21 +885,29 @@ _make_cimage() {
 	unset _KVER_
 }
 
+_ct_conf() {
+	_ct_arg_ar=("include" "cmdline" "hook" "net" "module-probe" \
+		"module-insmod" "module-auto" "module-blacklist" "dracut_opt")
+	if grep -q "force" "${CTCONFDIR}/confdir/cdevname.info" | sed '/^#/ d' | sed '/^\s*$/d'; then
+		_controller_args '--force'
+	fi
+	
+	for i in "${_ct_arg_ar[@]}"; do
+		if grep "$i" "${CTCONFDIR}/confdir/cdevname.info" | sed '/^#/ d' | sed '/^\s*$/d' | awk -F '=' '{ print $2 }'; then
+			_TMPR099="$(grep "$i" "${CTCONFDIR}/confdir/cdevname.info" | sed '/^#/ d' | sed '/^\s*$/d' | awk -F '=' '{ print $2 }')"
+			_controller_args "--$i=${_TMPR099}"
+		fi
+	done
+
+	unset _TMPR099
+	unset _ct_arg_ar
+}
+
 # FLAGS AND ARGUMENTS
 _controller_args() {
 	[[ -z "$*" ]] && return 0
 	while [[ -n "$*" ]]; do
 		case "$1" in
-			#--install*			)
-				#if [[ "$1" == *'='* ]]; then
-				#	_flag_dinst=0
-				#	export _flag_dinst
-				#	_flag_dinst_entries="${1#*=}"
-				#	export _flag_dinst_entries
-				#	echo "${_flag_dinst_entries}"
-				#fi
-				#;;
-				#
 			--force 			)
 				_flag_darg_force='-f'
 				export _flag_darg_force
@@ -914,6 +922,8 @@ _controller_args() {
 					_flag_dinclude_entries="--include ${1#*=}"
 					export _flag_dinclude_entries
 					_o_report_back "${1#*=}"
+				else
+					_e_report_back "Missing arguments from --include, argument will be ignored"
 				fi
 				;;
 
