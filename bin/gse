@@ -142,7 +142,29 @@ while true; do
 done
 }
 
-if echo "$@" | grep -q '\--build-controller'; then
+if echo "$@" | grep -q '\--conf'; then	
+	if [[ "$#" != 1 ]]; then
+		die "--conf argument has been detected"
+	fi
+
+	if [[ "$1" != *'='* || "${1#*=}" == '' ]]; then
+		die "No target file was given"
+	fi
+
+	if [[ ! -e "${1#*=}" ]]; then
+		die "No such file or directory"
+	fi
+
+	if [[ -d "${1#*=}" ]]; then
+		die "Target is a directory, aborting"
+	fi
+
+	if _ct_conf; then
+		_make_cimage
+	else
+		die "Exporting arguments from the configuration file has failed"
+	fi
+elif echo "$@" | grep -q '\--build-controller'; then
 	if _controller_args "${@:2}"; then
 		_make_cimage "${@:2}"
 	else
