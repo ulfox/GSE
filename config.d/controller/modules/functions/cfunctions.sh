@@ -777,6 +777,18 @@ _fetch_new_sys() {
 	export _ctflag_fetch
 }
 
+_gpg_import() {
+	gpg --import "/usr/local/controller/gpg/gpg_pub"
+}
+
+_gpg_verify() {
+	if gpg --verify "$1" "$2"; then
+		return 0
+	else
+		return 1
+	fi
+}
+
 _verify_t() {
 	_verify_md5sum() {
 		(
@@ -789,12 +801,12 @@ _verify_t() {
 			fi
 		)
 	}
-
+	
 	_verify_origin() {
 		(
 			cd "$1"
 
-			if gpg --verify "${_sys_archive}.gpg"; then
+			if _gpg_verify "${_sys_archive}.gpg" "${_sys_archive}"; then
 				echo "PASS" > verify.info
 			else
 				echo "FAILED" > verify.info
@@ -804,7 +816,8 @@ _verify_t() {
 	
 	rm -f "$1/verify.info"
 
-	_verify_origin "$1" 
+	_verify_origin "$1"
+	
 	if _check_s "$1"; then
 		echo "Image's authentication verified"
 		_verify_md5sum
