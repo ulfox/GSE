@@ -878,6 +878,12 @@ _make_cimage() {
 		--fscks "fsck.btrfs fsck.ext4 fsck.fat fsck.vfat fsck.ext2 fsck.ext3 fsck.ext4dev" \
 		--add "ssh-client btrfs crypt bash controller busybox network kernel-network-modules"
 	}
+	
+	if echo "${_flag_dopt_entries}" | grep -q "\--kver"; then
+		_e_report_back "Please do not use --kver, since the scripts are written to read specific image files"
+		_e_report_back "To use your image, please rename the file to initramfs-${GSEVER}-${_KVER_} and place it under ${CDISTDIR}"
+		die
+	fi
 
 	eval _dracut_f "${_flag_darg_force}" "${CDISTDIR}/initramfs-${GSEVER}-${_KVER_}" \
 	"${_flag_dinclude_entries}" "${_flag_dcmdl_entries}" "${_flag_dopt_entries}"
@@ -888,12 +894,13 @@ _make_cimage() {
 _ct_conf() {
 	_ct_arg_ar=("include" "cmdline" "hook" "net" "module-probe" \
 		"module-insmod" "module-auto" "module-blacklist" "dracut_opt")
-	if grep -q "force" "${CTCONFDIR}/confdir/cdevname.info" | sed '/^#/ d' | sed '/^\s*$/d'; then
+
+	if [[ -n "$(grep "force" "${CTCONFDIR}/confdir/cdevname.info" | sed '/^#/ d' | sed '/^\s*$/d')" ]]; then
 		_controller_args '--force'
 	fi
 	
 	for i in "${_ct_arg_ar[@]}"; do
-		if grep "$i" "${CTCONFDIR}/confdir/cdevname.info" | sed '/^#/ d' | sed '/^\s*$/d' | awk -F '=' '{ print $2 }'; then
+		if [[ -n "$(grep "$i" "${CTCONFDIR}/confdir/cdevname.info" | sed '/^#/ d' | sed '/^\s*$/d' | awk -F '=' '{ print $2 }')" ]]; then
 			_TMPR099="$(grep "$i" "${CTCONFDIR}/confdir/cdevname.info" | sed '/^#/ d' | sed '/^\s*$/d' | awk -F '=' '{ print $2 }')"
 			_controller_args "--$i=${_TMPR099}"
 		fi
@@ -902,6 +909,7 @@ _ct_conf() {
 	unset _TMPR099
 	unset _ct_arg_ar
 }
+
 
 # FLAGS AND ARGUMENTS
 _controller_args() {
@@ -959,7 +967,7 @@ _controller_args() {
 							fi
 						fi
 
-						_flag_dhok=0
+						_flag_dhook=0
 						export _flag_dhook
 						
 						_flag_dhook_entries="${1#*=}"
@@ -1059,6 +1067,9 @@ _controller_args() {
 									die "The given file does not appear to be a script"
 								else
 									_e_report_back "Net script ${_flag_drnet} has been set"
+									_flag_dracut_net=0
+									export _flag_drnet
+									export _flag_dracut_net
 								fi
 							fi
 						else
@@ -1071,6 +1082,9 @@ _controller_args() {
 						else
 							_flag_drnet="${_flag_drnet}"
 							_e_report_back "Net script ${_flag_drnet} has been set"
+							export _flag_drnet
+							_flag_dracut_net=0
+							export _flag_dracut_net
 						fi
 					fi
 				fi
