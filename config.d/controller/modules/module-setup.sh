@@ -15,6 +15,14 @@ check() {
 
 # called by dracut
 install() {
+    if [[ "${_flag_dracut_net}" != '0' ]]; then
+        _flag_dracut_net=1
+    fi
+
+    if [[ "${_flag_dhok}" != '0' ]]; then
+        _flag_dhook=1
+    fi
+
     # Install packages
     inst_multiple chroot chown chmod ls sed awk mount ls ln umount
     inst_multiple cp mv busybox rsync bash dmesg findmnt
@@ -34,19 +42,10 @@ install() {
     inst_multiple insmod rmmod modprobe lsmod
 
     # File systems packages
-     inst_multiple mkfs.ext2 mkfs.ext3 mkfs.ext4 mkfs.btrfs mkfs.vfat
+    inst_multiple mkfs.ext2 mkfs.ext3 mkfs.ext4 mkfs.btrfs mkfs.vfat
 
-    if [[ "${_SSH_C}" == 0 ]]; then
-        inst_multiple ssh
-    fi
-
-    if [[ "${_GPG_C}" == 0 ]]; then
-        inst_multiple gpg
-    fi
-
-    if [[ "${_FCH_C}" == 0 ]]; them
-        inst_multiple md5sum sha224sum sha256sum sha384sum sha512sum
-    fi
+    # Ssh,gpg, and md5/sha sums
+    inst_multiple ssh gpg md5sum sha224sum sha256sum sha384sum sha512sum
 
     # Install libs for the dns functions
     inst_simple "/lib64/libnss_dns.so.2"
@@ -134,22 +133,67 @@ install() {
     inst_hook pre-mount 01 "$moddir/cinit_pre-mount.sh"
     inst_hook mount 01 "$moddir/cinit_mount.sh"
     inst_hook clean 01 "$moddir/cinit_clean.sh"
- 
+    
+    mkdir -m 0755 -p "${initdir}/usr/local/unet"
+    
     if [[ "${_flag_dracut_net}" == 0 ]]; then
-        mkdir -m 0755 -p "${initdir}/usr/local/unet"
         inst_hook pre-mount 02 "${_flag_drnet}"
-        cp "${_flag_drnet}" "${initdir}/usr/local/unet"
+        inst_script "${_flag_drnet}" "${initdir}/usr/local/unet"
         echo "net:0" > "${initdir}/usr/local/unet/udent_flag"
+    else
+        echo "net:1" > "${initdir}/usr/local/unet/udent_flag"
     fi
 
-    if [[ "${_flag_dhok}" == 0 ]]; then
-        mkdir -m 0755 -p "${initdir}/usr/local/uscripts"
+    mkdir -m 0755 -p "${initdir}/usr/local/uscripts"
+
+    if [[ "${_flag_dhook}" == 0 ]]; then
         for i in $(eval echo "{0..${_var_count}}"); do
-            cp "${_dhook_ar[$i]}" "${initdir}/usr/local/uscripts/"
+            inst_script "${_dhook_ar[$i]}" "${initdir}/usr/local/uscripts/"
             inst_hook "${_hook_final[$i]}"
         done
+
         echo "uscripts:0" > "${initdir}/usr/local/uscripts/uscripts_flag"
         echo "${_dhook_ar[@]}" >> "${initdir}/usr/local/uscripts/uscripts_flag"
+    else
+        echo "uscripts:1" > "${initdir}/usr/local/uscripts/uscripts_flag"
+    fi
+
+    mkdir -m 0755 -p "${initdir}/usr/local/mods"
+    mkdir -m 0775 -p "${initdir}/usr/local/mods/{minsmod,mmodprob,mblacklist}"
+
+    if [[ "${_flag_mods}" == 0 ]]; then
+        echo "umods:0" > "${initdir}/usr/local/mods/umods"
+        
+        for i in "modprobe" "insmod" "blacklist"; do
+            case "$i" in
+               modprobe)
+                    echo "modprobe:0" > "${initdir}/local/mods/modprobe"
+                    echo "${_modprobe_ar[@]}" >> "${initdir}/local/mods/modprobe"
+                    for i in "${_modprobe_ar[@]}"; do
+                        inst_simple "$i" "${initdir}/local/mods/mmodprob/$i"
+                    done
+                    ;;
+
+                insmod)
+                    echo "insmod:0" > "${initdir}/usr/local/mods/insmod"
+                    echo "${_insmod_ar[@]}" >> "${initdir}/local/mods/insmod"
+                    for i in "${_insmod_ar[@]}"; do
+                        inst_simple "$i" "${initdir}/local/mods/minsmod/$i"
+                    done
+                    ;;
+
+                blacklist)
+                    echo "blacklist:0" > "${initdir}/usr/local/mods/blacklist"
+                    echo "${_blacklist_ar[@]}" >> "${initdir}/local/mods/blacklist"
+                    for i in "${_blacklist_ar[@]}"; do
+                        inst_simple "$i" "${initdir}/local/mods/mblacklist/$i"
+                    done
+                    ;;
+                esac
+            fi
+        done
+    else
+        echo "umods:1" > "${initdir}/usr/local/mods/umods"
     fi
 }
 
