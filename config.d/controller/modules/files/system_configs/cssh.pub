@@ -1,0 +1,14 @@
+# Public ssh key
+# 
+# This option will include the ssh pub key to the built system
+#
+# in the ~/.ssh/authorized_keys
+# If you don't enable sshd and authorized_keys, this key wont do anything
+#
+# To include an ssh private key to the hosts please referee to the inject_files submenu entry
+#
+
+
+
+
+# EOF
