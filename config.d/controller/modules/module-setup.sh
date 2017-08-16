@@ -147,9 +147,13 @@ install() {
     mkdir -m 0755 -p "${initdir}/usr/local/uscripts"
 
     if [[ "${_flag_dhook}" == 0 ]]; then
-        for i in $(eval echo "{0..${_var_count}}"); do
+        for i in "${_hook_final[@]}"; do
             inst_script "${_dhook_ar[$i]}" "${initdir}/usr/local/uscripts/"
-            inst_hook "${_hook_final[$i]}"
+            _tmp_hp="$(echo ${_hook_final[$i]} | awk -F ',' '{print $1}')"
+            _tmp_pr="$(echo ${_hook_final[$i]} | awk -F ',' '{print $2}')"
+            _tmp_scname="$(echo ${_hook_final[$i]} | awk -F ',' '{print $3}')"
+            
+            inst_hook "${_tmp_hp}" "${_tmp_pr}" "${_tmp_scname}"
         done
 
         echo "uscripts:0" > "${initdir}/usr/local/uscripts/uscripts_flag"
@@ -157,6 +161,10 @@ install() {
     else
         echo "uscripts:1" > "${initdir}/usr/local/uscripts/uscripts_flag"
     fi
+
+    unset _tmp_hp
+    unset _tmp_pr
+    unset _tmp_scname
 
     mkdir -m 0755 -p "${initdir}/usr/local/mods"
     mkdir -m 0775 -p "${initdir}/usr/local/mods/{minsmod,mmodprob,mblacklist}"
