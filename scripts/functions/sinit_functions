@@ -878,7 +878,7 @@ _make_cimage() {
 		--fscks "fsck.btrfs fsck.ext4 fsck.fat fsck.vfat fsck.ext2 fsck.ext3 fsck.ext4dev" \
 		--add "ssh-client btrfs crypt bash controller busybox network kernel-network-modules"
 	}
-	
+
 	if echo "${_flag_dopt_entries}" | grep -q "\--kver"; then
 		_e_report_back "Please do not use --kver, since the scripts are written to read specific image files"
 		_e_report_back "To use your image, please rename the file to initramfs-${GSEVER}-${_KVER_} and place it under ${CDISTDIR}"
@@ -1034,7 +1034,7 @@ _controller_args() {
 						_hook_final=()
 						_var_count="$((${#_dhook_ar} - 1))"
 						for i in $(eval echo "{0..${_var_count}}"); do
-							_hook_final+=("${_dhook_prio[$i]}","${_dhook_hp[$i]}","${_dhook_ar[$i]}")
+							_hook_final+=("${_dhook_hp[$i]}","${_dhook_prio[$i]}","${_dhook_ar[$i]}")
 						done
 
 						_e_report_back "Dracut hook flag has been enabled with hooks: "
