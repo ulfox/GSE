@@ -17,6 +17,9 @@ source "${CTSCRIPTS}/cfunctions.sh"
 # NETWORK SCRIPT
 source "${CTSCRIPTS}/cnetwork.sh"
 
+# IMPORT GPG PUB KEY
+_gpg_import
+
 # WIPE OLD FS, CREATE NEW FS & FETCH NEW SYSTEM
 if [[ "${_ctflag_sysfetch}" == 0 && "${_ctflag_net}" == 0 ]]; then
 	# WIPE & CREATE NEW FS
