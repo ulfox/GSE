@@ -876,7 +876,7 @@ _make_cimage() {
 		echo "$@"
 		dracut "$@" --show-modules --printsize --nostrip --early-microcode \
 		--fscks "fsck.btrfs fsck.ext4 fsck.fat fsck.vfat fsck.ext2 fsck.ext3 fsck.ext4dev" \
-		--add "ssh-client btrfs crypt bash controller busybox network kernel-network-modules"
+		--add "btrfs crypt bash controller busybox network kernel-network-modules"
 	}
 
 	if echo "${_flag_dopt_entries}" | grep -q "\--kver"; then
@@ -1033,12 +1033,14 @@ _controller_args() {
 						
 						_hook_final=()
 						_var_count="$((${#_dhook_ar} - 1))"
+
 						for i in $(eval echo "{0..${_var_count}}"); do
 							_hook_final+=("${_dhook_hp[$i]}","${_dhook_prio[$i]}","${_dhook_ar[$i]}")
 						done
 
 						_e_report_back "Dracut hook flag has been enabled with hooks: "
 						_o_report_back "${_hook_final[@]}"
+
 						shift 2
 						unset _var_count
 						unset _dhook_ar
