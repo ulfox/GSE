@@ -1,9 +1,7 @@
 # TODO
 
 System Builder list
-	Include kernel commandline editor
 	Include ro autoconf
-	Include snapshot creator
 	Include stage4 tarball create option
 
 End of System Builder list
@@ -13,6 +11,5 @@ Controller list {Initramfs}
 	Include HDD interface creator
 	Include rootfs label checker
 	Include backupfs label checker
-	Include configuration service for the rootfs
 
 End of Controller list
