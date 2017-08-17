@@ -1,70 +1,140 @@
 #!/bin/bash
 
-echo "Creating GSE md5sums"
-#(cd "${CWORKDIR}"; find . -path ./dist.d -prune -o -type f -exec md5sum "{}" + | sed 's_\./_STFLAG\/_g' > gse_list.md5sum
-#cat gse_list.md5sum | sed -e 's_STFLAG_'"$PWD"'_g' >gse_list.md5sums; cd - >/dev/null)
+_not_used() {
+	echo "Creating GSE md5sums"
+	#(cd "${CWORKDIR}"; find . -path ./dist.d -prune -o -type f -exec md5sum "{}" + | sed 's_\./_STFLAG\/_g' > gse_list.md5sum
+	#cat gse_list.md5sum | sed -e 's_STFLAG_'"$PWD"'_g' >gse_list.md5sums; cd - >/dev/null)
 
-CWORKDIR="$(dirname "$PWD")"
+	CWORKDIR="$(dirname "$PWD")"
 
-# FUNCTION FOR GENERATING THE MD5SUM FILE AND THE BACKUP TARBALL
-_gse_backup() {
-(cd "${CWORKDIR}"
-[[ -z "${CWORKDIR}" ]] && exit
+	# FUNCTION FOR GENERATING THE MD5SUM FILE AND THE BACKUP TARBALL
+	_gse_backup() {
+	(cd "${CWORKDIR}"
+		[[ -z "${CWORKDIR}" ]] && exit
 
-# USED TO MAKE THE LISTS
-if [[ ! -e "${CWORKDIR}/tmp/.gse_list0" ]]; then
-	rm -rf "tmp/.gselist"
-	mkdir -p "tmp/.gselist"
+	# USED TO MAKE THE LISTS
+	if [[ ! -e "${CWORKDIR}/tmp/.gse_list0" ]]; then
+		rm -rf "tmp/.gselist"
+		mkdir -p "tmp/.gselist"
 
-	# CREATES THE BASE FOR THE LIST ENTRIES
-	cp -r "${CWORKDIR}"/{bin,config.d,docs,scripts,local,README.md,TODO,etc} "tmp/.gselist"
+		# CREATES THE BASE FOR THE LIST ENTRIES
+		cp -r "${CWORKDIR}"/{bin,config.d,docs,scripts,local,README.md,TODO,etc} "tmp/.gselist"
 
-	# GENERATE LIST0, THIS ONE IS USED FOR THE ARCHIVES CREATION
-	find "tmp/.gselist" -type f | sed 's_tmp/.gselist_STFLAG_g'> "${CWORKDIR}/tmp/.gse_list0"
+		# GENERATE LIST0, THIS ONE IS USED FOR THE ARCHIVES CREATION
+		find "tmp/.gselist" -type f | sed 's_tmp/.gselist_STFLAG_g'> "${CWORKDIR}/tmp/.gse_list0"
 	
-	# GENERATE LIST, THIS ONE IS USED FOR THE MD5SUM LIST
-	find "tmp/.gselist" -type f | sed -e 's_tmp/.gselist_'"$PWD"'_g' > "${CWORKDIR}/tmp/.gse_list"
+		# GENERATE LIST, THIS ONE IS USED FOR THE MD5SUM LIST
+		find "tmp/.gselist" -type f | sed -e 's_tmp/.gselist_'"$PWD"'_g' > "${CWORKDIR}/tmp/.gse_list"
 
-	# PURGE GSELIST
-	rm -rf "tmp/.gselist"
-fi
+		# PURGE GSELIST
+		rm -rf "tmp/.gselist"
+	fi
 
-# READ LIST0 AND CREATE THE ARCHIVES
-while read -r i; do
-	rsync -aAXRrq "$i" "tmp/TheArchives"
-done < <(cat "${CWORKDIR}/tmp/.gse_list0" | sed -e 's_STFLAG/__g')
+	# READ LIST0 AND CREATE THE ARCHIVES
+	while read -r i; do
+		rsync -aAXRrq "$i" "tmp/TheArchives"
+	done < <(cat "${CWORKDIR}/tmp/.gse_list0" | sed -e 's_STFLAG/__g')
 
-# CREATE THE BACKUP
-tar cvzf "tmp/gse_list.tar.bz2" "tmp/TheArchives/" >/dev/null
+	# CREATE THE BACKUP
+	tar cvzf "tmp/gse_list.tar.bz2" "tmp/TheArchives/" >/dev/null
 
-# GENERATE THE MD5SUMS CHECKLIST
-while read -r i; do
-	md5sum "$i" >> "${CWORKDIR}/tmp/.gse_list.md5sum0"
-done < <(cat "${CWORKDIR}/tmp/.gse_list" | sed -e 's_\./_\/_g')
+	# GENERATE THE MD5SUMS CHECKLIST
+	while read -r i; do
+		md5sum "$i" >> "${CWORKDIR}/tmp/.gse_list.md5sum0"
+	done < <(cat "${CWORKDIR}/tmp/.gse_list" | sed -e 's_\./_\/_g')
 
-# INJECT STFLAG STRING TO EXTRACT IT LATER
-cat "${CWORKDIR}/tmp/.gse_list.md5sum0" | sed -e 's_'"${CWORKDIR}"'_STFLAG_g' > "${CWORKDIR}/tmp/.gse_list.md5sum"
+	# INJECT STFLAG STRING TO EXTRACT IT LATER
+	cat "${CWORKDIR}/tmp/.gse_list.md5sum0" | sed -e 's_'"${CWORKDIR}"'_STFLAG_g' > "${CWORKDIR}/tmp/.gse_list.md5sum"
 
-# DELETE MD5SUM0
-rm "${CWORKDIR}/tmp/.gse_list.md5sum0"
-cd "${CWORKDIR}/tmp"
-rm -rf "TheArchives")
+	# DELETE MD5SUM0
+	rm "${CWORKDIR}/tmp/.gse_list.md5sum0"
+	cd "${CWORKDIR}/tmp"
+	rm -rf "TheArchives")
+	}
+
+	# DO NOT UNCOMMENT THIS. THE FUNCTIONS WILL BREAK, OR WILL WONT REPLACE THE SCRIPTS THEY WAY IT SHOULD BE.
+	if [[ ! -e "${CWORKDIR}/tmp/.gse_list.md5sum" ]]; then
+		: #_gse_backup
+	fi
+
+	# THIS IS THE REPLACE RENEW PART
+	(rm -f "${CWORKDIR}/tmp/.MODLIST" >/dev/null
+		md5sum -c < <(cat "${CWORKDIR}/tmp/.gse_list.md5sum" | sed -e 's_STFLAG_'"${CWORKDIR}"'_g') \
+		| grep FAILED | awk -F ':' '{ print $1 }' | sed -e 's_'"${CWORKDIR}/"'__g' >> "${CWORKDIR}/tmp/.MODLIST"
+
+		cd "${CWORKDIR}"
+		tar xvf "tmp/gse_list.tar.bz2" -C "tmp/" >/dev/null 2>&1)
+
+		while read -r i; do
+			#rsync -aAXrhv 
+			echo "${CWORKDIR}/tmp/tmp/TheArchives/$i" "${CWORKDIR}/$i"
+		done < <(cat "${CWORKDIR}/tmp/.MODLIST")
 }
 
-# DO NOT UNCOMMENT THIS. THE FUNCTIONS WILL BREAK, OR WILL WONT REPLACE THE SCRIPTS THEY WAY IT SHOULD BE.
-if [[ ! -e "${CWORKDIR}/tmp/.gse_list.md5sum" ]]; then
-	: #_gse_backup
-fi
-
-# THIS IS THE REPLACE RENEW PART
-(rm -f "${CWORKDIR}/tmp/.MODLIST" >/dev/null
-md5sum -c < <(cat "${CWORKDIR}/tmp/.gse_list.md5sum" | sed -e 's_STFLAG_'"${CWORKDIR}"'_g') \
-| grep FAILED | awk -F ':' '{ print $1 }' | sed -e 's_'"${CWORKDIR}/"'__g' >> "${CWORKDIR}/tmp/.MODLIST"
-
+_tmp_location="(echo $PWD)"
 cd "${CWORKDIR}"
-tar xvf "tmp/gse_list.tar.bz2" -C "tmp/" >/dev/null 2>&1)
 
-while read -r i; do
-	#rsync -aAXrhv 
-	echo "${CWORKDIR}/tmp/tmp/TheArchives/$i" "${CWORKDIR}/$i"
-done < <(cat "${CWORKDIR}/tmp/.MODLIST")
+case "$1" in
+	hard)
+		echo "Resetting whole project"
+		echo "Creating backup for config.d to ${CWORKDIR}/local/tmp/gse"
+		
+		if [[ ! -e "${CWORKDIR}/local/tmp/gse" ]]; then
+			mkdir -p "${CWORKDIR}/local/tmp/gse"
+		fi
+
+		if tar cvzf "${CWORKDIR}/local/tmp/gse/old.config.d.tar.bz2" "${CWORKDIR}/config.d"; then
+			echo "Backup created"
+		else
+			echo "Failed to create backup"
+			while true; do
+				echo "Continue?"
+				read -rp "Answer Y/N: " ANS
+				case "${ANS}" in
+					[yY])
+						break;;
+					[nN])
+						return 1;;
+					*)
+						clear;;
+				esac
+			done
+		fi
+
+		echo "Hard resetting..."
+		if git reset --hard; then
+			cd "${_tmp_location}"
+			return 0
+		else
+			cd "${_tmp_location}"
+			return 1
+		fi
+		;;
+
+	soft)
+		echo "Initiating soft reset"
+		echo "Only the project's scripts will be altered"
+		
+		_gse_scripts=("scripts/sinit" "scripts/controller" "scripts/functions/men_opt" "scripts/functions/catalyst_functions" \
+			"scripts/functions/drv_interface" "scripts/functions/init_stage3_seq" "scripts/functions/local_rbuild" \
+			"scripts/functions/local_rbuild" "scripts/functions/makeconf_ed" "scripts/functions/renew" "scripts/functions/sinit_functions" \
+			"scripts/chroot_scripts/cfunctions" "scripts/chroot_scripts/chinit.conf" "scripts/chroot_scripts/chroot_init" \
+			"scripts/chroot_scripts/chsinprog" "bin/gse" "etc/gentoo.conf" "local/loc_req" "local/nogloc_req" "local/sinprog")
+		
+		for i in "${_gse_scripts[@]}"; do
+			_err_check=0
+			if git checkout -- "${CWORKDIR}/${i}"; then
+				echo "$i has been set to default"
+			else
+				echo "Failed setting $i to default"
+				_err_check=1
+			fi
+		done
+
+		if [[ "${_err_check}" == 0 ]]; then
+			return 0
+		else
+			return 1
+		fi
+		;;
+esac
