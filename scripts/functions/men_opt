@@ -181,8 +181,9 @@
 			fi
 			echo "##						         ##"
 			echo -e "## [ \e[32mI\e[39m  ]	\e[33mRenew ALL\e[0m		                 ##"
-			echo -e "## [ \e[32mII\e[39m ]	\e[33mVersion Check\e[0m				 ##"
-			echo -e "## [ \e[32mIII\e[39m]	\e[33mReturn back\e[0m				 ##"
+			echo -e "## [ \e[32mII\e[39m ]	\e[33mRenew Scripts\e[0m		                 ##"
+			echo -e "## [ \e[32mIII\e[39m]	\e[33mVersion Check\e[0m				 ##"
+			echo -e "## [ \e[32mIV\e[39m ]	\e[33mReturn back\e[0m				 ##"
 			echo "##							 ##"
 			echo -e "## [ \e[32mT\e[39m  ]				\e[32mTerminal\e[0m	 ##"
 			echo "##							 ##"
