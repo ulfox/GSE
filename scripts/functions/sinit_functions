@@ -2565,17 +2565,27 @@ main_f() {
 
 gse_t() {
 	read -rp "Input :: <= " SELCT
-	case ${SELCT:-6} in
+	case ${SELCT} in
 		I|i|1			)
-			# RENEW ALL MODIFIED ITEMS
-			# THE LIST WILL INCLUDE ONLY THE MAIN SCRIPTS IN THE END
-			#./"${CWORKDIR}/functions/renew" & 
+			if renew "hard"; then
+				echo "All scripts and configuration files have been hard resetted"
+			else
+				echo "Failed resetting the project. Please report this issue"
+			fi
 			exit 0;;
 		II|ii|2			)
+			if renew "soft"; then
+				echo "Project's scripts have been resetted"
+			else
+				echo "The process could not roll back all project's scripts"
+				echo "Please report this issue"
+			fi
+			exit 0;;
+		III|iii|3		)
 			# VERSION CHECK
 			source "${CWORKDIR}/functions/gse_sources"
 			_STAY=0;;
-		III|iii|3		)
+		V|v|5			)
 			_PARENT=0;;
  		[tT]			)
 			subterm_f "${lppar[@]}"
