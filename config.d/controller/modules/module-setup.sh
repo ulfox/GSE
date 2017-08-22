@@ -25,9 +25,12 @@ install() {
 
     # Install packages
     inst_multiple chroot chown chmod ls sed awk mount ls ln umount tail
-    inst_multiple cp mv busybox rsync bash dmesg findmnt dirname head
+    inst_multiple cp mv busybox rsync dmesg findmnt dirname head
     inst_multiple tar bzip2 clear scp lsblk tee sed awk basename sync
     inst_multiple fusermount strace wipefs rm grep ps uname du find uname fdisk
+
+    inst_simple bash
+    ln -sf bash "${initdir}/bin/sh"
 
     # test
     inst_multiple vim nano vi sensors ssh sshd
@@ -129,6 +132,7 @@ install() {
     # INSTALL SSH
     inst_simple ssh 
     inst_simple sshd
+
     # CONFIGURATION FILE
     inst_simple "$moddir/files/controller_ssh/cssh_config" "/etc/ssh/ssh_config"
     inst_simple "$moddir/files/controller_ssh/cssh_config" "/usr/local/controller/ssh/ssh_config.backup"
@@ -176,7 +180,7 @@ install() {
     # CUSTOM NETSCRIPT
     if [[ "${_flag_dracut_net}" == 0 ]]; then
         inst_hook pre-mount 08 "${_flag_drnet}"
-        inst_script "${_flag_drnet}" "${initdir}/usr/local/unet/unet.sh"
+        inst_script "${_flag_drnet}" "/usr/local/unet/unet.sh"
         echo "net:0" > "${initdir}/usr/local/unet/udent_flag"
     else
         echo "net:1" > "${initdir}/usr/local/unet/udent_flag"
@@ -186,13 +190,15 @@ install() {
     mkdir -m 0755 -p "${initdir}/usr/local/uscripts"
 
     if [[ "${_flag_dhook}" == 0 ]]; then
+        _crpt_cnt=0
         for i in "${_hook_final[@]}"; do
-            inst_script "${_dhook_ar[$i]}" "${initdir}/usr/local/uscripts/"
-            _tmp_hp="$(echo "${_hook_final[$i]}" | awk -F ',' '{print $1}')"
-            _tmp_pr="$(echo "${_hook_final[$i]}" | awk -F ',' '{print $2}')"
-            _tmp_scname="$(echo "${_hook_final[$i]}" | awk -F ',' '{print $3}')"
+            inst_script "${_dhook_ar[${_crpt_cnt}]}" "$/usr/local/uscripts/"
+            _tmp_hp="$(echo "$i" | awk -F ',' '{print $1}')"
+            _tmp_pr="$(echo "$i" | awk -F ',' '{print $2}')"
+            _tmp_scname="$(echo "$i" | awk -F ',' '{print $3}')"
             
             inst_hook "${_tmp_hp}" "${_tmp_pr}" "${_tmp_scname}"
+            ((++_crpt_cnt))
         done
 
         echo "uscripts:0" > "${initdir}/usr/local/uscripts/uscripts_flag"
@@ -201,13 +207,16 @@ install() {
         echo "uscripts:1" > "${initdir}/usr/local/uscripts/uscripts_flag"
     fi
 
+    unset _crpt_cnt
     unset _tmp_hp
     unset _tmp_pr
     unset _tmp_scname
 
     # KERNEL MODULES
     mkdir -m 0755 -p "${initdir}/usr/local/mods"
-    mkdir -m 0775 -p "${initdir}/usr/local/mods/{minsmod,mmodprob,mblacklist}"
+    mkdir -m 0775 -p "${initdir}/usr/local/mods/minsmod"
+    mkdir -m 0775 -p "${initdir}/usr/local/mods/mmodprob"
+    mkdir -m 0775 -p "${initdir}/usr/local/mods/mblacklist"
 
     if [[ "${_flag_mods}" == 0 ]]; then
         echo "umods:0" > "${initdir}/usr/local/mods/umods"
@@ -215,26 +224,26 @@ install() {
         for i in "modprobe" "insmod" "blacklist"; do
             case "$i" in
                modprobe)
-                    echo "modprobe:0" > "${initdir}/local/mods/modprobe"
-                    echo "${_modprobe_ar[@]}" >> "${initdir}/local/mods/modprobe"
+                    echo "modprobe:0" > "${initdir}/usr/local/mods/modprobe"
+                    echo "${_modprobe_ar[@]}" >> "${initdir}/usr/local/mods/modprobe"
                     for j in "${_modprobe_ar[@]}"; do
-                        inst_simple "$j" "${initdir}/local/mods/mmodprob/$j"
+                        inst_simple "$j" "/usr/local/mods/mmodprob/$j"
                     done
                     ;;
 
                 insmod)
                     echo "insmod:0" > "${initdir}/usr/local/mods/insmod"
-                    echo "${_insmod_ar[@]}" >> "${initdir}/local/mods/insmod"
+                    echo "${_insmod_ar[@]}" >> "${initdir}/usr/local/mods/insmod"
                     for j in "${_insmod_ar[@]}"; do
-                        inst_simple "$j" "${initdir}/local/mods/minsmod/$j"
+                        inst_simple "$j" "${initdir}/usr/local/mods/minsmod/$j"
                     done
                     ;;
 
                 blacklist)
                     echo "blacklist:0" > "${initdir}/usr/local/mods/blacklist"
-                    echo "${_blacklist_ar[@]}" >> "${initdir}/local/mods/blacklist"
+                    echo "${_blacklist_ar[@]}" >> "${initdir}/usr/local/blacklist"
                     for j in "${_blacklist_ar[@]}"; do
-                        inst_simple "$j" "${initdir}/local/mods/mblacklist/$j"
+                        inst_simple "$j" "${initdir}/usr/local/mods/mblacklist/$j"
                     done
                     ;;
                 esac
