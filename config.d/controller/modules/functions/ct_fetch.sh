@@ -49,8 +49,8 @@ _fetch_confd() {
 _check_version() {
 	if [[ "${_ctversion}" == 0 ]]; then
 		_local_version="$(cat "/mnt/workdir/var/lib/gse/version")"
+		_server_version="$(cat "${CTCONFDIR}/version")"
 		if [[ -e "/mnt/workdir/var/lib/gse/version" ]]; then
-			_server_version="$(cat "${CTCONFDIR}/version")"
 			if [[ "${_local_version}" != "${_server_version}" ]]; then
 				if [[ -n "${_ctflag_human}" ]]; then
 					if _question "A new System Version is present on the server" "Do you wish to fetch the new system?"; then
@@ -68,7 +68,7 @@ _check_version() {
 			fi
 		else
 			echo "System is corrupted"
-			_call_backup_switch
+			_ctflag_sysfetch=0
 		fi
 	export _ctflag_sysfetch
 	fi
@@ -165,9 +165,9 @@ _extract_sys() {
 		cd "$1"
 		echo "Extracting tarbal..."
 		if tar xvjpf "$2" --xattrs --numeric-owner >/dev/null; then
-			echo "PASS" > verify.info
+			echo "PASS" > "/tmp/verify.info"
 		else
-			echo "FAILED" > verify.info
+			echo "FAILED" > "/tmp/verify.info"
 		fi
 	)
 }
