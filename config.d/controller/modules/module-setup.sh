@@ -24,51 +24,57 @@ install() {
     fi
 
     # Install packages
-    inst_multiple chroot chown chmod ls sed awk mount ls ln umount
-    inst_multiple cp mv busybox rsync bash dmesg findmnt
-    inst_multiple tar bzip2 clear scp lsblk tee sed awk
-    inst_multiple fusermount strace rm grep ps uname
+    inst_multiple chroot chown chmod ls sed awk mount ls ln umount tail
+    inst_multiple cp mv busybox rsync bash dmesg findmnt dirname head
+    inst_multiple tar bzip2 clear scp lsblk tee sed awk basename sync
+    inst_multiple fusermount strace wipefs rm grep ps uname du find uname fdisk
+
+    # test
+    inst_multiple vim nano vi sensors ssh sshd
+    inst_multiple usermod useradd userdel users groupadd groupdel groupmems groupmod groups
+    inst_simple "/etc/ssh/ssh_config" "/etc/ssh/ssh_config"
+    inst_simple "/etc/ssh/sshd_config" "/etc/ssh/sshd_config"
 
     # Network packages
     _ct_netmod() {
         inst_multiple dhclient ping ping6 netstat netselect dhcpcd arping ifconfig ip
 
         # Install libs for the dns functions
-        inst_simple "/lib64/libnss_dns.so.2"
-        inst_simple "/lib64/libnss_files.so.2"
-        inst_simple "/lib64/ld-linux-x86-64.so.2"
-        inst_simple "/lib64/libresolv.so.2"
-        inst_simple "/lib64/libc.so.6"
-        inst_simple "/lib64/libmount.so.1"
-        inst_simple "/lib64/libblkid.so.1"
-        inst_simple "/lib64/libuuid.so.1"
-        inst_simple "/lib64/ld-linux-x86-64.so.2"
-        inst_simple "/lib64/libext2fs.so.2"
-        inst_simple "/lib64/libcom_err.so.2"
-        inst_simple "/lib64/libe2p.so.2"
-        inst_simple "/lib64/libpthread.so.0"
-        inst_simple "/lib64/libdl.so.2"
-        inst_simple "/lib64/libz.so.1"
-        inst_simple "/lib64/liblzo2.so.2"
-        inst_simple "/usr/lib64/libfdisk.so.1.1.0"
-        inst_simple "/lib64/libsmartcols.so.1"
-        inst_simple "/lib64/libreadline.so.6"
-        inst_simple "/lib64/libncurses.so.6"
-        inst_simple "/usr/lib64/libncursesw.so"
-        inst_simple "/usr/lib64/libncursesw.so"
-        inst_simple "/usr/lib64/libmagic.so.1"
-        inst_simple "/lib64/libncursesw.so.6"
-        inst_simple "/lib64/libnss_files.so.2"
-        inst_simple "/lib64/libattr.so.1"
-        inst_simple "/lib64/libacl.so.1"
-        inst_simple "/usr/lib64/libpopt.so.0"
-        inst_simple "/lib64/libnss_compat.so.2"
-        inst_simple "/lib64/libnsl.so.1"
-        inst_simple "/lib64/libnss_nis.so.2"
-        inst_simple "/lib64/libnss_dns.so.2"
-        inst_simple "/lib64/libnss_files.so.2"
-        inst_simple "/lib64/libresolv.so.2"
-        inst_simple "/lib64/ld-linux-x86-64.so.2"
+        inst_simple "/lib64/libnss_dns.so.2" "/lib64/libnss_dns.so.2"
+        inst_simple "/lib64/libnss_files.so.2" "/lib64/libnss_files.so.2"
+        inst_simple "/lib64/ld-linux-x86-64.so.2" "/lib64/ld-linux-x86-64.so.2"
+        inst_simple "/lib64/libresolv.so.2" "/lib64/libresolv.so.2"
+        inst_simple "/lib64/libc.so.6" "/lib64/libc.so.6"
+        inst_simple "/lib64/libmount.so.1" "/lib64/libmount.so.1"
+        inst_simple "/lib64/libblkid.so.1" "/lib64/libblkid.so.1"
+        inst_simple "/lib64/libuuid.so.1" "/lib64/libuuid.so.1"
+        inst_simple "/lib64/ld-linux-x86-64.so.2" "/lib64/ld-linux-x86-64.so.2"
+        inst_simple "/lib64/libext2fs.so.2" "/lib64/libext2fs.so.2"
+        inst_simple "/lib64/libcom_err.so.2" "/lib64/libcom_err.so.2"
+        inst_simple "/lib64/libe2p.so.2" "/lib64/libe2p.so.2"
+        inst_simple "/lib64/libpthread.so.0" "/lib64/libpthread.so.0"
+        inst_simple "/lib64/libdl.so.2" "/lib64/libdl.so.2"
+        inst_simple "/lib64/libz.so.1" "/lib64/libz.so.1"
+        inst_simple "/lib64/liblzo2.so.2" "/lib64/liblzo2.so.2"
+        inst_simple "/usr/lib64/libfdisk.so.1.1.0" "/usr/lib64/libfdisk.so.1.1.0"
+        inst_simple "/lib64/libsmartcols.so.1" "/lib64/libsmartcols.so.1"
+        inst_simple "/lib64/libreadline.so.6" "/lib64/libreadline.so.6"
+        inst_simple "/lib64/libncurses.so.6" "/lib64/libncurses.so.6"
+        inst_simple "/usr/lib64/libncursesw.so" "/usr/lib64/libncursesw.so"
+        inst_simple "/usr/lib64/libncursesw.so" "/usr/lib64/libncursesw.so"
+        inst_simple "/usr/lib64/libmagic.so.1" "/usr/lib64/libmagic.so.1"
+        inst_simple "/lib64/libncursesw.so.6" "/lib64/libncursesw.so.6"
+        inst_simple "/lib64/libnss_files.so.2" "/lib64/libnss_files.so.2"
+        inst_simple "/lib64/libattr.so.1" "/lib64/libattr.so.1"
+        inst_simple "/lib64/libacl.so.1" "/lib64/libacl.so.1"
+        inst_simple "/usr/lib64/libpopt.so.0" "/usr/lib64/libpopt.so.0"
+        inst_simple "/lib64/libnss_compat.so.2" "/lib64/libnss_compat.so.2"
+        inst_simple "/lib64/libnsl.so.1" "/lib64/libnsl.so.1"
+        inst_simple "/lib64/libnss_nis.so.2" "/lib64/libnss_nis.so.2"
+        inst_simple "/lib64/libnss_dns.so.2" "/lib64/libnss_dns.so.2"
+        inst_simple "/lib64/libnss_files.so.2" "/lib64/libnss_files.so.2"
+        inst_simple "/lib64/libresolv.so.2" "/lib64/libresolv.so.2"
+        inst_simple "/lib64/ld-linux-x86-64.so.2" "/lib64/ld-linux-x86-64.so.2"
 
     }
 
@@ -86,13 +92,25 @@ install() {
     
     # Create controller directory, rfs, bfs and workdir
     mkdir -m 0755 -p "${initdir}/config.d/confdir"
-    mkdir -m 0755 -p "${initdir}/etc/gse"
     mkdir -m 0755 -p "${initdir}/usr/local/controller"
     mkdir -m 700 -p "${initdir}/root/.ssh"
-    mkdir -m 0755 -p "${initdir}/mnt/{rfs,bfs}"
-    mkdir -m 0755 -p "${initdir}/mnt/{etc_tmpfs,tmp_tmpfs,var_tmp_tmpfs,workdir}"
-    mkdir -m 0755 -p "${initdir}/user-data/persistent/{local,nfs,log,var,etc}"
-    mkdir -m 0755 -p "${initdir}/user-data/persistent/local/{root,home,data,mnt,media}"
+    mkdir -m 0755 -p "${initdir}/mnt/rfs"
+    mkdir -m 0755 -p "${initdir}/mnt/bfs"
+    mkdir -m 0755 -p "${initdir}/mnt/etc_tmpfs"
+    mkdir -m 0755 -p "${initdir}/mnt/tmp_tmpfs"
+    mkdir -m 0755 -p "${initdir}/mnt/var_tmp_tmpfs"
+    mkdir -m 0755 -p "${initdir}/mnt/workdir"
+    mkdir -m 0755 -p "${initdir}/user-data/persistent"
+    mkdir -m 0755 -p "${initdir}/user-data/persistent/local"
+    mkdir -m 0755 -p "${initdir}/user-data/persistent/nfs"
+    mkdir -m 0755 -p "${initdir}/user-data/persistent/log"
+    mkdir -m 0755 -p "${initdir}/user-data/persistent/var"
+    mkdir -m 0755 -p "${initdir}/user-data/persistent/etc"
+    mkdir -m 0755 -p "${initdir}/user-data/persistent/local/root"
+    mkdir -m 0755 -p "${initdir}/user-data/persistent/local/home"
+    mkdir -m 0755 -p "${initdir}/user-data/persistent/local/data"
+    mkdir -m 0755 -p "${initdir}/user-data/persistent/local/mnt"
+    mkdir -m 0755 -p "${initdir}/user-data/persistent/local/media"
 
     # Install scripts for the controller process
     inst_script "$moddir/functions/cchroot.sh" "/usr/local/controller/cchroot.sh"
@@ -104,52 +122,32 @@ install() {
     inst_script "$moddir/functions/ccrevert_chroot.sh" "/usr/local/controller/ccrevert_chroot.sh"
     
     # Install configuration files for controller
-    # SERVERS
-    inst_simple "$moddir/files/cgentoo.conf" "/etc/gse/gentoo.conf"
-    inst_simple "$moddir/files/cservers.conf" "/etc/gse/servers.conf"
 
-    # SSH
+    # SSH Configuration
+    # To enable ssh, please include your priv key at "${CCONFD}/controller/modules/files/ssh/cssh_priv"
     mkdir -m 0755 -p "${initdir}/usr/local/controller/ssh"
-    
-    if [[ -e "$moddir/files/controller_ssh/cssh_priv" ]]; then
-        if [[ "$(grep 'ssh' "$moddir/files/cfeatures" | sed '/^#/ d' | sed '/^\s*$/d' | awk -F '=' '{print $2}')" == 'yes' ]]; then
-            # INSTALL SSH
-            inst_simple ssh
-            
-            # CONFIGURATION FILE
-            inst_simple "$moddir/files/controller_ssh/cssh_config" "/etc/ssh/ssh_config"
-            inst_simple "$moddir/files/controller_ssh/cssh_config" "/usr/local/controller/ssh/ssh_config.backup"
+    # INSTALL SSH
+    inst_simple ssh 
+    inst_simple sshd
+    # CONFIGURATION FILE
+    inst_simple "$moddir/files/controller_ssh/cssh_config" "/etc/ssh/ssh_config"
+    inst_simple "$moddir/files/controller_ssh/cssh_config" "/usr/local/controller/ssh/ssh_config.backup"
 
-            # KNOWN HOSTS
-            inst_simple "$moddir/files/controller_ssh/cknown_hosts" "/root/.ssh/known_hosts"
-            inst_simple "$moddir/files/controller_ssh/cknown_hosts" "/usr/local/controller/ssh/known_hosts.backup"
+    # KNOWN HOSTS
+    inst_simple "$moddir/files/controller_ssh/cknown_hosts" "/root/.ssh/known_hosts"
+    inst_simple "$moddir/files/controller_ssh/cknown_hosts" "/usr/local/controller/ssh/known_hosts.backup"
 
-            # PRIVATE KEY (CLIENTS -> SERVER)
-            inst_simple "$moddir/files/controller_ssh/cssh_priv" "/root/.ssh/ida_rsa"
-            inst_simple "$moddir/files/controller_ssh/cssh_priv" "/usr/local/controller/ssh/ida_rsa.backup"
-        fi
-    else
-        echo "Excluded ssh from controller features"
-    fi
+    # PRIVATE KEY (CLIENTS -> SERVER)
+    inst_simple "$moddir/files/controller_ssh/cssh_priv" "/root/.ssh/ida_rsa"
+    inst_simple "$moddir/files/controller_ssh/cssh_priv" "/usr/local/controller/ssh/ida_rsa.backup"
     
     # GPG
     mkdir -m 0755 -p "${initdir}/usr/local/controller/gpg"
-
-    if [[ -e "$moddir/files/controller_gpg/gpg_pub" ]]; then
-        if [[ "$(grep 'gpg' "$moddir/files/cfeatures" | sed '/^#/ d' | sed '/^\s*$/d' | awk -F '=' '{print $2}')" == 'yes' ]]; then
-            inst_simple gpg
-            inst_simple "$moddir/files/controller_gpg/gpg_pub" "/usr/local/controller/gpg/gpg_pub"
-        fi
-    else
-        echo "Excluded gpg from controller features"
-    fi
-
+    inst_simple gpg
+    inst_simple "$moddir/files/controller_gpg/gpg_pub" "/usr/local/controller/gpg/gpg_pub"
+    
     # SUMS
-    if [[ "$(grep 'sums' "$moddir/files/cfeatures" | sed '/^#/ d' | sed '/^\s*$/d' | awk -F '=' '{print $2}')" == 'yes' ]]; then
-        inst_simple md5sum sha224sum sha256sum sha384sum sha512sum 
-    else
-        echo "Excluded sum checks from controller features"
-    fi
+    inst_multiple md5sum sha224sum sha256sum sha384sum sha512sum 
 
     # FSTAB FILE FOR MOUNTING DRIVES ON INITRAMFS PHASE
     if [[ -e "$moddir/files/cfstab" ]]; then
@@ -157,19 +155,19 @@ install() {
     fi
 
     # Install configuration files for the system
-    inst_simple "$moddir/files/cnet" "/config.d/confdir/net"
-    inst_simple "$moddir/files/cconsolefont" "/config.d/confdir/consolefont"
-    inst_simple "$moddir/files/crunlevels" "/config.d/confdir/runlevels"
-    inst_simple "$moddir/files/cdevname.info" "/config.d/confdir/devname.info"
-    inst_simple "$moddir/files/conf.d/cfstab.info" "/config.d/confdir/fstab.info"
-    inst_simple "$moddir/files/ccustom_scripts" "/config.d/confdir/ccustom_scripts"
-    inst_simple "$moddir/files/cgrub" "/config.d/confdir/grub"
-    inst_simple "$moddir/files/chostname" "/config.d/confdir/hostname"
-    inst_simple "$moddir/files/chosts" "/config.d/confdir/hosts"
-    inst_simple "$moddir/files/clocale.gen" "/config.d/confdir/locale.gen"
-    inst_simple "$moddir/files/cssh.pub" "/config.d/confdir/ssh.pub"
-    inst_simple "$moddir/files/csshd_config" "/config.d/confdir/sshd_config"
-    inst_simple "$moddir/files/csystem_links" "/config.d/confdir/system_links"
+    inst_simple "$moddir/files/cdevname.info" "/config.d/cdevname.info"
+
+    inst_simple "$moddir/files/system_configs/cnet" "/config.d/confdir/net"
+    inst_simple "$moddir/files/system_configs/cconsolefont" "/config.d/confdir/consolefont"
+    inst_simple "$moddir/files/system_configs/crunlevels" "/config.d/confdir/runlevels"
+    inst_simple "$moddir/files/system_configs/cfstab.info" "/config.d/confdir/fstab.info"
+    inst_simple "$moddir/files/system_configs/cgrub" "/config.d/confdir/grub"
+    inst_simple "$moddir/files/system_configs/chostname" "/config.d/confdir/hostname"
+    inst_simple "$moddir/files/system_configs/chosts" "/config.d/confdir/hosts"
+    inst_simple "$moddir/files/system_configs/clocale.gen" "/config.d/confdir/locale.gen"
+    inst_simple "$moddir/files/system_configs/cssh.pub" "/config.d/confdir/ssh.pub"
+    inst_simple "$moddir/files/system_configs/csshd" "/config.d/confdir/sshd_config"
+    inst_simple "$moddir/files/system_configs/csystem_links" "/config.d/confdir/system_links"
     
     # NETWORK
     mkdir -m 0755 -p "${initdir}/usr/local/unet"
@@ -177,8 +175,8 @@ install() {
 
     # CUSTOM NETSCRIPT
     if [[ "${_flag_dracut_net}" == 0 ]]; then
-        inst_hook pre-mount 02 "${_flag_drnet}"
-        inst_script "${_flag_drnet}" "${initdir}/usr/local/unet"
+        inst_hook pre-mount 08 "${_flag_drnet}"
+        inst_script "${_flag_drnet}" "${initdir}/usr/local/unet/unet.sh"
         echo "net:0" > "${initdir}/usr/local/unet/udent_flag"
     else
         echo "net:1" > "${initdir}/usr/local/unet/udent_flag"
@@ -246,9 +244,10 @@ install() {
     fi
 
     # Install the hookpoints for the controller process {here the process is defined}
-    inst_hook pre-mount 01 "$moddir/cinit_pre-mount.sh"
-    inst_hook mount 01 "$moddir/cinit_mount.sh"
-    inst_hook clean 01 "$moddir/cinit_clean.sh"
+    inst_hook pre-mount 08 "$moddir/init_script.sh"
+    #inst_hook pre-mount 08 "$moddir/cinit_pre-mount.sh"
+    #inst_hook mount 08 "$moddir/cinit_mount.sh"
+    #inst_hook clean 08 "$moddir/cinit_clean.sh"
 
 }
 
