@@ -173,11 +173,13 @@ _part_b() {
 
 # PART B BEGINS
 _do_hs '\-gpartb' "before" "Part: B"
+
 if _call_hook_points 'PARTB' "gpartb" 'Part: B' "_part_b" "${BWORKDIR}" "$@"; then
 	sinit_flow_monitor "PARTB"
 else
 	die "Part: B FAILED"
 fi
+
 _do_hs '\+gpartb' "after" "Part: B"
 
 if echo "${_flag_base}" | grep -q 'catalyst'; then
@@ -185,12 +187,3 @@ if echo "${_flag_base}" | grep -q 'catalyst'; then
 elif echo "${_flag_base}" | grep -q 'precomp'; then 
 	_archive_ "${BWORKDIR}" "precomp"
 fi
-
-exit 1
-
-gpg --armor --export email > "${FINALDIST}/key.asc" # THIS WILL BE ADDED TO THE HOSTS
-gpg --detach-sign -o "${GSE_VER}".gpg "${FINALDIST}/${IMAGE}"
-#rm -rf "$1/sinit.d"
-unset CATDIR
-unset TARGETPATH
-unset TARGETSTAMP
