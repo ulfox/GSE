@@ -1,14 +1,15 @@
 # This file is will be automatically generated if you choose the guided fstab configuration entry
 # However there is a manual entry on the submenu to aid extra needs.
+#
 # The general syntax of a line is as follows: {LABEL} {device} {size{M,G}/all}
 # Example 1 BOOT /dev/sda1 100M will create a partition /dev/sda1 with a fixed size of 100M and LABEL=BOOT
 # Example 2 BOOT /dev/sda1 1G will create a partition /dev/sda1 with a fixed size of 1G and LABEL=BOOT
 # Example 3 SYS /dev/sdb1 full will create a partition /dev/sdb1 which will take all the available space and LABEL=SYS
 # The filesystem type is located at the fstab.info file which is automatically created from the guided fstab entry
 # and it can also be configured manually from the same submenu.
-BOOT /dev/sda 500M
-SYS /dev/sdb
-USERDATA /dev/sdc
+#
 
-
-# EOF
+BOOTFS SDX /dev/sda6 2G btrfs
+SYSFS SDX /dev/sda7 20G ext4
+USERDATAFS SDX /dev/sda8 20G btrfs
+BACKUPFS SDX /dev/sda9 20G ext4
