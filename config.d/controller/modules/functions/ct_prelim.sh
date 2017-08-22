@@ -10,6 +10,27 @@ _call_backup_switch() {
 	export _ctflag_switch
 }
 
+_bsu_dfs() {
+	#/DEV/SDX
+	SYSDEV="$(blkid | grep "SYSFS" | awk -F ':' '{ print $1 }')"
+	BACKUPDEV="$(blkid | grep "BACKUPFS" | awk -F ':' '{ print $1 }')"
+	BOOTDEV="$(blkid | grep "BOOTFS" | awk -F ':' '{ print $1 }')"
+	USERDATADEV="$(blkid | grep "USERDATAFS" | awk -F ':' '{ print $1 }')"
+
+	export SYSDEV
+	export BACKUPDEV
+	export USERDATADEV
+	export BOOTDEV
+
+	# EXPORT SYSTEM'S FS
+	SYSFS="$(blkid | grep "LABEL=\"SYSFS\"" | awk -F ' ' '{print $4}' | awk -F '=' '{print $2}' | sed 's/\"//g')"
+	export SYS
+
+	# EXPORT BACKUP's FS
+	BACKUPFS="$(blkid | grep "LABEL=\"BACKUPFS\"" | awk -F ' ' '{print $4}' | awk -F '=' '{print $2}' | sed 's/\"//g')"
+	export BACKUPFS
+}
+
 # CHECK IF LABELS EXIST
 _a_priori_devices() {
 	if [[ -e "/dev/disk/by-label/SYSFS" ]]; then
@@ -78,7 +99,7 @@ _shell() {
 	sleep 2
 	echo 'echo -e "\e[33mInside Subshell\e[0m"' >> /root/.bashrc
 	echo 'echo -e "\e[33mExit to return back to parent\e[0m"' >> /root/.bashrc
-	(clear; exec /bin/bash;)
+	(clear; exec /bin/bash && echo s;)
 	sed -i "/Inside Subshell/d" "/root/.bashrc"
 	sed -i "/Exit to return back to parent/d" "/root/.bashrc"
 	echo -e "\e[33mYou are back to parent\e[0m"
