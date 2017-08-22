@@ -7,6 +7,8 @@
 CTCONFDIR=/config.d
 export CTCONFDIR
 
+unset _ctflag_switch
+
 # EXPORT LOCAL SCRIPTDIR
 CTSCRIPTS=/usr/local/controller
 export CTSCRIPTS
@@ -17,7 +19,39 @@ export "PATH=${PATH}:/usr/local/controller"
 # CONTROLLER FUNCTIONS
 source "${CTSCRIPTS}/ct_prelim.sh"
 
+source "${CTSCRIPTS}/ctcmods.sh"
 _a_priori_devices
+_bsu_dfs
+
+if [[ ! -e "${SYSDEV}" ]] || [[ ! -e "${BACKUPDEV}" ]]; then
+	_recheck_dev() {
+		_a_priori_devices
+		_bsu_dfs
+
+		if [[ -e "${SYSDEV}" && -e "${BACKUPDEV}" ]]; then
+			return 0
+		else
+			return 1
+		fi
+	}
+
+	_ckcount=0
+	while true; do
+		echo "Could not find SYSDEV"
+		echo "Droping to shell"
+		_shell
+
+		if _recheck_dev; then
+			break
+		else
+			if [[ "${_ckcount}" -gt 10 ]]; then
+				/shutdown
+			fi
+			
+			((++_ckcount))
+		fi
+	done
+fi
 
 # NETWORK SCRIPT
 source "${CTSCRIPTS}/cnetwork.sh"
@@ -47,49 +81,70 @@ if [[ "${_ctflag_net}" == 0 ]]; then
 	# _gpg_import
 
 	source "${CTSCRIPTS}/ct_newsys.sh"
-	_bsu_dfs
 
 	# WIPE OLD FS, CREATE NEW FS & FETCH NEW SYSTEM
-	if [[ "${_ctflag_switch}" != '0' ]]; then
-		if [[ "${_ctflag_sysfetch}" == 0 && "${_ctflag_net}" == 0 ]]; then
-			# WIPE & CREATE NEW FS
-			_remake_dev "/mnt/workdir" "${SYSDEV}"
-			
-			# FETCH NEW SYSTEM
-			if [[ "${_ctflag_remake}" == 0 ]]; then
-				_fetch_new_sys "/mnt/workdir"
-			elif [[ "${_ctflag_remake}" == 1 ]]; then
+	if [[ "${_ctflag_sysfetch}" == 0 && "${_ctflag_net}" == 0 ]]; then
+		# WIPE & CREATE NEW FS
+		_remake_dev "/mnt/workdir" "${SYSDEV}"
+
+		# FETCH NEW SYSTEM
+		if [[ "${_ctflag_remake}" == 0 ]]; then
+			_fetch_new_sys "/mnt/workdir"
+		elif [[ "${_ctflag_remake}" == 1 ]]; then
+			_call_backup_switch
+		fi
+
+		# VERIFY FETCHED IMAGE
+		if [[ "${_ctflag_fetch}" == 0 ]]; then
+			if ! _verify_target "/mnt/workdir"; then
 				_call_backup_switch
+			fi
+		elif [[ "${_ctflag_fetch}" == 1 ]]; then
+			_call_backup_switch
+		fi
+
+		# EXTRACT NEW SYSTEM
+		if [[ "${_ctflag_verify}" == 0 ]]; then
+			rm -f "/mnt/workdir/verify.info"
+			_extract_sys "/mnt/workdir" "${_sys_archive}"
+
+			if _check_last "/mnt/workdir"; then
+				_ctflag_extract=0
+			else
+				_ctflag_extract=1
 			fi
 
-			# VERIFY FETCHED IMAGE
-			if [[ "${_ctflag_fetch}" == 0 ]]; then
-				_verify_target "/mnt/workdir"
-			elif [[ "${_ctflag_fetch}" == 1 ]]; then
-				_call_backup_switch
-			fi
-
-			# EXTRACT NEW SYSTEM
-			if [[ "${_ctflag_verify}" == 0 ]]; then
-				_extract_sys "/mnt/workdir" "${_sys_archive}"
-				rm -f "/mnt/workdir/verify.info"
-				if _check_last "/mnt/workdir"; then
-					_ctflag_extract=0
-				else
-					_ctflag_extract=1
-				fi
-				export _ctflag_extract
-			elif [[ "${_ctflag_verify}" == 1 ]]; then
-				_call_backup_switch
-			fi
+			rm -f "/mnt/workdir/verify.info"
+			export _ctflag_extract
+		elif [[ "${_ctflag_verify}" == 1 ]]; then
+			_call_backup_switch
 		fi
 	fi
 fi
 
 if [[ "${_ctflag_switch}" == 0 ]]; then
-	
+	echo "switch $_ctflag_switch"
+	return 1
+fi
 
-return 1
+# BACKUP SWITCH CONDITION
+if [[ "${_ctflag_switch}" == 0 ]]; then
+	if [[ "${SYSFS}" == 'ext4' ]]; then
+		e2label "${SYSDEV}" "EXPIRED"
+		e2label "${BACKUPDEV}" SYSFS
+	elif [[ "${SYSFS}" == 'btrfs' ]]; then
+		btrfs filesystem label "${SYSDEV}" "EXPIRED"
+		btrfs filesystem label "${BACKUPDEV}" "SYSFS"
+	fi
+	
+	SYSFS_EXPIRED="${SYSFS}"
+	SYSFS="${BACKUPFS}"
+
+	SYSDEV_EXPIRED="${SYSDEV}"
+	SYSDEV="${BACKUPDEV}"
+
+fi
+
 # CONFIGURATION
 if [[ "${_ctflag_net}" == 0 ]] && [[ "${_ctflag_confd}" == 0 || "${_ctflag_extract}" == 0 ]]; then
 	# MOUNT SYSTEM
