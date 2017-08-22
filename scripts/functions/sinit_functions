@@ -2170,7 +2170,15 @@ _archive_() {
 	while true; do
 		if ! ls "${CDISTDIR}/stage3-amd64-${GVEX}.tar.bz2" >/dev/null 2>&1; then
 			(cd "$1"
-			_o_report_back "Creating the stage4 tarball"
+
+			if [[ ! -e "/var/lib/gse" ]]; then
+				mkdir -p "var/lib/gse"
+			fi
+			
+			_o_report_back "Importing version to new system"
+			echo "${GVEX}" > "var/lib/gse/version"
+
+			_o_report_back "Creating the stage3 tarball"			
 			if [[ "${_flag_base}" == 'catalyst' ]]; then
 				eval tar -cjpP --ignore-failed-read "${EXCLUDE}" -f "${CDISTDIR}/stage3-amd64-${TARGETSTAMP}-${GVEX}.tar.bz2" . "${_flag_silence}"
 			elif [[ "${_flag_base}" == 'precomp' ]]; then
@@ -2737,6 +2745,7 @@ config_f() {
 	read -rp "Input :: <= " SELCT
 	case ${SELCT} in
 		I|i|1			)
+			# MARKED FOR REMOVAL
 			# GUIDED FSTAB EDITOR
 			drv_interface
 			_STAY=0;;
