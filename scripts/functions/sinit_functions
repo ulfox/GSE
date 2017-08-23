@@ -868,7 +868,7 @@ controller_f() {
 }
 
 _make_cimage() {
-	_KVER_="kver_"$(uname -r)""
+	_KVER_="$(uname -r)"
 	mkdir -p "/usr/lib64/dracut/modules.d/01controller"
 	cp -r "${CCONFDIR}/controller/modules"/* "/usr/lib64/dracut/modules.d/01controller"
 	
@@ -885,7 +885,7 @@ _make_cimage() {
 		die
 	fi
 
-	cp -r "${CCONFDIR}/controller/modules/"
+	cp -r "${CCONFDIR}/controller/modules"/* "/usr/lib64/dracut/modules.d/01controller/"
 	eval _dracut_f "${_flag_darg_force}" "${CDISTDIR}/initramfs-${GSEVER}-${_KVER_}" \
 	"${_flag_dinclude_entries}" "${_flag_dcmdl_entries}" "${_flag_dopt_entries}"
 
@@ -1001,7 +1001,7 @@ _controller_args() {
 								if ! file "$i" | grep -q "script"; then
 									die "The given file does not appear to be a script"
 								else
-									_dhook_ar+=("/${i}")
+									_dhook_ar+=("${i}")
 								fi
 							fi
 						done
@@ -1033,14 +1033,26 @@ _controller_args() {
 						done
 						
 						_hook_final=()
-						_var_count="$((${#_dhook_ar} - 1))"
+						_var_count="$((${#_dhook_ar[@]} - 1))"
 
+						mkdir -p "${CCONFDIR}/controller/modules/uscripts"
+						rm -f "${CCONFDIR}/controller/modules/uscripts/insthook"
 						for i in $(eval echo "{0..${_var_count}}"); do
-							_hook_final+=("${_dhook_hp[$i]}","${_dhook_prio[$i]}","${_dhook_ar[$i]}")
+							if [[ -n "${_dhook_hp[$i]}" && -n "${_dhook_prio[$i]}" ]]; then
+								_scriptname="$(basename ${_dhook_ar[$i]})"
+								echo "${_dhook_hp[$i]} ${_dhook_prio[$i]} ${_scriptname}" >> "${CCONFDIR}/controller/modules/uscripts/insthook"
+								cp "${_dhook_ar[$i]}" "${CCONFDIR}/controller/modules/uscripts"
+							else
+								if [[ -z "${_dhook_hp[$i]}" ]]; then
+									die "Hook point for ${_dhook_ar[$i]} is missing"
+								elif [[ -z "${_dhook_prio[$i]}" ]]; then
+									die "Priority for ${_dhook_ar[$i]} is missing"
+								fi
+							fi
 						done
 
 						_e_report_back "Dracut hook flag has been enabled with hooks: "
-						_o_report_back "${_hook_final[@]}"
+						_o_report_back "$(cat "${CCONFDIR}/controller/modules/uscripts/insthook")"
 
 						shift 2
 						unset _var_count
@@ -1091,141 +1103,34 @@ _controller_args() {
 						fi
 					fi
 				fi
+
+				mkdir -p "${CCONFDIR}/controller/modules/unet"
+				rm -f "${CCONFDIR}/controller/modules/unet/unet.conf"
+				_unetscript="$(basename "${_flag_drnet}")"
+				echo "${_unetscript}" >> "${CCONFDIR}/controller/modules/unet/unet.conf"
+				cp "${_flag_drnet}" "${CCONFDIR}/controller/modules/unet/"
 				;;
 
-			--module-*		)
-				_module_case() {
-					case "$1" in
-						'--module-probe'		)
-							_mopt_='probe'
-							;;
-						'--module-insmod'		)
-							_mopt_='insmod'
-							;;
-						'--module-auto' 		)
-							_mopt_='auto'
-							;;
-						'--module-blacklist' 	)
-							_mopt_='blacklist'
-							;;
-						*			)
-							die "Wrong entry. Please select one of --module--{probe,insmod,auto,blacklist}"
-					esac
-				}
-
-				_empty_arg_check() {
-					if [[ "$1" != *'='* || "$2" == '' ]]; then
-						return 1
+			--modules*		)
+				if [[ "$1" != *'='* || "${1#*=}" == '' ]]; then
+					die "No arguments after --modules were given"
+				else
+					_flag_mods=0
+					if [[ -e "${1:10}" ]]; then
+						_e_report_back "Cusom module file: ${1:10}, located"
+						_mod_ar="${1:10}"
 					else
-						return 0
+						die "${1:10} does not exist"
 					fi
-				}
-
-				_mod_ar() {
-					if [[ -e "$1" ]]; then
-						return 0
-					elif [[ -n "$(find "/lib/modules/$(uname -r)" -name "$1")" ]]; then
-						return 0
-					elif [[ -n "$(find "/lib/modules/$(uname -r)" -name "${1}.ko")" ]]; then
-						return 0
-					else
-						return 1
-					fi
-				}
-
-				_module_case "${1%=*}"
-				if [[ "${_mopt_}" == 'probe' ]]; then
-					if _empty_arg_check "$1" "${1#*=}"; then
-						_flag_dmod_prob="${1#*=}"
-						_modprobe_ar=()
-						for i in ${_flag_dmod_prob}; do
-							if [[ -n "$i" ]];then
-								if _mod_ar "$i"; then
-									_modprobe_ar+=("$i")
-								else
-									die "Could not locate ${_mod_var} at /lib/modules/$(uname -r) or at ${PWD}"
-								fi
-							else
-								break
-							fi
-						done
-						unset _flag_dmod_prob
-					else
-						die "No arguments were given after --module-probe"
-					fi
-
-					_e_report_back "The following modules will automatically load after udev has set: "
-					_o_report_back "${_modprobe_ar[@]}"
-				elif [[ "${_mopt_}" == 'insmod' ]]; then
-					if _empty_arg_check "$1" "${1#*=}"; then
-						_flag_dmod_ins="${1#*=}"
-						_insmod_ar=()
-						for i in ${_flag_dmod_ins}; do
-							if [[ -n "$i" ]];then
-								if _mod_ar "$i"; then
-									_insmod_ar+=("$i")
-								else
-									die "Could not locate ${_mod_var} at /lib/modules/$(uname -r) or at ${PWD}"
-								fi
-							else
-								break
-							fi
-						done
-						unset _flag_dmod_ins
-					else
-						die "No arguments were given after --module-insmod"
-					fi
-
-					_e_report_back "The following modules will automatically load after udev has set: "
-					_o_report_back "${_insmod_ar[@]}"
-				elif [[ "${_mopt_}" == 'auto' ]]; then
-					if _empty_arg_check "$1" "${1#*=}"; then
-						_flag_dmod_auto="${1#*=}"
-						_auto_ar=()
-						for i in ${_flag_dmod_auto}; do
-							if [[ -n "$i" ]];then
-								if _mod_ar "$i"; then
-									_auto_ar+=("$i")
-								else
-									die "Could not locate ${_mod_var} at /lib/modules/$(uname -r) or at ${PWD}"
-								fi
-							else
-								break
-							fi
-						done
-						unset _flag_dmod_auto
-
-					else
-						die "No arguments were given after --module-auto"
-					fi
-
-					_e_report_back "The following modules will automatically load at cmdline hook: "
-					_o_report_back "${_auto_ar[@]}"
-				elif [[ "${_mopt_}" == 'blacklist' ]]; then
-					if _empty_arg_check "$1" "${1#*=}"; then
-						_flag_dmod_blacklist="${1#*=}"
-						_blacklist_ar=()
-						for i in ${_flag_dmod_blacklist}; do
-							if [[ -n "$i" ]];then
-								if _mod_ar "$i"; then
-									_blacklist_ar+=("$i")
-								else
-									die "Could not locate ${_mod_var} at /lib/modules/$(uname -r) or at ${PWD}"
-								fi
-							else
-								break
-							fi
-						done
-						unset _flag_dmod_blacklist
-					else
-						die "No arguments were given after --module-blacklist"
-					fi
-					
-					_e_report_back "The following modules will be added to blacklist: "
-					_o_report_back "${_blacklist_ar[@]}"
 				fi
-				;;
 
+				mkdir -p "${CCONFDIR}/controller/modules/umod"
+				rm -f "${CCONFDIR}/controller/modules/umod/umod.conf"
+				_umodscript="$(basename "${_mod_ar}")"
+				echo "${_umodscript}" >> "${CCONFDIR}/controller/modules/umod/umod.conf"
+				cp "${_mod_ar}" "${CCONFDIR}/controller/modules/umod/"
+				;;
+				
 			--dracut_opt*		)
 				if [[ "$1" != *'='* || "${1#*=}" == '' ]]; then
 					die "No arguments after --dracut_opt were given"
