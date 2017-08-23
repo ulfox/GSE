@@ -15,22 +15,12 @@ check() {
 
 # called by dracut
 install() {
-    if [[ "${_flag_dracut_net}" != '0' ]]; then
-        _flag_dracut_net=1
-    fi
-
-    if [[ "${_flag_dhook}" != '0' ]]; then
-        _flag_dhook=1
-    fi
 
     # Install packages
     inst_multiple chroot chown chmod ls sed awk mount ls ln umount tail
     inst_multiple cp mv busybox rsync dmesg findmnt dirname head
-    inst_multiple tar bzip2 clear scp lsblk tee sed awk basename sync
+    inst_multiple tar bash bzip2 clear scp lsblk tee sed awk basename sync
     inst_multiple fusermount strace wipefs rm grep ps uname du find uname fdisk
-
-    inst_simple bash
-    ln -sf bash "${initdir}/bin/sh"
 
     # test
     inst_multiple vim nano vi sensors ssh sshd
@@ -175,81 +165,47 @@ install() {
     
     # NETWORK
     mkdir -m 0755 -p "${initdir}/usr/local/unet"
+
     _ct_netmod
 
     # CUSTOM NETSCRIPT
-    if [[ "${_flag_dracut_net}" == 0 ]]; then
-        inst_hook pre-mount 08 "${_flag_drnet}"
-        inst_script "${_flag_drnet}" "/usr/local/unet/unet.sh"
-        echo "net:0" > "${initdir}/usr/local/unet/udent_flag"
-    else
-        echo "net:1" > "${initdir}/usr/local/unet/udent_flag"
+    if [[ -e "${moddir}/unet/unet.conf" ]]; then
+        _unetscript="$(cat ${moddir}/unet/unet.conf)"
+        if [[ -e "${moddir}/unet/${_unetscript}" ]]; then
+            inst_hook pre-mount 08 "${moddir}/unet/${_unetscript}"
+            inst_script "${moddir}/unet/${_unetscript}" "/usr/local/unet/unet.sh"
+        fi
     fi
 
     # CUSTOM HOOK SCRIPTS
     mkdir -m 0755 -p "${initdir}/usr/local/uscripts"
 
-    if [[ "${_flag_dhook}" == 0 ]]; then
-        _crpt_cnt=0
-        for i in "${_hook_final[@]}"; do
-            inst_script "${_dhook_ar[${_crpt_cnt}]}" "$/usr/local/uscripts/"
-            _tmp_hp="$(echo "$i" | awk -F ',' '{print $1}')"
-            _tmp_pr="$(echo "$i" | awk -F ',' '{print $2}')"
-            _tmp_scname="$(echo "$i" | awk -F ',' '{print $3}')"
-            
-            inst_hook "${_tmp_hp}" "${_tmp_pr}" "${_tmp_scname}"
-            ((++_crpt_cnt))
-        done
-
-        echo "uscripts:0" > "${initdir}/usr/local/uscripts/uscripts_flag"
-        echo "${_dhook_ar[@]}" >> "${initdir}/usr/local/uscripts/uscripts_flag"
-    else
-        echo "uscripts:1" > "${initdir}/usr/local/uscripts/uscripts_flag"
+    if [[ -e "${moddir}/uscripts/insthook" ]]; then
+        while read s; do
+                
+                _tmp_hp="$(echo "$s" | awk -F ' ' '{print $1}')"
+                _tmp_pr="$(echo "$s" | awk -F ' ' '{print $2}')"
+                _tmp_scname="$(echo "$s" | awk -F ' ' '{print $3}')"
+                
+                if [[ -e "${moddir}/uscripts/${_tmp_scname}" ]]; then
+                    eval inst_hook "${_tmp_hp}" "${_tmp_pr}" "${moddir}/uscripts/${_tmp_scname}"
+                fi
+        done < <(cat "${moddir}/uscripts/insthook")
     fi
 
     unset _crpt_cnt
     unset _tmp_hp
-    unset _tmp_pr
+    unset _tmp_p
     unset _tmp_scname
 
     # KERNEL MODULES
-    mkdir -m 0755 -p "${initdir}/usr/local/mods"
-    mkdir -m 0775 -p "${initdir}/usr/local/mods/minsmod"
-    mkdir -m 0775 -p "${initdir}/usr/local/mods/mmodprob"
-    mkdir -m 0775 -p "${initdir}/usr/local/mods/mblacklist"
+    mkdir -m 0775 -p "${initdir}/etc/modprobe.d"
 
-    if [[ "${_flag_mods}" == 0 ]]; then
-        echo "umods:0" > "${initdir}/usr/local/mods/umods"
-        
-        for i in "modprobe" "insmod" "blacklist"; do
-            case "$i" in
-               modprobe)
-                    echo "modprobe:0" > "${initdir}/usr/local/mods/modprobe"
-                    echo "${_modprobe_ar[@]}" >> "${initdir}/usr/local/mods/modprobe"
-                    for j in "${_modprobe_ar[@]}"; do
-                        inst_simple "$j" "/usr/local/mods/mmodprob/$j"
-                    done
-                    ;;
-
-                insmod)
-                    echo "insmod:0" > "${initdir}/usr/local/mods/insmod"
-                    echo "${_insmod_ar[@]}" >> "${initdir}/usr/local/mods/insmod"
-                    for j in "${_insmod_ar[@]}"; do
-                        inst_simple "$j" "${initdir}/usr/local/mods/minsmod/$j"
-                    done
-                    ;;
-
-                blacklist)
-                    echo "blacklist:0" > "${initdir}/usr/local/mods/blacklist"
-                    echo "${_blacklist_ar[@]}" >> "${initdir}/usr/local/blacklist"
-                    for j in "${_blacklist_ar[@]}"; do
-                        inst_simple "$j" "${initdir}/usr/local/mods/mblacklist/$j"
-                    done
-                    ;;
-                esac
-        done
-    else
-        echo "umods:1" > "${initdir}/usr/local/mods/umods"
+    if [[ -e "${moddir}/umod/umod.conf" ]]; then
+        _umodname="$(cat "${moddir}/umod/umod.conf")"
+        if [[ -e "${moddir}/umod/${_umodname}" ]]; then
+            inst_simple "${moddir}/umod/${_umodname}" "/etc/modprobe.d/umod.conf"
+        fi
     fi
 
     # Install the hookpoints for the controller process {here the process is defined}
