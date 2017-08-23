@@ -19,7 +19,6 @@ export "PATH=${PATH}:/usr/local/controller"
 # CONTROLLER FUNCTIONS
 source "${CTSCRIPTS}/ct_prelim.sh"
 
-source "${CTSCRIPTS}/ctcmods.sh"
 _a_priori_devices
 _bsu_dfs
 
