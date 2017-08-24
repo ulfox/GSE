@@ -15,5 +15,4 @@ else
 	_proceed_var=1
 fi
 
-mv /bin/sh /bin/sh.backup
-ln -sf /bin/bash /bin/sh
+
