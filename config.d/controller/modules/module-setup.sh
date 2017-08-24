@@ -113,6 +113,11 @@ install() {
     inst_script "$moddir/functions/chealth.sh" "/usr/local/controller/chealth.sh"
     inst_script "$moddir/functions/cnetwork.sh" "/usr/local/controller/cnetwork.sh"
     inst_script "$moddir/functions/ccrevert_chroot.sh" "/usr/local/controller/ccrevert_chroot.sh"
+    inst_script "$moddir/functions/ct_devices.sh" "/config.d/confdir/ct_devices.sh"
+    inst_script "$moddir/functions/ct_fetch.sh" "/config.d/confdir/ct_fetch.sh"
+    inst_script "$moddir/functions/ct_netf.sh" "/config.d/confdir/ct_netf.sh"
+    inst_script "$moddir/functions/ct_newsys.sh" "/config.d/confdir/ct_newsys.sh"
+    inst_script "$moddir/functions/ct_prelim.sh" "/config.d/confdir/ct_prelim.sh"
     
     # Install configuration files for controller
 
@@ -162,7 +167,7 @@ install() {
     inst_simple "$moddir/files/system_configs/cssh.pub" "/config.d/confdir/ssh.pub"
     inst_simple "$moddir/files/system_configs/csshd" "/config.d/confdir/sshd_config"
     inst_simple "$moddir/files/system_configs/csystem_links" "/config.d/confdir/system_links"
-    
+
     # NETWORK
     mkdir -m 0755 -p "${initdir}/usr/local/unet"
 
@@ -219,12 +224,80 @@ install() {
 # called by dracut
 installkernel() {
     # Include kernel modules
-    instmods "=drivers"
-    instmods "=arch"
-    instmods "=crypto"
-    instmods "=fs"
-    instmods "=lib"
-    instmods "=mm"
-    instmods "=net"
-    instmods "=sound"
+    hostonly='' instmods sr_mod
+    hostonly='' instmods cdrom
+    hostonly='' instmods sr_mod
+    hostonly='' instmods sd_mod
+    hostonly='' instmods radeon
+    hostonly='' instmods ttm
+    hostonly='' instmods drm_kms_helper
+    hostonly='' instmods iTCO_wdt
+    hostonly='' instmods iTCO_vendor_support
+    hostonly='' instmods ppdev
+    hostonly='' instmods snd_hda_codec_realtek
+    hostonly='' instmods snd_hda_codec_generic
+    hostonly='' instmods snd_hda_codec_hdmi
+    hostonly='' instmods coretemp
+    hostonly='' instmods drm
+    hostonly='' instmods radeon
+    hostonly='' instmods kvm_intel
+    hostonly='' instmods snd_hda_intel
+    hostonly='' instmods snd_hda_codec
+    hostonly='' instmods ata_generic
+    hostonly='' instmods pata_acpi
+    hostonly='' instmods kvm_intel
+    hostonly='' instmods snd_hda_core
+    hostonly='' instmods ahci
+    hostonly='' instmods snd_hwdep
+    hostonly='' instmods syscopyarea
+    hostonly='' instmods i2c_i801
+    hostonly='' instmods ata_piix
+    hostonly='' instmods r8169
+    hostonly='' instmods libahci
+    hostonly='' instmods pata_jmicron
+    hostonly='' instmods lpc_ich
+    hostonly='' instmods irqbypass
+    hostonly='' instmods kvm
+    hostonly='' instmods mfd_core
+    hostonly='' instmods mii
+    hostonly='' instmods sysfillrect
+    hostonly='' instmods snd_pcm
+    hostonly='' instmods crc32c_intel
+    hostonly='' instmods snd_timer
+    hostonly='' instmods pcspkr
+    hostonly='' instmods serio_raw
+    hostonly='' instmods snd
+    hostonly='' instmods sysimgblt
+    hostonly='' instmods fb_sys_fops
+    hostonly='' instmods i2c_algo_bit
+    hostonly='' instmods i2c_core
+    hostonly='' instmods parport_pc
+    hostonly='' instmods soundcore
+    hostonly='' instmods parport
+    hostonly='' instmods ppdev
+    hostonly='' instmods dm_multipath
+    hostonly='' instmods sunrpc
+    hostonly='' instmods dm_mirror
+    hostonly='' instmods dm_region_hash
+    hostonly='' instmods dm_log
+    hostonly='' instmods dm_mod
+    hostonly='' instmods dax
+    
+    #hostonly='' instmods jbd2
+    #hostonly='' instmods fscrypto
+    #hostonly='' instmods mbcache
+    #hostonly='' instmods ext4
+    #hostonly='' instmods btrfs
+    #hostonly='' instmods vfat
+    #hostonly='' instmods fat
+    #hostonly='' instmods xor
+
+    #instmods "=drivers"
+    #instmods "=arch"
+    #instmods "=crypto"
+    #instmods "=fs"
+    #instmods "=lib"
+    #instmods "=mm"
+    #instmods "=net"
+    #instmods "=sound"
 }
