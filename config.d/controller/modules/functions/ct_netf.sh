@@ -56,7 +56,7 @@ _server_exp() {
 				echo "Rejecting this entry"
 			fi
 
-		done < <(grep "server" "${CTCONFDIR}/sources/sources.conf" | sed '/^#/ d' | sed '/^\s*$/d' | awk -F ':' '{print $2}')
+		done < $(grep "server" "${CTCONFDIR}/sources/sources.conf" | sed '/^#/ d' | sed '/^\s*$/d' | awk -F ':' '{print $2}')
 
 		# EXPORT SERVER ARRAY SIZE -1
 		# WE SUBSTRACT -1 BECAUSE ARRAYS START FROM 0 ENTRY
