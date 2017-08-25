@@ -1,17 +1,5 @@
 #!/bin/bash
 
-_gpg_import() {
-	gpg --import "/usr/local/controller/gpg/gpg_pub"
-}
-
-_gpg_verify() {
-	if gpg --verify "$1" "$2"; then
-		return 0
-	else
-		return 1
-	fi
-}
-
 # MOUNT SYSTEM
 _mount_sysfs() {
 	# IF MOUNT, THEN REMOUNT
@@ -19,11 +7,33 @@ _mount_sysfs() {
 		_unmount "$1"
 	fi
 
+	echo "Using fsck on ${SYSDEV}"
+	if fsck -y "${SYSDEV}" >/dev/null 2>&1; then
+		echo "Filesystem looks healthy"
+		_fscheck=0
+	else
+		echo "Filesystem appears corrupted"
+		echo "Attempting to repair"
+		if fsck -yf "${SYSDEV}"; then
+			echo "Repair was successful"
+			_fscheck=0
+		else
+			echo "Automatic repair failed"
+			_fscheck=1
+		fi
+	fi
+
+	if [[ "${_fscheck}" == 1 ]]; then
+		_rescue_shell
+	fi
+
+	unset _fscheck
+
 	if eval mount -t "${SYSFS}" -o rw -L "SYSFS" "$1"; then
 		return 0
 	else
 		return 1
-	fi
+	fi	
 }
 
 # FETCH THE DEFAULT VERSION FROM THE SERVER
@@ -48,9 +58,9 @@ _fetch_confd() {
 
 _check_version() {
 	if [[ "${_ctversion}" == 0 ]]; then
-		_local_version="$(cat "/mnt/workdir/var/lib/gse/version")"
 		_server_version="$(cat "${CTCONFDIR}/version")"
 		if [[ -e "/mnt/workdir/var/lib/gse/version" ]]; then
+			_local_version="$(cat "/mnt/workdir/var/lib/gse/version")"
 			if [[ "${_local_version}" != "${_server_version}" ]]; then
 				if [[ -n "${_ctflag_human}" ]]; then
 					if _question "A new System Version is present on the server" "Do you wish to fetch the new system?"; then
@@ -81,7 +91,7 @@ _fetch_new_sys() {
 
 		if scp "${_ser_user}@${_ctserver}:${_dist_dir}/${_sys_archive}"  "$1/"; then
 			scp "${_ser_user}@${_ctserver}:${_dist_dir}/${_sys_archive}.md5sum"  "$1/"
-			scp "${_ser_user}@${_ctserver}:${_dist_dir}/${_sys_archive}.gpg"  "$1/"
+			scp "${_ser_user}@${_ctserver}:${_dist_dir}/${_sys_archive}.sig"  "$1/"
 			echo "New system was fetched successfully"
 			_ctflag_fetch=0
 		else
@@ -112,7 +122,7 @@ _verify_target() {
 		(
 			cd "$1"
 
-			if _gpg_verify "${_sys_archive}.gpg" "${_sys_archive}"; then
+			if _gpg_verify "${_sys_archive}.sig" "${_sys_archive}"; then
 				echo "PASS" > "/tmp/verify.info"
 			else
 				echo "FAILED" > "/tmp/verify.info"
@@ -132,30 +142,38 @@ _verify_target() {
 	
 	rm -f "/tmp/verify.info"
 
-	_verify_origin "$1"
+	#_verify_origin "$1"
 
 	_md5_check() {
 		_verify_md5sum "$1"
 		if _check_last; then
-			echo "Integrity verified"
 			_ctflag_verify=0
+			return 0
 		else
-			echo "Image's integrity check failed"
 			_ctflag_verify=1
+			return 1
 		fi
 	}
 
-	if _check_last; then
-		echo "Origin verified"
-		_md5_check "$1"
-	else
-		if [[ ! -e "${CTSCRIPTS}/gpg/gpg_pub" ]]; then
-			echo "No gpg key found!"
+	_restricted() {
+		if _check_last; then
+			echo "Origin verified"
 			_md5_check "$1"
-		elif [[ -e "${CTSCRIPTS}/gpg/gpg_pub" ]]; then
-			echo "Failed to verify the authentication of the image"
-			_ctflag_verify=1
+		else
+			if [[ ! -e "${CTSCRIPTS}/gpg/gpg_pub" ]]; then
+				echo "No gpg key found!"
+				_md5_check "$1"
+			elif [[ -e "${CTSCRIPTS}/gpg/gpg_pub" ]]; then
+				echo "Failed to verify the authentication of the image"
+				_ctflag_verify=1
+			fi
 		fi
+	}
+	
+	if _md5_check "$1"; then
+		echo "Integrity verified"
+	else
+		echo "Integrity check failed"
 	fi
 	export _ctflag_verify
 }
@@ -163,10 +181,12 @@ _verify_target() {
 _extract_sys() {
 	(
 		cd "$1"
-		echo "Extracting tarbal..."
+		echo "Extracting system tarball..."
 		if tar xvjpf "$2" --xattrs --numeric-owner >/dev/null; then
+			echo "Extracted"
 			echo "PASS" > "/tmp/verify.info"
 		else
+			echo "An error occured"
 			echo "FAILED" > "/tmp/verify.info"
 		fi
 	)
