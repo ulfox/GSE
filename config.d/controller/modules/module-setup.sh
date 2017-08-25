@@ -24,7 +24,6 @@ install() {
 
     # test
     inst_multiple vim nano vi sensors ssh sshd
-    inst_multiple usermod useradd userdel users groupadd groupdel groupmems groupmod groups
     inst_simple "/etc/ssh/ssh_config" "/etc/ssh/ssh_config"
     inst_simple "/etc/ssh/sshd_config" "/etc/ssh/sshd_config"
 
@@ -118,6 +117,8 @@ install() {
     inst_script "$moddir/functions/ct_netf.sh" "/config.d/confdir/ct_netf.sh"
     inst_script "$moddir/functions/ct_newsys.sh" "/config.d/confdir/ct_newsys.sh"
     inst_script "$moddir/functions/ct_prelim.sh" "/config.d/confdir/ct_prelim.sh"
+    inst_script "$moddir/functions/ct_config.sh" "/config.d/confdir/ct_config.sh"
+
     
     # Install configuration files for controller
 
