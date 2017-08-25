@@ -10,6 +10,18 @@ _call_backup_switch() {
 	export _ctflag_switch
 }
 
+_gpg_import() {
+	gpg --import "/usr/local/controller/gpg/gpg_pub" >/dev/null 2>&1
+}
+
+_gpg_verify() {
+	if gpg --verify "$1" "$2"; then
+		return 0
+	else
+		return 1
+	fi
+}
+
 _bsu_dfs() {
 	#/DEV/SDX
 	SYSDEV="$(blkid | grep "SYSFS" | awk -F ':' '{ print $1 }')"
@@ -108,8 +120,10 @@ _shell() {
 # CALL SHELL
 _rescue_shell() {
 	while true; do
-		echo "$*"
-		echo
+		for i in "$@"; do
+			echo "$i"
+		done
+
 		echo "Do you wish to call shell function and fix the issues manually?"
 		echo "Answer Y/N "
 		read -rp "Input :: <= " YN
@@ -164,9 +178,11 @@ _unmount() {
 	if [[ -n "$(grep "$1" "/proc/mounts" | awk -F ' ' '{ print $2 }')" ]]; then
 		while true; do
 			while read -r i; do
-				eval umount -l "$i"/* >/dev/null 2>&1
-				eval umount -l "$i" >/dev/null 2>&1
-			done < <(grep "$1" "/proc/mounts")
+				if echo "$i" | grep -q "$1"; then
+					eval umount -l "$i"/* >/dev/null 2>&1
+					eval umount -l "$i" >/dev/null 2>&1
+				fi
+			done < "/proc/mounts"
 			
 			if [[ -z $(grep "$1" "/proc/mounts") ]]; then
 				break
@@ -176,7 +192,7 @@ _unmount() {
 				echo "Could not unmount target $1"
 				return 1
 			fi
-
+			sleep 0.1
 			((++k))
 		done
 
