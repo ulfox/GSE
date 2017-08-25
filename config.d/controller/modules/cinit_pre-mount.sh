@@ -34,23 +34,11 @@ if [[ ! -e "${SYSDEV}" ]] || [[ ! -e "${BACKUPDEV}" ]]; then
 		fi
 	}
 
-	_ckcount=0
-	while true; do
-		echo "Could not find SYSDEV"
-		echo "Droping to shell"
-		_shell
-
-		if _recheck_dev; then
-			break
-		else
-			if [[ "${_ckcount}" -gt 10 ]]; then
-				/shutdown
-			fi
-			
-			((++_ckcount))
-		fi
-	done
+	_rescue_shell "Important labels are missing." "Please create the partitions you wish with SYSFS and BACKUPFS labels"
 fi
+
+# IMPORT GPG PUB KEY
+_gpg_import
 
 # NETWORK SCRIPT
 source "${CTSCRIPTS}/cnetwork.sh"
@@ -75,9 +63,6 @@ if [[ "${_ctflag_net}" == 0 ]]; then
 	_mount_sysfs "/mnt/workdir"
 	# CHECK LOCAL VERSION OF SYSFS WITH SERVERS VERSION
 	_check_version
-
-	# IMPORT GPG PUB KEY
-	# _gpg_import
 
 	source "${CTSCRIPTS}/ct_newsys.sh"
 
@@ -119,6 +104,7 @@ if [[ "${_ctflag_net}" == 0 ]]; then
 			_call_backup_switch
 		fi
 	fi
+	_unmount "/mnt/workdir"
 fi
 
 if [[ "${_ctflag_switch}" == 0 ]]; then
@@ -141,19 +127,19 @@ if [[ "${_ctflag_switch}" == 0 ]]; then
 
 	SYSDEV_EXPIRED="${SYSDEV}"
 	SYSDEV="${BACKUPDEV}"
-
+	
+	_unmount "/mnt/workdir"
 fi
 
 # CONFIGURATION
 if [[ "${_ctflag_net}" == 0 ]] && [[ "${_ctflag_confd}" == 0 || "${_ctflag_extract}" == 0 ]]; then
-	# MOUNT SYSTEM
-	if _mount_sysfs "/mnt/workdir"; then
-		# CHROOT SYSTEM AND INITIATE THE CCHROOT.SH
-		_chroot_config "$/mnt/workdir" "var/tmp/ctworkdir/cchroot"
-		if [[ "{_ctflag_extract}" == 0 && "${_sys_config}" == 1 ]]; then
+	source "/usr/local/controller/ct_config.sh"
+return 1
+	# CHROOT SYSTEM AND INITIATE THE CCHROOT.SH
+	if _chroot_config "/mnt/workdir" "var/tmp/ctworkdir/cchroot"; then
+		if [[ "${_sys_config}" == 1 ]]; then
 			_call_backup_switch
 		fi
-	else
-		echo "Could not mout sysfs @ /mnt/workdir"
 	fi
+	_unmount "/mnt/workdir"
 fi
