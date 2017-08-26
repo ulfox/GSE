@@ -112,9 +112,12 @@ _mount_target() {
 
 	unset _fscheck
 
+	echo "Attempting to mount $3 at $1"
 	if eval mount -t "$2" -o rw -L "$3" "$1"; then
+		echo "Mounted successfully"
 		return 0
 	else
+		echo "Failed mounting"
 		return 1
 	fi
 }
@@ -144,7 +147,7 @@ _mount_pseudos() {
 }
 
 _sync_backupfs() {
-	if rsync -aAXrhq --exclude={"/proc","/dev","/sys"} "/mnt/rfs/" "/mnt/bfs/"; then
+	if rsync -aAXrhqc --exclude={"/proc","/dev","/sys"} "/mnt/rfs/" "/mnt/bfs/" --delete; then
 		mkdir -p "/mnt/bfs/proc"
 		mkdir -p "/mnt/bfs/sys"
 		mkdir -p "/mnt/bfs/dev"
@@ -206,14 +209,19 @@ _check_rbfs() {
 	unset _rfs_check
 	unset _bfs_check
 
-	# SYNC SYSFS TO BACKUPFS
-	if [[ "${_ctflag_setup}" == 2 ]]; then
-		_sync_backupfs
-	fi
-
 	_unmount "/mnt/rfs"
 	_unmount "/mnt/bfs"
 	_unmount "/mnt/workdir"
+}
+
+_sync_targets() {
+	_mount_target "/mnt/rfs" "${SYSFS}" "SYSFS"
+	_mount_target "/mnt/bfs" "${BACKUPFS}" "BACKUPFS"
+
+	_sync_backupfs
+
+	_unmount "/mnt/rfs"
+	_unmount "/mnt/bfs"
 }
 
 _unset_ct() {
