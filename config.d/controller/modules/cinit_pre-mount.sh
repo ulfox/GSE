@@ -126,6 +126,14 @@ if [[ "${_ctflag_sysfetch}" == 0 && "${_ctflag_net}" == 0 ]]; then
 			_ctflag_extract=1
 		fi
 
+		# CREATE /VAR/LIB/GSE DIR
+		if [[ ! -e "/mnt/workdir/var/lib/gse" ]]; then
+			mkdir -p "/mnt/workdir/var/lib/gse"
+		fi
+
+		# COPY FETCHED VERSION UNDER /VAR/LIB/GSE
+		cp "${CTCONFDIR}/version" "/mnt/workdir/var/lib/gse/version"
+
 		rm -f "/mnt/workdir/verify.info"
 		export _ctflag_extract
 	elif [[ "${_ctflag_verify}" == 1 ]]; then
@@ -141,7 +149,7 @@ fi
 
 if [[ "${_ctflag_switch}" == 0 ]]; then
 	echo "switch $_ctflag_switch"
-	return 1
+	#return 1
 fi
 
 # BACKUP SWITCH CONDITION
@@ -164,6 +172,9 @@ if [[ "${_ctflag_switch}" == 0 ]]; then
 	_unmount "/mnt/workdir"
 fi
 
+echo "net ${_ctflag_net}"
+echo "confd ${_ctflag_confd}"
+echo "extr ${_ctflag_extract}"
 # CONFIGURATION
 # _CTFLAG_CONFD IS DEFINED @ _FETCH_CONFD
 # _CTFLAG_EXTRACT IS DEFINED @ _EXTRACT_SYS
@@ -179,10 +190,50 @@ return 1
 	_unmount "/mnt/workdir"
 fi
 
-_mount_target "/mnt/rfs" "${SYSFS}" "SYSFS"
-_mount_target "/mnt/bfs" "${BACKUPFS}" "BACKUPFS"
+echo "Checking if BACKUPFS requires setup"
+# Sync backup
+if [[ "${_ctflag_bconf}" == 0 || "${_ctflag_setup}" == 2 ]]; then
+	echo "Setup is required."
+	echo "Syncing..."
+	_sync_targets
+elif [[ "${_ctflag_switch}" == 0 && "${_ctflag_bconf}" != 0 ]]; then
+	echo "Calling wipefs $P{SYSDEV_EXPIRED}"
+	wipefs "{SYSDEV_EXPIRED}"
+	unset _ctflag_remake
 
-_sync_backupfs
+	echo "Partitioning ${SYSDEV_EXPIRED} with ${SYSFS_EXPIRED} filesystem" 
+	if [[ "${SYSFS_EXPIRED}" == 'btrfs' ]]; then
+		if mkfs."${SYSFS_EXPIRED}" "${SYSDEV_EXPIRED}" -f -L "BACKUPFS"; then
+			_ctflag_remake=0
+		else
+			_ctflag_remake=1
+		fi
+	else
+		if mkfs."${SYSFS_EXPIRED}" "${SYSDEV_EXPIRED}" -F -L "BACKUPFS"; then
+			_ctflag_remake=0
+		else
+			_ctflag_remake=1
+		fi
+	fi
 
-_unmount "/mnt/rfs"
-_unmount "/mnt/bfs"
+	BACKUPFS="${SYSFS_EXPIRED}"
+	BACKUPDEV="${SYSDEV_EXPIRED}"
+	export BACKUPFS
+	export BACKUPDEV
+
+	if [[ "${_ctflag_remake}" == 0 ]]; then
+		echo "Partitioned successfully"
+		echo "Syncing SYSFS to BACKUPFS"
+		if _sync_targets; then
+			echo "Synced"
+			_ctflag_bconf=1
+		else
+			echo "Failure"
+			_ctflag_bconf=9
+		fi
+	else
+		echo "Partitioning ${SYSDEV_EXPIRED} failed"
+		_ctflag_bconf=9
+	fi
+fi
+
