@@ -33,7 +33,7 @@ _mount_sysfs() {
 		return 0
 	else
 		return 1
-	fi	
+	fi
 }
 
 # FETCH THE DEFAULT VERSION FROM THE SERVER

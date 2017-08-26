@@ -41,6 +41,8 @@ _bsu_dfs() {
 	# EXPORT BACKUP's FS
 	BACKUPFS="$(blkid | grep "LABEL=\"BACKUPFS\"" | awk -F ' ' '{print $4}' | awk -F '=' '{print $2}' | sed 's/\"//g')"
 	export BACKUPFS
+
+	_server_version="$(cat "${CTCONFDIR}/version")"
 }
 
 # CHECK IF LABELS EXIST
@@ -79,6 +81,152 @@ _a_priori_devices() {
 
 	export _NOUSERDATA
 	export _USERDATALABEL
+}
+
+# MOUNT TARGET
+_mount_target() {
+	# IF MOUNT, THEN REMOUNT
+	if [[ -n "$(grep "$1" "/proc/mounts" | awk -F ' ' '{ print $2 }')" ]]; then
+		_unmount "$1"
+	fi
+
+	echo "Using fsck on $2"
+	if fsck -y "$2" >/dev/null 2>&1; then
+		echo "Filesystem looks healthy"
+		_fscheck=0
+	else
+		echo "Filesystem appears corrupted"
+		echo "Attempting to repair"
+		if fsck -yf "$2"; then
+			echo "Repair was successful"
+			_fscheck=0
+		else
+			echo "Automatic repair failed"
+			_fscheck=1
+		fi
+	fi
+
+	if [[ "${_fscheck}" == 1 ]]; then
+		_rescue_shell
+	fi
+
+	unset _fscheck
+
+	if eval mount -t "$2" -o rw -L "$3" "$1"; then
+		return 0
+	else
+		return 1
+	fi
+}
+
+_mount_pseudos() {
+	for i in "dev" "sys" "proc"; do
+		if [[ ! -e "$1/$i" ]]; then
+			return 1
+		fi
+	done
+
+	if ! mount -t proc /proc "$1/proc"; then
+		return 1
+	fi
+
+	for i in "dev" "sys"; do
+		if ! mount --rbind "/$i" "$1/$i"; then
+			return 1
+		fi
+	done
+
+	for i in "dev" "sys"; do
+		if ! mount --make-rslave "$1/$i"; then
+			return 1
+		fi
+	done
+}
+
+_sync_backupfs() {
+	if rsync -aAXrhq --exclude={"/proc","/dev","/sys"} "/mnt/rfs/" "/mnt/bfs/"; then
+		mkdir -p "/mnt/bfs/proc"
+		mkdir -p "/mnt/bfs/sys"
+		mkdir -p "/mnt/bfs/dev"
+
+		return 0
+	else
+		return 1
+	fi
+}
+
+_check_rbfs() {
+	if _mount_target "/mnt/rfs" "${SYSFS}" "SYSFS"; then
+		if _mount_pseudos "/mnt/rfs"; then
+			cp "/usr/local/controller/check_con.sh" "/mnt/rfs/"
+			chmod +x "/mnt/rfs/check_con.sh"
+			if chroot "/mnt/rfs" "/check_con.sh"; then
+				_rfs_check=0
+			else
+				_rfs_check=1
+			fi
+		else
+			_rfs_check=1
+		fi
+	else
+		_rescue_shell "Could not mount ${SYSDEV}"
+	fi
+
+	if _mount_target "/mnt/bfs" "${BACKUPFS}" "BACKUPFS"; then
+		if _mount_pseudos "/mnt/bfs"; then
+			cp "/usr/local/controller/check_con.sh" "/mnt/bfs/"
+			chmod +x "/mnt/bfs/check_con.sh"
+			if chroot "/mnt/bfs" "/check_con.sh"; then
+				_bfs_check=0
+			else
+				_bfs_check=1
+			fi
+		else
+			_bfs_check=1
+		fi
+	else
+		_rescue_shell "Could not mount ${BACKUPDEV}"
+	fi
+
+	unset _ctflag_setup
+
+	if [[ "${_rfs_check}" == 1 && "${_bfs_check}" == 1 ]]; then
+		echo "Neither one of SYSFS or BACKUPFS appear to host a root system"
+		_ctflag_setup=0
+	elif [[ "${_rfs_check}" == 1 && "${_bfs_check}" == 0 ]]; then
+		echo "SYSFS appears to be missing"
+		_ctflag_setup=1
+	elif [[ "${_rfs_check}" == 0 && "${_bfs_check}" == 1 ]]; then
+		echo "BACKUPFS is missing, fixing..."
+		_ctflag_setup=2
+	fi
+
+	export _ctflag_setup
+
+	unset _rfs_check
+	unset _bfs_check
+
+	# SYNC SYSFS TO BACKUPFS
+	if [[ "${_ctflag_setup}" == 2 ]]; then
+		_sync_backupfs
+	fi
+
+	_unmount "/mnt/rfs"
+	_unmount "/mnt/bfs"
+	_unmount "/mnt/workdir"
+}
+
+_unset_ct() {
+	unset _ctflag_switch
+	unset _ctflag_net
+	unset _ctflag_sysfetch
+	unset _ctflag_setup
+	unset _ctflag_extract
+	unset _ctflag_bconf
+	unset _ctflag_fetch
+	unset _ctflag_verify
+	unset _ctflag_remake
+	unset _ctflag_confd
 }
 
 # INTERACTIVE FUNCTION
