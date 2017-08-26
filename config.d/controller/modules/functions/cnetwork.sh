@@ -14,6 +14,9 @@ if _check_net; then
 	else
 		_ctflag_net=1
 	fi
-	export _ctflag_net
+else
+	_ctflag_net=1
 fi
+
+export _ctflag_net
 
