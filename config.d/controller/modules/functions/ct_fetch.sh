@@ -29,9 +29,12 @@ _mount_sysfs() {
 
 	unset _fscheck
 
+	echo "Attempting to mount ${SYSDEV} at $1"
 	if eval mount -t "${SYSFS}" -o rw -L "SYSFS" "$1"; then
+		echo "Mounted successfully"
 		return 0
 	else
+		echo "Failed mounting"
 		return 1
 	fi
 }
@@ -48,7 +51,7 @@ _fetch_version() {
 
 # FETCH NEW CONFIG.D DIRECTORY
 _fetch_confd() {
-	if rsync -aAPhrq "${_ser_user}@${_ctserver}:${_conf_dir}/" "${CTCONFDIR}/confdir/"; then
+	if rsync -aAPhrqc "${_ser_user}@${_ctserver}:${_conf_dir}/" "${CTCONFDIR}/confdir/" --delete; then
 		_ctflag_confd=0
 	else
 		_ctflag_confd=1
@@ -76,9 +79,9 @@ _check_version() {
 				echo "Remote version matches the local"
 				_ctflag_sysfetch=1
 			fi
-		else
+		elif [[ ! -e "/mnt/workdir/var/lib/gse/version" ]]; then
 			echo "System is corrupted"
-			_ctflag_sysfetch=0
+			_call_backup_switch
 		fi
 	export _ctflag_sysfetch
 	fi
