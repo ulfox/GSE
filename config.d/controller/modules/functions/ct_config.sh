@@ -28,7 +28,7 @@ _chroot_config(){
 	}
 
 	_prep_chroot() {
-		if _mount_sysfs "$1" && mount_pseudo "$1"; then
+		if _mount_sysfs "$1" && _mount_pseudos "$1"; then
 			mkdir -p "$1/var/tmp/ctworkdir"
 			cp -r "${CTCONFDIR}/confdir" "$1/var/tmp/ctworkdir/"
 			cp "/usr/local/controller/cchroot.sh" "$1/var/tmp/ctworkdir/cchroot"
