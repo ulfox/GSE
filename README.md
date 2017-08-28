@@ -5,7 +5,7 @@ maintenance of multiple machines easier, improve stability and usability
 on environments like Research or University computer labs.
 
 #### Before you go on
-	Warrning: This project is currently experimental. It's on alpha stage, therefore it is recommended to be used only for testing, on enviroments that shield important data from the project's actions.
+Warrning: This project is currently experimental. It's on alpha stage, therefore it is recommended to be used only for testing, on enviroments that shield important data from the project's actions.
 ## An introduction to the stateless concept
 
 To begin with, a stateless system, as a concept, is an operating system which can boot and operate without requiring to hold a “memory” of its last state. However, even as a concept, this raises many questions, and could make sceptical even someone which has spend a little time reading about the operation of Linux. That is because, such a system would have many operational restrictions. First of all, the system would be “frozen in time”, meaning that every time the system boots, is like booting for the first time, because no inner “advancement” is happening, that is, no previous timeline of changes and configurations exists.
