@@ -22,16 +22,19 @@ _configure_timezone() {
 	if [[ "${_ctflag_chroot}" == 'chroot' ]]; then
 		_state_save "/etc/timezone"
 		source "${CHROOT_DIR}/ctimezone"
+		
 		if [[ "${TIMEZONE}" != TMZ ]]; then
-			echo "${TIMEZONE}" > /etc/timezone && echo -e "[\e[32m*\e[0m] Configuring \e[34mTimezone\e[0m"
+			echo "${TIMEZONE}" > /etc/timezone && echo -e "[\e[32m*\e[0m] Configuring \e[34m${TIMEZONE}\e[0m \e[34mTimezone\e[0m"
 		else
-			echo "UTC" > /etc/timezone && echo -e "[\e[32m*\e[0m] \e[34mConfiguring Timezone\e[0m"
+			echo "UTC" > /etc/timezone && echo -e "[\e[32m*\e[0m] Configuring \e[33mUTC\e[0m \e[34mTimezone\e[0m"
 		fi
+
 		_timezone_set
 	elif [[ "${_ctflag_chroot}" == 'revert' ]]; then
+		echo -e "[\e[33m*\e[0m] Reverting timezone"
 		cp "${CHROOT_DIR}/last_state/timezone" "/etc/timezone"
 		_timezone_set
-	fi 
+	fi
 }
 
 _configure_locale() {
@@ -56,23 +59,27 @@ _configure_locale() {
 			fi
 		fi
 
+		echo -e "[\e[34m*\e[0m] Generating locale list"
 		locale-gen
 		export LC_ALL="en_US.UTF-8"
 	
 		SETLOC=$(eselect locale list | grep en_US | awk -F ' ' '{ print $1 }' \
 		| awk -F '[' '{ print $2 }' | awk -F ']' '{ print $1 }')
-		echo "${SETLOC}" > "${CHROOT_DIR}/last_state/SETLOC"
+		echo "${SETLOC}" > "${CHROOT_DIR}/last_state/setloc"
 
+		echo -e "[\e[34m*\e[0m] Setting locale to [\e[34men_US\e[0m]"
 		if eselect locale set "${SETLOC}"; then
-			echo -e "[\e[32m*\e[0m] Setting locale to [\e[34men_US\e[0m]" \
+			echo -e "[\e[32m*\e[0m] Locale set"
 		else
 			echo -e "[\e[31m*\e[0m] Failed setting locale to [\e[34men_US\e[0m]"
 		fi
+		source "/etc/profile"
 		unset SETLOC
 	elif [[ "${_ctflag_chroot}" == 'revert' ]]; then
+		echo -e "[\e[33m*\e[0m] Reverting locale"
 		cp "${CHROOT_DIR}/last_state/locale.gen" "/etc/locale.gen"
 		locale-gen
-		SETLOC="$(cat "${CHROOT_DIR}/last_state")"
+		SETLOC="$(cat "${CHROOT_DIR}/last_state/setloc")"
 		eselect locale set "${SETLOC}"
 		unset SETLOC
 	fi
@@ -170,10 +177,6 @@ _state_save() {
 }
 
 _configure_system() {
-	env-update > /dev/null 2>&1 && source /etc/profile
-	PATH=${PATH}:${CHROOT_DIR}
-	export PATH
-
 	# TIMEZONE CONFIGURATION
 	_configure_timezone
 
@@ -184,6 +187,7 @@ _configure_system() {
 		# GENERATING FSTAB
 		_configure_fstab
 	elif [[ "${_ctflag_chroot}" == 'revert' ]]; then
+		echo -e "[\e[33m*\e[0m] Reverting fstab"
 		cp "${CHROOT_DIR}/last_state/fstab" "/etc/fstab"
 	fi
 
@@ -205,20 +209,29 @@ _configure_system() {
 		### INSCRIPT ENTRIES WILL BE INCLUDED HERE
 
 		# CONFIGURE SSH.PUB
-		_state_save "/root/.ssh/authorized_keys"
-		[[ -n $(cat "${CHROOT_DIR}/cssh.pub" | sed '/^#/ d' | sed '/^\s*$/d') ]] && mkdir -p /root/.ssh \
-		&& if cat "${CHROOT_DIR}/cssh.pub" | sed '/^#/ d' | sed '/^\s*$/d' > /root/.ssh/authorized_keys; then
-			echo -e "\e[33m----------------------------------------------------------------------------\e[0m"
-			echo -e "[\e[32m*\e[0m] Adding ssh.pub key to [\e[34m/root/.ssh/authorized_keys\e[0m]"
-			echo -e "\e[33m----------------------------------------------------------------------------\e[0m"
-		else
-			exit 1
+		if [[ -e "/root/.ssh/authorized_keys" ]]; then
+			_state_save "/root/.ssh/authorized_keys"
+			if [[ -n $(cat "${CHROOT_DIR}/cssh.pub" | sed '/^#/ d' | sed '/^\s*$/d') ]]; then 
+				mkdir -p /root/.ssh
+				if cat "${CHROOT_DIR}/cssh.pub" | sed '/^#/ d' | sed '/^\s*$/d' > /root/.ssh/authorized_keys; then
+					echo -e "\e[33m----------------------------------------------------------------------------\e[0m"
+					echo -e "[\e[32m*\e[0m] Adding ssh.pub key to [\e[34m/root/.ssh/authorized_keys\e[0m]"
+					echo -e "\e[33m----------------------------------------------------------------------------\e[0m"
+				else
+					echo -e "[\e[33m*\e[0m] Failed updating authorized_keys"
+				fi
+			fi
 		fi
-	elif [[ "${_ctflag_chroot}" == 'chroot' ]]; then
+	elif [[ "${_ctflag_chroot}" == 'revert' ]]; then
+		echo -e "[\e[33m*\e[0m] Reverting hostname"
 		cp "${CHROOT_DIR}/last_state/hostname" "/etc/conf.d/hostname"
+		echo -e "[\e[33m*\e[0m] Reverting /etc/conf.d/net"
 		cp "${CHROOT_DIR}/last_state/net" "/etc/conf.d/net"
+		echo -e "[\e[33m*\e[0m] Reverting /etc/conf.d/grub"
 		cp "${CHROOT_DIR}/last_state/grub" "/etc/default/grub"
+		echo -e "[\e[33m*\e[0m] Reverting /etc/ssh/sshd_config"
 		cp "${CHROOT_DIR}/last_state/sshd" "/etc/ssh/sshd_config"
+		echo -e "[\e[33m*\e[0m] Reverting authorized_keys"
 		cp "${CHROOT_DIR}/last_state/authorized_keys" "/root/.ssh/authorized_keys"
 	fi
 }
@@ -253,8 +266,8 @@ EOF
 		done < <(rc-update -v | awk -F '|'  '{ print $1}')
 
 		for i in "${_rl_ar[@]}"; do
-			if [[ -n "$(rc-update -v | grep udev | awk -F '|' '{print $2}'| sed "s/[^a-zA-Z]//g")" ]]; then
-				_var1="$(rc-update -v | grep udev | awk -F '|' '{print $2}'| sed "s/[^a-zA-Z]//g" | sed '/^#/ d' | sed '/^\s*$/d' | head -n 1)"
+			if [[ -n "$(rc-update -v | grep "$i" | awk -F '|' '{print $2}'| sed "s/[^a-zA-Z]//g")" ]]; then
+				_var1="$(rc-update -v | grep "$i" | awk -F '|' '{print $2}'| sed "s/[^a-zA-Z]//g" | sed '/^#/ d' | sed '/^\s*$/d' | head -n 1)"
 				echo "$i add ${_var1}" >> "${CHROOT_DIR}/last_state/crunlevels"
 				unset _var1
 			fi
@@ -263,7 +276,8 @@ EOF
 		echo "# EOF" >> "${CHROOT_DIR}/last_state/crunlevels"
 		unset _rl_ar
 		_update_runlevels "${CHROOT_DIR}/crunlevels"
-	elif [[ "${_ctflag_chroot}" == 'chroot' ]]; then
+	elif [[ "${_ctflag_chroot}" == 'revert' ]]; then
+		echo -e "[\e[33m*\e[0m] Reverting runlevels"
 		_update_runlevels "${CHROOT_DIR}/last_state/crunlevels"
 	fi
 }
@@ -331,4 +345,6 @@ controller_master_loop() {
 		esac
 	done
 }
+
+
 
