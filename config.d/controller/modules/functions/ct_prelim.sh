@@ -6,8 +6,14 @@ die() {
 }
 
 _call_backup_switch() {
-	_ctflag_switch=0
-	export _ctflag_switch
+	if [[ "${_ctflag_bconf}" != 0 && "${_ctflag_setup}" != 0 && "${_ctflag_setup}" != 1 ]]; then
+		_ctflag_switch=0
+		export _ctflag_switch
+	else
+		echo -e "[\e[31m*\e[0m] Switch to backup is called but there is no backup"
+		_rescue_shell "Switch to backup is called but there is no backup"
+		# exit 1
+	fi
 }
 
 _gpg_import() {
@@ -42,7 +48,56 @@ _bsu_dfs() {
 	BACKUPFS="$(blkid | grep "LABEL=\"BACKUPFS\"" | awk -F ' ' '{print $4}' | awk -F '=' '{print $2}' | sed 's/\"//g')"
 	export BACKUPFS
 
+	BOOTFS="$(blkid "${BOOTDEV}" | awk -F ' ' '{print $4}' | sed 's/TYPE=//g' | sed 's/"//g')"
+	USERDATAFS="$(blkid "${USERDATADEV}" | awk -F ' ' '{print $4}' | sed 's/TYPE=//g' | sed 's/"//g')"
+	export BOOTFS
+	export USERDATAFS
+
 	_server_version="$(cat "${CTCONFDIR}/version")"
+
+	if [[ -n "${BOOTFS}" ]]; then
+		mkdir -p "/mnt/log"
+		mount -t "${BOOTFS}" -o rw "${BOOTDEV}" "/mnt/log"
+	
+		if [[ -e "/mnt/log/confdir" ]]; then
+			echo -e "[\e[34m*\e[0m] Updating confdir from local storage"
+		
+			if rsync -aAPrhqc "/mnt/log/confdir" "${CTCONFDIR}/" --delete; then
+				sync;sync
+				echo -e "[\e[32m*\e[0m] Updated"
+			else
+				echo -e "[\e[31m*\e[0m] Failed"
+			fi
+		fi
+
+		umount -l "/mnt/log"
+	else
+		echo -e "[\e[33m*\e[0m] WARNING: BOOTFS has not been defined"
+	fi
+
+	if [[ -n "${USERDATAFS}" ]]; then
+		: # TBU
+	else
+		echo -e "[\e[33m*\e[0m] WARNING: USERDATAFS has not been defined"
+	fi
+}
+
+_unmount_all_targets() {
+	_unmount "/mnt/workdir"
+	_unmount "/mnt/bfs"
+	_unmount "/mnt/rfs"
+}
+
+_e_report_back() {
+	echo -e "\e[33m$*\e[0m" 1>&2
+}
+
+_o_report_back() {
+	echo -e "\e[34m$*\e[0m" 1>&2	
+}
+
+pass() {
+	echo -e "[\e[34m$@\e[0m]"
 }
 
 # CHECK IF LABELS EXIST
@@ -90,18 +145,18 @@ _mount_target() {
 		_unmount "$1"
 	fi
 
-	echo "Using fsck on $2"
+	echo -e "[\e[34m*\e[0m] Using fsck on $2"
 	if fsck -y "$2" >/dev/null 2>&1; then
-		echo "Filesystem looks healthy"
+		echo -e "[\e[32m*\e[0m] Filesystem looks healthy"
 		_fscheck=0
 	else
-		echo "Filesystem appears corrupted"
-		echo "Attempting to repair"
+		echo -e "[\e[33m*\e[0m] Filesystem appears corrupted"
+		echo -e "[\e[34m*\e[0m] Attempting to repair"
 		if fsck -yf "$2"; then
-			echo "Repair was successful"
+			echo -e "[\e[32m*\e[0m] Repair was successful"
 			_fscheck=0
 		else
-			echo "Automatic repair failed"
+			echo -e "[\e[31m*\e[0m] Automatic repair failed"
 			_fscheck=1
 		fi
 	fi
@@ -112,12 +167,12 @@ _mount_target() {
 
 	unset _fscheck
 
-	echo "Attempting to mount $3 at $1"
+	echo -e "[\e[34m*\e[0m] Attempting to mount $3 at $1"
 	if eval mount -t "$2" -o rw -L "$3" "$1"; then
-		echo "Mounted successfully"
+		echo -e "[\e[32m*\e[0m] Mounted successfully"
 		return 0
 	else
-		echo "Failed mounting"
+		echo -e "[\e[31m*\e[0m] Failed mounting"
 		return 1
 	fi
 }
@@ -194,14 +249,17 @@ _check_rbfs() {
 	unset _ctflag_setup
 
 	if [[ "${_rfs_check}" == 1 && "${_bfs_check}" == 1 ]]; then
-		echo "Neither one of SYSFS or BACKUPFS appear to host a root system"
+		echo -e "[\e[33m*\e[0m] Neither one of SYSFS or BACKUPFS appear to host a root system"
 		_ctflag_setup=0
 	elif [[ "${_rfs_check}" == 1 && "${_bfs_check}" == 0 ]]; then
-		echo "SYSFS appears to be missing"
+		echo -e "[\e[33m*\e[0m] SYSFS appears to be missing"
 		_ctflag_setup=1
 	elif [[ "${_rfs_check}" == 0 && "${_bfs_check}" == 1 ]]; then
-		echo "BACKUPFS is missing, fixing..."
+		echo -e "[\e[33m*\e[0m] BACKUPFS is missing, fixing..."
 		_ctflag_setup=2
+	else
+		echo -e "[\e[34m*\e[0m] Both SYSFS and BACKUPFS appear to host a root system"
+		_ctflag_setup=3
 	fi
 
 	export _ctflag_setup
@@ -235,17 +293,20 @@ _unset_ct() {
 	unset _ctflag_verify
 	unset _ctflag_remake
 	unset _ctflag_confd
+	unset _sys_config
+	unset _sys_revert
+	unset _check_sysver
 }
 
 # INTERACTIVE FUNCTION
 # DISABLED BY DEFAULT, PROBABLY WILL BE REMOVED
 _question() {
 	for i in "$@"; do
-		[[ "$i" ]] && echo "$i"
+		[[ "$i" ]] && _e_report_back "$i"
 	done
 
 	while true; do
-		echo "Answer: Y/N "
+		_e_report_back "Answer: Y/N "
 		read -rp "Input :: <= " ANS
 		case "${ANS}" in
 			[yY])
@@ -280,8 +341,8 @@ _rescue_shell() {
 			echo "$i"
 		done
 
-		echo "Do you wish to call shell function and fix the issues manually?"
-		echo "Answer Y/N "
+		_e_report_back "Do you wish to call shell function and fix the issues manually?"
+		_e_report_back "Answer Y/N "
 		read -rp "Input :: <= " YN
 		case "$YN" in
 			[yY])
@@ -297,9 +358,9 @@ _rescue_shell() {
 subshell_loop() {
 	while true; do
 		_shell
-		echo "If you fixed the issue, say CONTINUE proceed"
-		echo "You can answer SHELL to open shell again"
-		echo "Answer? CONTINUE/SHELL: "
+		_e_report_back "If you fixed the issue, say CONTINUE proceed"
+		_e_report_back "You can answer SHELL to open shell again"
+		_e_report_back "Answer? CONTINUE/SHELL: "
 		read -rp "Input :: <= " AANS
 		case "${AANS}" in
 			CONTINUE	)
@@ -345,7 +406,7 @@ _unmount() {
 			fi
 	
 			if [[ "$k" -ge 20 ]]; then
-				echo "Could not unmount target $1"
+				echo -e "[\e[31m*\e[0m] Could not unmount target $1"
 				return 1
 			fi
 			sleep 0.1
@@ -356,3 +417,5 @@ _unmount() {
 
 	fi
 }
+
+

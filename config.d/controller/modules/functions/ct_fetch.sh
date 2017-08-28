@@ -7,18 +7,18 @@ _mount_sysfs() {
 		_unmount "$1"
 	fi
 
-	echo "Using fsck on ${SYSDEV}"
+	echo -e "[\e[34m*\e[0m] Using fsck on ${SYSDEV}"
 	if fsck -y "${SYSDEV}" >/dev/null 2>&1; then
-		echo "Filesystem looks healthy"
+		echo -e "[\e[32m*\e[0m] Filesystem looks healthy"
 		_fscheck=0
 	else
-		echo "Filesystem appears corrupted"
-		echo "Attempting to repair"
+		echo -e "[\e[33m*\e[0m] Filesystem appears corrupted"
+		echo -e "[\e[34m*\e[0m] Attempting to repair"
 		if fsck -yf "${SYSDEV}"; then
-			echo "Repair was successful"
+			echo -e "[\e[32m*\e[0m] Repair was successful"
 			_fscheck=0
 		else
-			echo "Automatic repair failed"
+			echo -e "[\e[31m*\e[0m] Automatic repair failed"
 			_fscheck=1
 		fi
 	fi
@@ -29,12 +29,12 @@ _mount_sysfs() {
 
 	unset _fscheck
 
-	echo "Attempting to mount ${SYSDEV} at $1"
+	echo -e "[\e[34m*\e[0m] Attempting to mount ${SYSDEV} at $1"
 	if eval mount -t "${SYSFS}" -o rw -L "SYSFS" "$1"; then
-		echo "Mounted successfully"
+		echo -e "[\e[32m*\e[0m] Mounted successfully"
 		return 0
 	else
-		echo "Failed mounting"
+		echo -e "[\e[31m*\e[0m] Failed mounting"
 		return 1
 	fi
 }
@@ -51,9 +51,29 @@ _fetch_version() {
 
 # FETCH NEW CONFIG.D DIRECTORY
 _fetch_confd() {
-	if rsync -aAPhrqc "${_ser_user}@${_ctserver}:${_conf_dir}/" "${CTCONFDIR}/confdir/" --delete; then
-		_ctflag_confd=0
+	echo -e "[\e[34m*\e[0m] Syncing confdir from server"
+	if [[ -n "$(rsync -aAPhrcn "${_ser_user}@${_ctserver}:${_conf_dir}/controller/modules/files/" "${CTCONFDIR}/confdir/" --delete | sed '/receiving incremental file list/d')" ]]; then
+		if rsync -aAPhrqc "${_ser_user}@${_ctserver}:${_conf_dir}/controller/modules/files/" "${CTCONFDIR}/confdir/" --delete; then
+			echo -e "[\e[32m*\e[0m] Sync was successful"
+			echo -e "[\e[34m*\e[0m] Syncing new confdir to storage"
+
+			mount -t "${BOOTFS}" -o rw "${BOOTDEV}" "/mnt/log"
+
+			if rsync -aAPhqrc "${CTCONFDIR}/confdir" "/mnt/log/" --delete; then
+				echo -e "[\e[32m*\e[0m] Synced"
+				sync;sync
+			else
+				echo -e "[\e[33m*\e[0m] Failed"
+			fi
+		
+			umount -l "/mnt/log"
+		
+			_ctflag_confd=0
+		else
+			_ctflag_confd=1
+		fi
 	else
+		echo -e "[\e[35m*\e[0m] No changes detected"
 		_ctflag_confd=1
 	fi
 	export _ctflag_confd
@@ -72,16 +92,16 @@ _check_version() {
 						_ctflag_sysfetch=1
 					fi
 				else
-					echo "Remote version does not matches local"
+					echo -e "[\e[33m*\e[0m] Remote version does not matches local"
 					_ctflag_sysfetch=0
 				fi
 			else
-				echo "Remote version matches the local"
+				echo -e "[\e[35m*\e[0m] Remote version matches the local"
 				_ctflag_sysfetch=1
 			fi
 		elif [[ ! -e "/mnt/workdir/var/lib/gse/version" ]]; then
-			echo "System is corrupted"
-			_call_backup_switch
+			echo -e "[\e[31m*\e[0m] System is corrupted"
+			_ctflag_sysfetch=9
 		fi
 	export _ctflag_sysfetch
 	fi
@@ -94,15 +114,15 @@ _fetch_new_sys() {
 
 		if scp "${_ser_user}@${_ctserver}:${_dist_dir}/${_sys_archive}"  "$1/"; then
 			scp "${_ser_user}@${_ctserver}:${_dist_dir}/${_sys_archive}.md5sum"  "$1/"
-			scp "${_ser_user}@${_ctserver}:${_dist_dir}/${_sys_archive}.sig"  "$1/"
-			echo "New system was fetched successfully"
+			#scp "${_ser_user}@${_ctserver}:${_dist_dir}/${_sys_archive}.sig"  "$1/"
+			echo -e "[\e[32m*\e[0m] New system was fetched successfully"
 			_ctflag_fetch=0
 		else
-			echo "Fetching new system FAILED"
+			echo -e "[\e[31m*\e[0m] Fetching new system FAILED"
 			_ctflag_fetch=1
 		fi
 	else
-		echo "Failed mounting ${SYSDEV} to $1"
+		echo -e "[\e[31m*\e[0m] Failed mounting ${SYSDEV} to $1"
 		_ctflag_fetch=1
 	fi
 	export _ctflag_fetch
@@ -160,23 +180,23 @@ _verify_target() {
 
 	_restricted() {
 		if _check_last; then
-			echo "Origin verified"
+			echo -e "[\e[35m*\e[0m] Origin verified"
 			_md5_check "$1"
 		else
 			if [[ ! -e "${CTSCRIPTS}/gpg/gpg_pub" ]]; then
-				echo "No gpg key found!"
+				echo -e "[\e[33m*\e[0m] No gpg key found!"
 				_md5_check "$1"
 			elif [[ -e "${CTSCRIPTS}/gpg/gpg_pub" ]]; then
-				echo "Failed to verify the authentication of the image"
+				echo -e "[\e[31m*\e[0m] Failed to verify the authentication of the image"
 				_ctflag_verify=1
 			fi
 		fi
 	}
 	
 	if _md5_check "$1"; then
-		echo "Integrity verified"
+		echo -e "[\e[35m*\e[0m] Integrity verified"
 	else
-		echo "Integrity check failed"
+		echo -e "[\e[33m*\e[0m] Integrity check failed"
 	fi
 	export _ctflag_verify
 }
@@ -184,13 +204,16 @@ _verify_target() {
 _extract_sys() {
 	(
 		cd "$1"
-		echo "Extracting system tarball..."
+		_e_report_back "Extracting system tarball..."
 		if tar xvjpf "$2" --xattrs --numeric-owner >/dev/null; then
-			echo "Extracted"
+			echo -e "[\e[32m*\e[0m] Extracted"
 			echo "PASS" > "/tmp/verify.info"
 		else
-			echo "An error occured"
+			echo -e "[\e[31m*\e[0m] An error occured"
 			echo "FAILED" > "/tmp/verify.info"
 		fi
 	)
 }
+
+
+

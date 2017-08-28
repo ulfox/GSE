@@ -34,10 +34,10 @@ _server_exp() {
 	
 		# POPULATE THE ABOVE TWO ARRAYS
 		while read -r s; do
-			echo "Checking $s"
+			_e_report_back "Checking $s"
 			# DROP AN ENTRY IF PING FAILS
 			if ping -c 1 "$s" >/dev/null 2>&1; then
-				echo "Connection for $s is true"
+				echo -e "[\e[32m*\e[0m] Connection for $s is true"
 				# GET AVERAGE LETENCY FROM 3 PING ACTIONS ON THE ENTRY
 				avms=$(ping -c 3 "$s" | tail -1 | awk -F '/' '{print $5}')
 				if [[ -n "${avms}" ]]; then
@@ -47,13 +47,13 @@ _server_exp() {
 					_act_ser_ar+=("${avms}")
 				else
 					# SKIP ENTRY
-					echo "Could not get average value for $i"
-					echo "Rejecting this entry"
+					echo -e "[\e[33m*\e[0m] Could not get average value for $i"
+					_e_report_back "Rejecting this entry"
 				fi
 			else
 				# SKIP ENTRY
-				echo "Connection with $s could not be established"
-				echo "Rejecting this entry"
+				echo -e "[\e[33m*\e[0m] Connection with $s could not be established"
+				echo -e "[\e[33m*\e[0m] Rejecting this entry"
 			fi
 
 		done < $(grep "server" "${CTCONFDIR}/sources/sources.conf" | sed '/^#/ d' | sed '/^\s*$/d' | awk -F ':' '{print $2}')
@@ -74,7 +74,7 @@ _server_exp() {
 		done
 
 		# THE ACTIVE SERVER _ACT_SER IS THE ENTRY WHICH HAD THE LOWEST MS FROM THE 1:1 MS ARRAY
-		echo "Most effective server is: ${_act_ser} with average ms: ${_min_ms}"
+		_o_report_back "Most effective server is: ${_act_ser} with average ms: ${_min_ms}"
 		_ctserver="${_act_ser}"
 		export _ctserver
 
@@ -86,7 +86,7 @@ _server_exp() {
 		unset avms
 	}
 
-	echo "Selecting server..."
+	echo -e "[\e[34m*\e[0m] Selecting server..."
 
 	if [[ -e "/usr/bin/netselect" ]]; then
 		_ser_tmp=()
@@ -99,7 +99,7 @@ _server_exp() {
 
 		for i in $(netselect -v -t2 -s10 "${_ser_tmp[@]}" | awk -F ' ' '{print $2}'); do
 			_ser_list+=("$i")
-			echo "$i"
+			_e_report_back "$i"
 		done
 
 		unset _ser_tmp
@@ -116,7 +116,7 @@ _check_net() {
 	else
 		if grep -q "net:0" "/usr/local/unet/udent_flag"; then
 			# RE-SOURCE THE CUSTOM NET SCRIPT AND CHECK AGAIN
-			echo "Re-sourcing the custom net script"
+			echo -e "[\e[33m*\e[0m] Re-sourcing the custom net script"
 			source "/usr/local/unet/unet.sh"
 			_tmp_net_ct=0
 			while true; do
@@ -144,3 +144,6 @@ _check_net() {
 		fi
 	fi
 }
+
+
+
