@@ -1,0 +1,15 @@
+# Guide for System Builder
+The system builder is consisted from a number of scripts that take atvantage of Gentoo features to build a system that is prepared for stateless boot and function.
+
+To read more about the project, read the gse.5 under docs directory
+To build a system, run:
+	- cd /path/to/"gse git dir"i/bin
+		1) ./gse --base=base_arg --option1 --option2 --option3
+			To read more about command line options from gse.1 under docs directory
+		2) ./gse
+			This option, without any cmdline arguments will bring up the gse text menu for a guide
+	
+Whatever the method of build is, at the end you will end up with a stage3 tarball under dist.d inside the project's directory.
+
+TBU
+
