@@ -1,0 +1,54 @@
+# Guide for controller build
+
+The controller is a set of functions and scripts inside the initramfs image which is a product created by dracut package
+To read more about the controller's concep read man gse.5, while to read more about the controllers options read man ctfse.1
+Both of those man pages are under t he docs directory inside the project's git directory
+
+Note: Before you attempt to build the controller, your system (the one you use for the build) must support (include) the following packages:
+	- sys-apps/pciutils
+	- sys-fs/btrfs-progs
+	- sys-fs/cryptsetup
+	- app-crypt/gnupg
+	- sys-block/open-iscsi
+	- sys-block/nbd
+	- net-fs/nfs-utils
+	- net-nds/rpcbind
+	- dev-libs/openssl
+	- app-admin/syslog-ng
+	- sys-fs/device-mapper
+	- net-misc/dhcp
+	- sys-apps/iproute2
+
+The above packages are required for the dracut modules to function. A guid and detailed list about those can be found at: https://wiki.gentoo.org/wiki/Dracut
+
+
+To build the controller, run
+	-	Create a kernel image with the modules and builtins you wish
+	-	Build the controller:
+	-		cd bin
+	-		./gse --build-controller --opt1 --opt2 --opt3 ...
+			
+The created image will be saved inside dist.d directory. To use this image you need to create a bootable device.
+The device can be any physical medium that can be made bootable and support bootloader functions.
+
+The methos based on the drive's interface variate
+You can find a guide about configuring the devices for boot at the Gentoo wiki: https://wiki.gentoo.org/wiki/Handbook:AMD64/Full/Installation#Introduction_to_block_devices
+And you can find more informations about grub(if you choose grub as the bootloader) at: https://www.gnu.org/software/grub/manual/grub.html
+
+When you have a bootable medium there are only 4 steps left.
+	1) Move the kernel & controller image to the bootable medium
+	2) Update the grub.cfg entries to link on those images
+	3) Pass the following parameters at grub.cfg kernels cmdline:
+		- root=LABEL=SYSFS
+		- rd.neednet=1
+		- ip=dhcp
+		Example: linux /vmlinuz-4.12.5-gentoo root=LABEL=SYSFS rd.neednet=1 ip=dhcp
+	4) Create 2 partitions on the device/s you want with the following labels: SYSFS BACKUPFS
+		Example: mkfs.ext4 -L SYSFS /dev/sdb4 && mkfs.ext4 -L BACKUPFS /dev/sdc2
+
+	There are 2 more Labels that can be created on 2 extra partitions, but those are not essential for the boot process.
+	Those are: BOOTFS and USERDATAFS. The BOOTFS should be given at the bootloaders partition while the USERDATAFS at any drive that you wish to use for storage.
+	The USERDATAFS label provides an extra security layer from the controller, since all controller's actions are shielded on a device with such a label.
+
+When done, plug the bootable medium to a machine and boot it. If everything was done as should, the process should fetch an image, configure it and boot it.
+
