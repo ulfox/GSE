@@ -23,7 +23,7 @@ install() {
     inst_multiple fusermount strace wipefs rm grep ps uname du find uname fdisk
 
     # test
-    inst_multiple vim nano vi sensors ssh sshd
+    inst_multiple vim vi sensors ssh sshd
     inst_simple "/etc/ssh/ssh_config" "/etc/ssh/ssh_config"
     inst_simple "/etc/ssh/sshd_config" "/etc/ssh/sshd_config"
 
@@ -219,9 +219,8 @@ install() {
     # Install the hookpoints for the controller process {here the process is defined}
     inst_hook pre-mount 02 "$moddir/init_script.sh"
     inst_hook pre-mount 03 "$moddir/cinit_pre-mount.sh"
-    #inst_hook mount 08 "$moddir/cinit_mount.sh"
-    #inst_hook clean 08 "$moddir/cinit_clean.sh"
-
+    inst_hook pre-pivot 02 "$moddir/cinit_mount_dev.sh"
+    inst_hook pre-pivot 03 "$moddir/cinit_clean.sh"
 }
 
 # called by dracut
@@ -236,7 +235,7 @@ installkernel() {
     # and add your own. You can add your own packages above, but dont remove essential packages that are used by the scripts
     #
     #
-    
+
     hostonly='' instmods sr_mod
     hostonly='' instmods cdrom
     hostonly='' instmods sr_mod
