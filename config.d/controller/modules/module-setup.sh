@@ -106,18 +106,19 @@ install() {
 
     # Install scripts for the controller process
     inst_script "$moddir/functions/cchroot.sh" "/usr/local/controller/cchroot.sh"
+    inst_script "$moddir/functions/cchroot_functions.sh" "/usr/local/controller/cchroot_functions.sh"
+    inst_script "$moddir/functions/check_con.sh" "/usr/local/controller/check_con.sh"
+    inst_script "$moddir/functions/cnetwork.sh" "/usr/local/controller/cnetwork.sh"
+    inst_script "$moddir/functions/ct_config.sh" "/usr/local/controller/ct_config.sh"
+    inst_script "$moddir/functions/ct_devices.sh" "/usr/local/controller/ct_devices.sh"
+    inst_script "$moddir/functions/ct_fetch.sh" "/usr/local/controller/ct_fetch.sh"
+    inst_script "$moddir/functions/ct_netf.sh" "/usr/local/controller/ct_netf.sh"
+    inst_script "$moddir/functions/ct_newsys.sh" "/usr/local/controller/ct_newsys.sh"
+    inst_script "$moddir/functions/ct_prelim.sh" "/usr/local/controller/ct_prelim.sh"
     inst_script "$moddir/functions/net_script.sh" "/usr/local/controller/net_script.sh"
-    inst_script "$moddir/functions/cbootflags.sh" "/usr/local/controller/cbootflags.sh"
+
     inst_script "$moddir/functions/cfunctions.sh" "/usr/local/controller/cfunctions.sh"
     inst_script "$moddir/functions/chealth.sh" "/usr/local/controller/chealth.sh"
-    inst_script "$moddir/functions/cnetwork.sh" "/usr/local/controller/cnetwork.sh"
-    inst_script "$moddir/functions/ccrevert_chroot.sh" "/usr/local/controller/ccrevert_chroot.sh"
-    inst_script "$moddir/functions/ct_devices.sh" "/config.d/confdir/ct_devices.sh"
-    inst_script "$moddir/functions/ct_fetch.sh" "/config.d/confdir/ct_fetch.sh"
-    inst_script "$moddir/functions/ct_netf.sh" "/config.d/confdir/ct_netf.sh"
-    inst_script "$moddir/functions/ct_newsys.sh" "/config.d/confdir/ct_newsys.sh"
-    inst_script "$moddir/functions/ct_prelim.sh" "/config.d/confdir/ct_prelim.sh"
-    inst_script "$moddir/functions/ct_config.sh" "/config.d/confdir/ct_config.sh"
 
     
     # Install configuration files for controller
@@ -156,6 +157,7 @@ install() {
 
     # Install configuration files for the system
     inst_simple "$moddir/files/cdevname.info" "/config.d/cdevname.info"
+    inst_simple "$moddir/sources/sources.conf" "/config.d/sources.conf"
 
     inst_simple "$moddir/files/system_configs/cnet" "/config.d/confdir/net"
     inst_simple "$moddir/files/system_configs/cconsolefont" "/config.d/confdir/consolefont"
@@ -215,8 +217,8 @@ install() {
     fi
 
     # Install the hookpoints for the controller process {here the process is defined}
-    inst_hook pre-mount 08 "$moddir/init_script.sh"
-    #inst_hook pre-mount 08 "$moddir/cinit_pre-mount.sh"
+    inst_hook pre-mount 02 "$moddir/init_script.sh"
+    inst_hook pre-mount 03 "$moddir/cinit_pre-mount.sh"
     #inst_hook mount 08 "$moddir/cinit_mount.sh"
     #inst_hook clean 08 "$moddir/cinit_clean.sh"
 
@@ -225,6 +227,16 @@ install() {
 # called by dracut
 installkernel() {
     # Include kernel modules
+    # Please note that these modules are for testing
+    # Controller does not require most of them, as it does not require
+    # many of the above installed packages.
+    #
+    # However the development is mostly done inside the initramfs, so that's why these packages and tools
+    # If you wish to do your own testing, please remove the hardware specific modules like radeon and intel for example
+    # and add your own. You can add your own packages above, but dont remove essential packages that are used by the scripts
+    #
+    #
+    
     hostonly='' instmods sr_mod
     hostonly='' instmods cdrom
     hostonly='' instmods sr_mod
@@ -284,14 +296,14 @@ installkernel() {
     hostonly='' instmods dm_mod
     hostonly='' instmods dax
     
-    #hostonly='' instmods jbd2
-    #hostonly='' instmods fscrypto
-    #hostonly='' instmods mbcache
-    #hostonly='' instmods ext4
-    #hostonly='' instmods btrfs
-    #hostonly='' instmods vfat
-    #hostonly='' instmods fat
-    #hostonly='' instmods xor
+    hostonly='' instmods jbd2
+    hostonly='' instmods fscrypto
+    hostonly='' instmods mbcache
+    hostonly='' instmods ext4
+    hostonly='' instmods btrfs
+    hostonly='' instmods vfat
+    hostonly='' instmods fat
+    hostonly='' instmods xor
 
     #instmods "=drivers"
     #instmods "=arch"
