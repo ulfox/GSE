@@ -346,7 +346,7 @@ _rescue_shell() {
 		read -rp "Input :: <= " YN
 		case "$YN" in
 			[yY])
-				chroot_master_loop "SHELL"
+				subshell_loop "SHELL"
 				break;;
 			[nN])
 				break;;
