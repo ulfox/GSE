@@ -8,8 +8,6 @@ export CTSCRIPTS
 export "PATH=${PATH}:/usr/local/controller"
 # CONTROLLER PRELIMINARY FUNCTIONS
 source "${CTSCRIPTS}/ct_prelim.sh"
-# MAKE SURE RFS BFS WORKDIR ARE NOT MOUNTED
-_unmount_all_targets
 
 if [[ "${_ctflag_setup}" == 0 || "${_ctflag_extract}" == 0 || "${_sys_config}" == 0 ]]; then
 	if [[ -z "${_sys_archive}" ]]; then
