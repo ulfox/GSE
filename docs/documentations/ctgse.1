@@ -1,0 +1,48 @@
+.TH "CTGSE" "1"
+.SH NAME
+CTGSE \- Controller's options for Gentoo Stateless Environment
+.SH SYNOPSIS
+.B gse 
+--build-controller 
+[\fBOPTIONS\fR]
+.SH "DESCRIPTION"
+.nf
+\fBController\fR lies inside the initramfs image. It's a set of scripts that are sourced on certain dracut 
+hook points that aim to fetch,configure,recover the system. The configuration it self, while it is for 
+general use, it is aimed mostly to support a stateless boot.
+.fi
+.SH OPTIONS
+.TP
+\fB\-\-force\fR
+.nf
+Forces the build to write over an existing controller image. Dracut itself requires a force option to
+write over pre-existing images.
+.fi
+.TP
+\fB\-\-cmdline\fR \fI\[=options]\fR
+This options enables dracut's cmdline opt. It is used here, since controller requires certain cmdline options to function. Additional cmdline
+are for supporting extra features.
+.fi
+.TP
+\fB\-\-hook\fR \fI[="Hook Points"]\fR \fI[="Hook Points Priority"]\fR
+Installs the script inside the initramfs to be sourced over a specific hook point.
+.fi
+.TP
+\fB\-\-net\fR \fI\[=net_script]\fR
+This requires as argument a script file. The file will be installed and sourced over the pre-mount hook point with a priority of 08.
+This option aims to provide a way of configuring complex network interfaces. Just write your net script and build it with this option
+inside the initramfs image.
+.fi
+.TP
+\fB\-\-modules\fR
+Install a custom file to handle modules under /etc/modprobe.d/ with name umod.conf
+.fi
+.TP
+\fB\-\-dracut_opt\fR
+This option lets you tunnel extra dracut options before building the image.
+.fi
+
+.SH "SEE ALSO"
+.nf
+man 5 gse
+
