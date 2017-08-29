@@ -874,9 +874,13 @@ _make_cimage() {
 	
 	_dracut_f() {
 		echo "$@"
-		dracut "$@" --show-modules --printsize --nostrip --early-microcode \
+		dracut "$@" --show-modules \
 		--fscks "fsck.btrfs fsck.ext4 fsck.fat fsck.vfat fsck.ext2 fsck.ext3 fsck.ext4dev" \
-		--add "btrfs crypt bash controller busybox network kernel-network-modules"
+		--add "btrfs crypt bash controller network kernel-network-modules" \
+		--add "img-lib fs-lib base shutdown usrmount syslog" \
+		--add "udev-rules terminfo ssh-client rootfs-block" \
+		--add "resume nfs nbd iscsi crypt-gpg crypt-loop" \
+		--add "kernel-modules dm bash convertfs drm"
 	}
 
 	if echo "${_flag_dopt_entries}" | grep -q "\--kver"; then
@@ -885,7 +889,21 @@ _make_cimage() {
 		die
 	fi
 
+	if [[ ! -e "/usr/lib64/dracut/modules.d/01controller" ]]; then
+		mkdir -p "/usr/lib64/dracut/modules.d/01controller"
+	else
+		rm -rf "/usr/lib64/dracut/modules.d/01controller"
+		mkdir -p "/usr/lib64/dracut/modules.d/01controller"
+	fi
+
 	cp -r "${CCONFDIR}/controller/modules"/* "/usr/lib64/dracut/modules.d/01controller/"
+
+	if [[ "${_flag_keep}" == 0 && "${_flag_darg_force}" == '-f' ]]; then
+		if [[ -e "${CDISTDIR}/initramfs-${GSEVER}-${_KVER_}" ]]; then
+			cp "${CDISTDIR}/initramfs-${GSEVER}-${_KVER_}" "${CDISTDIR}/initramfs-${GSEVER}-${_KVER_}.old"
+		fi
+	fi
+
 	eval _dracut_f "${_flag_darg_force}" "${CDISTDIR}/initramfs-${GSEVER}-${_KVER_}" \
 	"${_flag_dinclude_entries}" "${_flag_dcmdl_entries}" "${_flag_dopt_entries}"
 
