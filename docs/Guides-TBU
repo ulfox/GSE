@@ -1,0 +1,9 @@
+# Guides that will be added soon are:
+	- Guide for configuring system's builder areas
+		Example:	- Configuring the minimum space requirement during the checks prior to initiating the builder
+					- Configuring the builder's warp time functions
+					- Configuring the builder's system configuration files
+					- Configuring the controller's configuration files
+					- Using the controller's cmdline arguments
+					- Using the --build-controller arguments
+
