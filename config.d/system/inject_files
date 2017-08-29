@@ -1,8 +1,8 @@
 # This file will be used to inject files to the system before it is archived
 #
-# Syntax: {/path/at/local/file} {/path/to/file}
-# Example: /usr/lib64/foo /usr/lib64/bar -> rsync -aAXPhrv /usr/lib64/foo $DISTDIR/stage3/usr/lib64/bar
-
+# Syntax: {rsync/cp} {/path/at/local/file} {/path/to/file}
+# Example: rsync /usr/lib64/foo /usr/lib64/bar -> rsync -aAPhrv /usr/lib64/foo $DISTDIR/stage3/usr/lib64/bar
+#
 
 
 
