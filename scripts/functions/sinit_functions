@@ -2098,7 +2098,8 @@ _clean_target() {
 _archive_() {
 	_o_report_back "Preparing to archive the system"
 	_e_report_back "Unbinding..."
-
+	mkdir -p "$1/var/lib/gse"
+	echo "${GSEVER}" > "$1/var/lib/gse/version"
 	_unmount "${_flag_base}"
 
 	TARGETSTAMP="$(grep 'version_stamp' "${CCONFDIR}/system/catalyst/stage3.spec" \
@@ -2149,6 +2150,10 @@ _archive_() {
 			echo -e "\e[34mWith version extension: ${GVEX}\e[0m"; } \
 			|| die "Failed"
 			break
+
+			(cd "${CDISTDIR}"
+				md5sum stage3-amd64-prc-${GVEX}.tar.bz2 > stage3-amd64-prc-${GVEX}.tar.bz2.md5sum
+				)
 		else
 			GVEX="${GSEVER}.${SUBBUILD}"
 			((++SUBBUILD))
