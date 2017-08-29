@@ -1,5 +1,5 @@
 ## Abstract
-
+[Project's Wiki](https://wiki.gentoo.org/wiki/User:Ulfox/GSoC-GSE)
 A stateless environment based on Gentoo, which aims on making the 
 maintenance of multiple machines easier, improve stability and usability 
 on environments like Research or University computer labs.
