@@ -13,6 +13,8 @@ export CTSCRIPTS
 export "PATH=${PATH}:/usr/local/controller"
 # CONTROLLER PRELIMINARY FUNCTIONS
 source "${CTSCRIPTS}/ct_prelim.sh"
+# MAKE SURE RFS BFS WORKDIR ARE NOT MOUNTED
+_unmount_all_targets
 # MAKE SURE CT FLAGS ARE NOT SET
 _unset_ct
 # CHECK AND EXPORT LABELS
@@ -46,45 +48,53 @@ if [[ ! -e "${SYSDEV}" ]] || [[ ! -e "${BACKUPDEV}" ]]; then
 	done
 fi
 
-
 # IMPORT GPG PUB KEY
 # THIS FEATURE IS DISABLED FOR NOW
 # _gpg_import
 
 # NETWORK SCRIPT
 source "${CTSCRIPTS}/cnetwork.sh"
+# FETCH FUNCTIONS
+source "${CTSCRIPTS}/ct_fetch.sh"
+# NEW SYSTEM FUNCTIONS
+source "${CTSCRIPTS}/ct_newsys.sh"
 
 # CHECK NETWORK FLAG AND FETCH VERSION AND CONFIG.D DIRECTORY
 if [[ "${_ctflag_net}" == 0 ]]; then
-	# FETCH FUNCTIONS
-	source "${CTSCRIPTS}/ct_fetch.sh"
-	# NEW SYSTEM FUNCTIONS
-	source "${CTSCRIPTS}/ct_newsys.sh"
 	# EXPORT SERVER'S INFO
 	_sources_exp
 	# FETCH CONFIG.D
 	_fetch_confd
 	# FETCH LATEST VERSION
 	_fetch_version
+fi
 
-	if [[ "${_ctflag_setup}" == 0 ]]; then
-		_ctflag_sysfetch=0
+if [[ "${_ctflag_setup}" == 0 ]]; then
+	_ctflag_sysfetch=0
+	_ctflag_bconf=0
+elif [[ "${_ctflag_setup}" == 1 ]]; then
+	_call_backup_switch
+	_ctflag_bconf=1
+else
+	if [[ "${_ctflag_setup}" == 2 ]]; then
 		_ctflag_bconf=0
-	elif [[ "${_ctflag_setup}" == 1 ]]; then
-		_call_backup_switch
 	else
-		# MOUNT SYSFS AS RW
-		_mount_sysfs "/mnt/workdir"
-		# CHECK LOCAL VERSION OF SYSFS WITH SERVERS VERSION
-		_check_version
-		_unmount "/mnt/workdir"
+		_ctflag_bconf=1
 	fi
+
+	# MOUNT SYSFS AS RW
+	_mount_sysfs "/mnt/workdir"
+	# CHECK LOCAL VERSION OF SYSFS WITH SERVERS VERSION
+	_check_version
+	_unmount "/mnt/workdir"
 fi
 
 # WIPE OLD FS, CREATE NEW FS & FETCH NEW SYSTEM
 # _CTFLAG_SYSFETCH IS DEFINED @ _CHECK_VERSION
 # _CTFLAG_NET IS DEFINED @ CNETWORK.SH
-if [[ "${_ctflag_sysfetch}" == 0 && "${_ctflag_net}" == 0 ]]; then
+if [[ "${_ctflag_setup}" == 0 && "${_ctflag_net}" == 1 ]]; then
+	_rescue_shell "No active system could be located, neither a network connection could be established from a system fetch"
+elif [[ "${_ctflag_sysfetch}" == 0 && "${_ctflag_net}" == 0 ]]; then
 	_case_fail() {
 		if [[ "${_ctflag_bconf}" == 0 ]]; then
 			_rescue_shell "Process failed" "Backup system is missing"
@@ -141,10 +151,8 @@ if [[ "${_ctflag_sysfetch}" == 0 && "${_ctflag_net}" == 0 ]]; then
 	fi
 
 	_unmount "/mnt/workdir" 
-elif [[  "${_ctflag_setup}" == 1 && "${_ctflag_net}" == 1 ]]; then
+elif [[ "${_ctflag_sysfetch}" == 9 ]]; then
 	_call_backup_switch
-elif [[ "${_ctflag_setup}" == 0 && "${_ctflag_net}" == 1 ]]; then
-	_rescue_shell "No active system could be located, neither a network connection could be established from a system fetch"
 fi
 
 if [[ "${_ctflag_switch}" == 0 ]]; then
@@ -154,54 +162,67 @@ fi
 
 # BACKUP SWITCH CONDITION
 # _CTFLAG_SWITCH IS DEFINED FROM ALL _CALL_BACKUP_SWITCH
-if [[ "${_ctflag_switch}" == 0 ]]; then
-	SYSFS_EXPIRED="${SYSFS}"
-	SYSDEV_EXPIRED="${SYSDEV}"
+_switch_rfs_bfs() {
+	_unmount_all_targets
+	echo -e "[\e[35m*\e[0m] Initiating switch"
+	if [[ "${_ctflag_switch}" == 0 ]]; then
+		SYSFS_EXPIRED="${SYSFS}"
+		SYSDEV_EXPIRED="${SYSDEV}"
+		export SYSFS_EXPIRED
+		export SYSDEV_EXPIRED
 
-	if [[ "${SYSFS}" == 'ext4' ]]; then
-		e2label "${SYSDEV}" "EXPIRED"
-		e2label "${BACKUPDEV}" SYSFS
-	elif [[ "${SYSFS}" == 'btrfs' ]]; then
-		btrfs filesystem label "${SYSDEV}" "EXPIRED"
-		btrfs filesystem label "${BACKUPDEV}" "SYSFS"
+		if [[ "${SYSFS}" == 'ext4' ]]; then
+			e2label "${SYSDEV}" "EXPIRED"
+			e2label "${BACKUPDEV}" SYSFS
+		elif [[ "${SYSFS}" == 'btrfs' ]]; then
+			btrfs filesystem label "${SYSDEV}" "EXPIRED"
+			btrfs filesystem label "${BACKUPDEV}" "SYSFS"
+		fi
+
+		SYSFS="${BACKUPFS}"
+		SYSDEV="${BACKUPDEV}"
+		export SYSFS
+		export SYSDEV
+
+		_unmount "/mnt/workdir"
 	fi
+}
 
-	SYSFS="${BACKUPFS}"
-	SYSDEV="${BACKUPDEV}"
-	
-	_unmount "/mnt/workdir"
-fi
+# SWITCH BACKUPFS TO SYSFS IF SWITCH FLAG IS ON
+_switch_rfs_bfs
 
-echo "net ${_ctflag_net}"
-echo "confd ${_ctflag_confd}"
-echo "extr ${_ctflag_extract}"
 # CONFIGURATION
 # _CTFLAG_CONFD IS DEFINED @ _FETCH_CONFD
 # _CTFLAG_EXTRACT IS DEFINED @ _EXTRACT_SYS
 if [[ "${_ctflag_net}" == 0 ]] && [[ "${_ctflag_confd}" == 0 || "${_ctflag_extract}" == 0 ]]; then
 	source "/usr/local/controller/ct_config.sh"
-return 1
+
+	echo -e "[\e[34m*\e[0m] Preparing for configuration"
 	# CHROOT SYSTEM AND INITIATE THE CCHROOT.SH
-	if _chroot_config "/mnt/workdir" "var/tmp/ctworkdir/cchroot"; then
+	if _chroot_config "/mnt/workdir" "var/tmp/ctworkdir"; then
+		unset _ctflag_switch
+		_unmount_all_targets
+	
 		if [[ "${_sys_config}" == 1 ]]; then
 			_call_backup_switch
+			_switch_rfs_bfs
 		fi
 	fi
-	_unmount "/mnt/workdir"
+	_unmount_all_targets
 fi
 
-echo "Checking if BACKUPFS requires setup"
+echo -e "[\e[34m*\e[0m] Checking if BACKUPFS requires setup"
 # Sync backup
 if [[ "${_ctflag_bconf}" == 0 || "${_ctflag_setup}" == 2 ]]; then
-	echo "Setup is required."
-	echo "Syncing..."
+	echo -e "[\e[33m*\e[0m] Setup is required."
+	echo -e "[\e[34m*\e[0m] Syncing..."
 	_sync_targets
 elif [[ "${_ctflag_switch}" == 0 && "${_ctflag_bconf}" != 0 ]]; then
-	echo "Calling wipefs $P{SYSDEV_EXPIRED}"
-	wipefs "{SYSDEV_EXPIRED}"
+	echo -e "[\e[34m*\e[0m] Calling wipefs ${SYSDEV_EXPIRED}"
+	wipefs "${SYSDEV_EXPIRED}"
 	unset _ctflag_remake
 
-	echo "Partitioning ${SYSDEV_EXPIRED} with ${SYSFS_EXPIRED} filesystem" 
+	echo -e "[\e[34m*\e[0m] Partitioning ${SYSDEV_EXPIRED} with ${SYSFS_EXPIRED} filesystem" 
 	if [[ "${SYSFS_EXPIRED}" == 'btrfs' ]]; then
 		if mkfs."${SYSFS_EXPIRED}" "${SYSDEV_EXPIRED}" -f -L "BACKUPFS"; then
 			_ctflag_remake=0
@@ -222,18 +243,21 @@ elif [[ "${_ctflag_switch}" == 0 && "${_ctflag_bconf}" != 0 ]]; then
 	export BACKUPDEV
 
 	if [[ "${_ctflag_remake}" == 0 ]]; then
-		echo "Partitioned successfully"
-		echo "Syncing SYSFS to BACKUPFS"
+		echo -e "[\e[32m*\e[0m] Partitioned successfully"
+		echo -e "[\e[34m*\e[0m] Syncing SYSFS to BACKUPFS"
 		if _sync_targets; then
-			echo "Synced"
+			echo -e "[\e[32m*\e[0m] Synced"
 			_ctflag_bconf=1
 		else
-			echo "Failure"
+			echo -e "[\e[31m*\e[0m] Failure"
 			_ctflag_bconf=9
 		fi
 	else
-		echo "Partitioning ${SYSDEV_EXPIRED} failed"
+		echo -e "[\e[31m*\e[0m] Partitioning ${SYSDEV_EXPIRED} failed"
 		_ctflag_bconf=9
 	fi
+else
+	echo -e "[\e[32m*\e[0m] No setup is required"
 fi
+
 
