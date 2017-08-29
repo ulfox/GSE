@@ -907,6 +907,7 @@ _make_cimage() {
 	eval _dracut_f "${_flag_darg_force}" "${CDISTDIR}/initramfs-${GSEVER}-${_KVER_}" \
 	"${_flag_dinclude_entries}" "${_flag_dcmdl_entries}" "${_flag_dopt_entries}"
 
+	echo "${GSEVER}" > "${CDISTDIR}/latest_stage"
 	unset _KVER_
 }
 
