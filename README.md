@@ -1,4 +1,4 @@
-#### Before you go on
+## Before you go on
 Warrning: This project is currently experimental. It's on alpha stage, therefore it is recommended to be used only for testing, on enviroments that shield important data or system areas from the project's actions.
 
 [Project's Wiki](https://wiki.gentoo.org/wiki/User:Ulfox/GSoC-GSE)
