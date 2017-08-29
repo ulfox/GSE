@@ -6,7 +6,7 @@ die() {
 }
 
 _call_backup_switch() {
-	if [[ "${_ctflag_bconf}" != 0 && "${_ctflag_setup}" != 0 && "${_ctflag_setup}" != 1 ]]; then
+	if [[ "${_ctflag_bconf}" != 0 && "${_ctflag_setup}" != 0 ]]; then
 		_ctflag_switch=0
 		export _ctflag_switch
 	else
