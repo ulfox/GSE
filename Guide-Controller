@@ -42,13 +42,19 @@ When you have a bootable medium there are only 4 steps left.
 		- root=LABEL=SYSFS
 		- rd.neednet=1
 		- ip=dhcp
+		- ctetc=1
 		Example: linux /vmlinuz-4.12.5-gentoo root=LABEL=SYSFS rd.neednet=1 ip=dhcp
-	4) Create 2 partitions on the device/s you want with the following labels: SYSFS BACKUPFS
-		Example: mkfs.ext4 -L SYSFS /dev/sdb4 && mkfs.ext4 -L BACKUPFS /dev/sdc2
+	4) Create 3 partitions on the device/s you want with the following labels: SYSFS BACKUPFS BOOTFS
+		The BOOTFS label must be given to the bootable partition you created.
+		Example, if you wish to use /dev/sdb2 for system, /dev/sdc2 for backup partition
+			and your bootloader is on /dev/sda2 and all those partitions host ext4 filesystem, then:
+			e2label /dev/sda2 BOOTFS && mkfs.ext4 -L SYSFS /dev/sdb2 && mkfs.ext4 -L BACKUPFS /dev/sdc2
 
-	There are 2 more Labels that can be created on 2 extra partitions, but those are not essential for the boot process.
-	Those are: BOOTFS and USERDATAFS. The BOOTFS should be given at the bootloaders partition while the USERDATAFS at any drive that you wish to use for storage.
+	There is 1 more Label that can be created on anextra partition, but it is not essential for the boot process
+	
+	This is: USERDATAFS. The USERDATAFS should be given at any drive that you wish to use for storage.
 	The USERDATAFS label provides an extra security layer from the controller, since all controller's actions are shielded on a device with such a label.
 
 When done, plug the bootable medium to a machine and boot it. If everything was done as should, the process should fetch an image, configure it and boot it.
+
 
