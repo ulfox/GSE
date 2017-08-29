@@ -1,12 +1,13 @@
-## Abstract
+#### Before you go on
+Warrning: This project is currently experimental. It's on alpha stage, therefore it is recommended to be used only for testing, on enviroments that shield important data or system areas from the project's actions.
+
 [Project's Wiki](https://wiki.gentoo.org/wiki/User:Ulfox/GSoC-GSE)
+
+## Abstract
 
 A stateless environment based on Gentoo, which aims on making the 
 maintenance of multiple machines easier, improve stability and usability 
 on environments like Research or University computer labs.
-
-#### Before you go on
-Warrning: This project is currently experimental. It's on alpha stage, therefore it is recommended to be used only for testing, on enviroments that shield important data or system areas from the project's actions.
 
 ## An introduction to the stateless concept
 
