@@ -7,3 +7,4 @@ gpg=yes
 
 # CHANGE TO NO IF YOU WISH TO EXCLUDE MD5/SHA SUM CHECKS
 sums=yes
+
