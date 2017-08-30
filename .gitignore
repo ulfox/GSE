@@ -13,3 +13,7 @@ create_dracut.sh
 inprogress
 flashit.sh
 makeit_go.sh
+tmp
+local/log
+local/gse_list.tar.bz2
+

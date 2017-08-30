@@ -2100,6 +2100,7 @@ _archive_() {
 	_e_report_back "Unbinding..."
 	mkdir -p "$1/var/lib/gse"
 	echo "${GSEVER}" > "$1/var/lib/gse/version"
+	
 	_unmount "${_flag_base}"
 
 	TARGETSTAMP="$(grep 'version_stamp' "${CCONFDIR}/system/catalyst/stage3.spec" \
