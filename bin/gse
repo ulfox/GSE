@@ -9,12 +9,6 @@
 #																						      #
 ##																						     ##
 
-if echo "${_flag_tty}" | grep -q 'sshd'; then
-	LC_COLLATE="C"
-	LC_ALL="en_US.UTF-8"
-	LC_CTYPE="en_US.UTF-8"
-fi
-
 # DEFINITION OF CWORKDIR AND IT'S SUBDIRECTORIES
 export CWORKDIR="$(dirname ${PWD})"
 export CCONFDIR="${CWORKDIR}/config.d"
@@ -29,25 +23,6 @@ export PATH=${PATH}:${CWORKDIR}/scripts/functions
 source "${CWORKDIR}/scripts/functions/sinit_functions" || { echo -e "\e[31mMissing scripts\e[0m" && exit 1; }
 source "${CWORKDIR}/scripts/functions/catalyst_functions" || { echo -e "\e[31mMissing scripts\e[0m" && exit 1; }
 source "${CWORKDIR}/etc/gentoo.conf" || { echo -e "\e[31mMissing gentoo.conf\e[0m" && exit 1; }
-
-# CHECK IF BASH IS THE DEFAULT {CURRENT} SHELL, ISSUE A WARNING OTHERIWSE
-shl_f() {
-	SHL=$SHELL
-	ISITBASH=$(echo "${SHL}" |  awk -F "bin/" '{ print $2}')
-	if [[ ${ISITBASH} != "bash" ]]; then
-		echo "Seems like you are not using bash"
-		echo "Keep in mind that all scripts from this project are written for bash interpretation"
-		while true; do
-			echo "Do you want to continue?: "
-			read -rp "Input :: <= " S
-			case ${S} in
-				[Yy][eE][sS]|[yY]) clear; break;;
-				[Nn][oO]|[nN]) echo "Exiting..."; exit;;
-				* ) echo  "Select Y/N";;
-			esac
-		done
-	fi
-}
 
 # ROOT CHECK FUNCTION, IS NEEDED FOR THE CATALYST AND CHROOT PROCESS
 amiroot() {
